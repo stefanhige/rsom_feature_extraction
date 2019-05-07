@@ -17,8 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-from classes import RSOM_MIP
-
+from classes import RSOM
 
 
 cwd = os.getcwd()
@@ -68,7 +67,7 @@ for idx, mat_lf in enumerate(all_mat_lf):
     fullpathLF = (Path(origin) / mat_lf).resolve()
     fullpathSurf = (Path(origin) / mat_surf).resolve()
     
-    Obj = RSOM_MIP(fullpathLF, fullpathHF, fullpathSurf)
+    Obj = RSOM(fullpathLF, fullpathHF, fullpathSurf)
     
     print(idx+1, '/', len(all_mat_lf), 'trying to access:')
     print(str(fullpathLF))

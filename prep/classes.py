@@ -31,15 +31,14 @@ from skimage import exposure
 
 
 # CLASS FOR ONE DATASET
-class RSOM_MIP():
+class RSOM():
     """
     class for preparing RSOM matlab data for layer segmentation
     """
     def __init__(self, filepathLF, filepathHF, filepathSURF='none'):
-        """ create empty instance of RSOM_MIP"""
+        """ create empty instance of RSOM """
         
         idx_1 = filepathLF.name.find('PAT')
-        
         if idx_1 == -1:
             idx_1 = filepathLF.name.find('VOL')
             
@@ -82,7 +81,7 @@ class RSOM_MIP():
         # create meshgrid for volume data
         # use grid step dv
         # TODO: extract from reconParams
-        # TODO: solve problem: pyhton crashes when accessing reconParams
+        # TODO: solve problem: python crashes when accessing reconParams
         dv = 0.012
         xVol = np.arange(0, np.size(self.Vl, 2)) * dv
         yVol = np.arange(0, np.size(self.Vl, 1)) * dv
@@ -190,6 +189,50 @@ class RSOM_MIP():
                 
         # can't keep the old values, uses too much memory
         self.OverrideV = True
+        
+    def markSKIN(self):
+        ''' find the approximate location of the skin surface just parallel to the image boundaries
+        !! only call this method after normINTENSITY
+        put a small mark at the edges of the corresponding z-layer
+        '''
+        
+        # just use low frequency channel
+        # project to 1D along z
+        V1d = np.fabs(np.sum(np.sum(self.Vl, axis = 2), axis = 1))
+        
+        
+        #plt.figure()
+        #plt.plot(V1d)
+       # plt.show()
+        
+        V1d_smooth = ndimage.filters.gaussian_filter1d(V1d, 4)
+        V1d_smooth = V1d_smooth / np.amax(V1d_smooth)
+        
+        zSkin = np.argwhere(V1d_smooth > 0.3)[0]
+    
+        #cB = np.kron(np.ones((int(np.shape(self.Vl_1)[1]/2), int(np.shape(self.Vl_1)[2]/2))), np.array([[1, 0], [0, 0]]))
+        
+        # replace one layer with checkerboard
+        try:
+            self.Vm[int(zSkin),0:5,0:5] = 1
+            self.Vm[int(zSkin),-6:-1,-6:-1] = 1
+            self.Vm[int(zSkin),-6:-1,0:5] = 1
+            self.Vm[int(zSkin),0:5,-6:-1] = 1
+            
+        except AttributeError:
+            # Vm does not exist, mark in the individual frequency images
+            self.Vl_1[int(zSkin),0:5,0:5] = 1
+            self.Vl_1[int(zSkin),-6:-1,-6:-1] = 1
+            self.Vl_1[int(zSkin),-6:-1,0:5] = 1
+            self.Vl_1[int(zSkin),0:5,-6:-1] = 1
+            
+            self.Vh_1[int(zSkin),0:5,0:5] = 1
+            self.Vh_1[int(zSkin),-6:-1,-6:-1] = 1
+            self.Vh_1[int(zSkin),-6:-1,0:5] = 1
+            self.Vh_1[int(zSkin),0:5,-6:-1] = 1
+            
+        
+        #self.Vm[int(zSkin),:,:] = cB
         
         
     def normINTENSITY(self, ignore_neg = True, sliding_max = False):
