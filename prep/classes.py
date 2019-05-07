@@ -13,6 +13,8 @@ from scipy import interpolate
 from scipy import ndimage
 from scipy.optimize import minimize_scalar
 
+import imageio
+
 import numpy as np
 
 import matplotlib.pyplot as plt
@@ -33,21 +35,31 @@ from skimage import exposure
 # CLASS FOR ONE DATASET
 class RSOM():
     """
-    class for preparing RSOM matlab data for layer segmentation
+    class for preparing RSOM matlab data for layer and vessel segmentation
     """
     def __init__(self, filepathLF, filepathHF, filepathSURF='none'):
-        """ create empty instance of RSOM """
+        """
+        create empty instance of RSOM
+        """
         
+        # extract the 3 digit id + measurement string eg PAT001_RL01
         idx_1 = filepathLF.name.find('PAT')
         if idx_1 == -1:
             idx_1 = filepathLF.name.find('VOL')
-            
         ID = filepathLF.name[idx_1:idx_1+11]
         
-        self.file = self.FileStruct(filepathLF, filepathHF, filepathSURF, ID)
+        # extact datetime number
+        idx_1 = filepathLF.name.find('_')
+        idx_2 = filepathLF.name.find('_', idx_1+1)
+        DATETIME = filepathLF.name[idx_1:idx_2+1]
+        
+        
+        self.file = self.FileStruct(filepathLF, filepathHF, filepathSURF, ID, DATETIME)
         
     def readMATLAB(self):
-        ''' read .mat files'''
+        '''
+        read .mat files
+        '''
         # load HF data
         self.matfileHF = sio.loadmat(self.file.HF)
         
@@ -64,8 +76,12 @@ class RSOM():
         self.matfileSURF = sio.loadmat(self.file.SURF)
         
     def flatSURFACE(self, override = True):
-        ''' modify volumetric data in order to get a flat skin surface'''
-        
+        '''
+        modify volumetric data in order to get a flat skin surface
+        options:
+            override = True. If False, Volumetric data of the unflattened
+            Skin will be saved.
+        '''
         # parse surface data and dx and dy
         S = self.matfileSURF['surfSmooth']
         dx = self.matfileSURF['dx']
@@ -88,22 +104,19 @@ class RSOM():
         xVol -= np.mean(xVol)
         yVol -= np.mean(yVol)
         xxVol, yyVol = np.meshgrid(xVol, yVol)
-        
-        # create interpolation function
-        #fn = interpolate.interp2d(ySurf, xSurf, S, kind = 'cubic')
-        #Sip = fn(yVol, xVol)
     
-        # try another interpolation function, supposed to be faster
+        # generate interpolation function
         fn = interpolate.RectBivariateSpline(xSurf, ySurf, S)
         Sip = fn(xVol, yVol)
         
         # subtract mean
         Sip -= np.mean(Sip)
         
-        # flip
+        # flip, to fit the grid
         Sip = Sip.transpose()
         
-        
+        # save to Obj
+        self.Sip = Sip
         
         if not override:
             # create copy 
@@ -116,19 +129,16 @@ class RSOM():
             for j in np.arange(np.size(self.Vl, 2)):
                 
                 offs = int(-np.around(Sip[i, j]/2))
-                
-                #print(offs)
-            
+                # TODO: why not replace with zeros?
                 self.Vl[:, i, j] = np.roll(self.Vl[:, i, j], offs);
-                
                 self.Vh[:, i, j] = np.roll(self.Vh[:, i, j], offs);
-    
-    
-        #print(np.sum(Vl-Vlold))
 
         
     def plotSURFACE(self):
-        ''' plot surfaceSmooth of MATLAB data'''
+        '''
+        plot the surfaceData used for the normalization
+        It's called "surfSmooth and extracted from the MATLAB data
+        '''
         
         fig = plt.figure()
         ax = fig.gca(projection='3d')
@@ -151,20 +161,22 @@ class RSOM():
         # Plot the surface.
         surf = ax.plot_surface(xxSurf, yySurf, S.transpose(), cmap=cm.coolwarm,
                    linewidth=0, antialiased=False)
-
         # Customize the z axis.
         #ax.set_zlim(-1.01, 1.01)
         #ax.zaxis.set_major_locator(LinearLocator(10))
         #ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-
+        
         # Add a color bar which maps values to colors.
         fig.colorbar(surf, shrink=0.5, aspect=5)
 
         plt.show()
     
     def rescaleVOLUME(self):
-        ''' rescale the volumetric data in order to get uniform grid spacing'''
-        
+        '''
+        rescale the volumetric data Vl, Vh in order to get 
+        uniform grid spacing
+        '''
+        # interpolationOrder
         # ipo = 1 means linear interpolation
         ipo = 1
                 
@@ -190,77 +202,28 @@ class RSOM():
         # can't keep the old values, uses too much memory
         self.OverrideV = True
         
-    def markSKIN(self):
-        ''' find the approximate location of the skin surface just parallel to the image boundaries
-        !! only call this method after normINTENSITY
-        put a small mark at the edges of the corresponding z-layer
+    def normINTENSITY(self, ignore_neg = True, sliding_max = False):
+        '''
+        normalize intensities to [0 1]
+        options:
+            ignore_neg = True. Cut negative intensities.
+            sliding_max = False. Use adaptive maximum filter.
         '''
         
-        # just use low frequency channel
-        # project to 1D along z
-        V1d = np.fabs(np.sum(np.sum(self.Vl, axis = 2), axis = 1))
-        
-        
-        #plt.figure()
-        #plt.plot(V1d)
-       # plt.show()
-        
-        V1d_smooth = ndimage.filters.gaussian_filter1d(V1d, 4)
-        V1d_smooth = V1d_smooth / np.amax(V1d_smooth)
-        
-        zSkin = np.argwhere(V1d_smooth > 0.3)[0]
-    
-        #cB = np.kron(np.ones((int(np.shape(self.Vl_1)[1]/2), int(np.shape(self.Vl_1)[2]/2))), np.array([[1, 0], [0, 0]]))
-        
-        # replace one layer with checkerboard
-        try:
-            self.Vm[int(zSkin),0:5,0:5] = 1
-            self.Vm[int(zSkin),-6:-1,-6:-1] = 1
-            self.Vm[int(zSkin),-6:-1,0:5] = 1
-            self.Vm[int(zSkin),0:5,-6:-1] = 1
-            
-        except AttributeError:
-            # Vm does not exist, mark in the individual frequency images
-            self.Vl_1[int(zSkin),0:5,0:5] = 1
-            self.Vl_1[int(zSkin),-6:-1,-6:-1] = 1
-            self.Vl_1[int(zSkin),-6:-1,0:5] = 1
-            self.Vl_1[int(zSkin),0:5,-6:-1] = 1
-            
-            self.Vh_1[int(zSkin),0:5,0:5] = 1
-            self.Vh_1[int(zSkin),-6:-1,-6:-1] = 1
-            self.Vh_1[int(zSkin),-6:-1,0:5] = 1
-            self.Vh_1[int(zSkin),0:5,-6:-1] = 1
-            
-        
-        #self.Vm[int(zSkin),:,:] = cB
-        
-        
-    def normINTENSITY(self, ignore_neg = True, sliding_max = False):
-        ''' normalize intensities to [0 1] '''
-        
-        
-        
-        #img = nib.Nifti1Image(self.Vl.astype(dtype = np.float32), np.eye(4))
-        
-        #nib.save(img,'Vol2_raw.nii')
-
         # use a sliding maximum filter
         if sliding_max:
             self.Vl_1 = self.labelNormalization(self.Vl)
             self.Vh_1 = self.labelNormalization(self.Vh)
         else:
-            self.Vl_1 = np.true_divide(self.Vl, np.quantile(self.Vl, 1))
-            self.Vh_1 = np.true_divide(self.Vh, np.quantile(self.Vh, 1))
+            self.Vl_1 = np.true_divide(self.Vl, np.amax(self.Vl))
+            self.Vh_1 = np.true_divide(self.Vh, np.amax(self.Vh))
             
-
-        #plotSlice(self.Vh_1, 100)
-
-        # TODO: there are still some values >1, due to boundary problems of
+            
+        # there might be still some values >1, due to boundary problems of
         # labelNormalization
         # cut above 1
         self.Vl_1[self.Vl_1 > 1] = 1
         self.Vh_1[self.Vh_1 > 1] = 1
-       
         # delete negative values
         if ignore_neg:
             self.Vl_1[self.Vl_1 < 0] = 0
@@ -269,18 +232,91 @@ class RSOM():
             # cap below -1
             self.Vl_1[self.Vl_1 < -1] = -1
             self.Vh_1[self.Vh_1 < -1] = -1
-
             # move to positive values
             self.Vl_1 += 1
             self.Vh_1 += 1
-    
             # scale to unity
             self.Vl_1 = self.Vl_1 / 2
             self.Vh_1 = self.Vh_1 / 2
+            
+        
+    def rescaleINTENSITY(self, dynamic_rescale = False):
+        '''
+        rescale intensities, quadratic, crop
+        '''
+        
+        
+        if dynamic_rescale:
+            #rescale intensity
+            val = np.quantile(self.Vl_1, (0, 0.99))
+            print('quantile Vl', val)
+            self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (val[0], val[1]))
+            
+            
+            val = np.quantile(self.Vh_1, (0, 0.99))
+            print('quantile Vh', val)
+            self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (val[0], val[1]))
+            
+            self.Vl_1 = self.Vl_1**2
+            self.Vh_1 = self.Vh_1**2
+            
+            
+            val = np.quantile(self.Vl_1, (0.8, 1))
+            print('quantile Vl', val)
+            self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (val[0], val[1]))
+            
+            
+            val = np.quantile(self.Vh_1, (0.8, 1))
+            print('quantile Vh', val)
+            self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (val[0], val[1]))
+            
+        else:
+            #static
+        
+            self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0, 0.2))
+            self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0, 0.1))
+            
+            self.Vl_1 = self.Vl_1**2
+            self.Vh_1 = self.Vh_1**2
+            
+            self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0.05, 1))
+            self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0.02, 1))
+
+        #print('min:', np.amin(self.Vl_1))
+        #print('max:', np.amax(self.Vl_1))
+        
+            
+#
+#     @staticmethod
+#     def projINTENSITY(V, percentile_rsc):
+#         '''
+#         rescale intensity of input Volume
+#         options:
+#             percentile_rsc = (0, 99): where to crop the intensity values,
+#             depending on their distribution / frequency:
+#                 map intensity values of CDF(0%, 99%) -> (min max)
+# 
+#         '''
+#         if percentile_rsc[0] < 0:
+#             percentile_rsc[0] = 0
+#         
+#         if percentile_rsc[1] > 100:
+#             percentile_rsc[1] = 100
+#         
+#         pl, ph = np.percentile(V, percentile_rsc)
+#         
+#         return exposure.rescale_intensity(V, in_range=(pl, ph))
+#
         
 
-    def plotMIP(self, axis = 1):
-        ''' plot maximum intensity projection along second axis '''
+    def calcMIP(self, axis = 1, do_plot = True):
+        '''
+        plot maximum intensity projection along specified axis
+        options:
+            axis = 0,1,2. Axis along which to project
+            do_plot = True. Plot into figure
+            
+        '''
         
         axis = int(axis)
         if axis > 2:
@@ -288,43 +324,56 @@ class RSOM():
         if axis < 0:
             axis = 0
             
-        
         # maximum intensity projection
         self.Pl = np.amax(self.Vl, axis = axis)
         self.Ph = np.amax(self.Vh, axis = axis)
         
         # calculate alpha
         res = minimize_scalar(self.calc_alpha, bounds=(0, 100), method='bounded')
-        
         alpha = res.x
         
-        P = np.dstack([self.Pl, alpha * self.Ph, np.zeros(self.Ph.shape)])
+        self.P = np.dstack([self.Pl, alpha * self.Ph, np.zeros(self.Ph.shape)])
         
         # cut negative values, in order to allow rescale to uint8
-        P[P < 0] = 0
+        self.P[self.P < 0] = 0
         
-        P = exposure.rescale_intensity(P, out_range = np.uint8)
-        P = P.astype(dtype=np.uint8)
-        P = exposure.rescale_intensity(P, in_range = (0.03*255, 0.3*255), out_range = np.uint8)
+        self.P = exposure.rescale_intensity(self.P, out_range = np.uint8)
+        self.P = self.P.astype(dtype=np.uint8)
         
-        plt.figure()
-        plt.imshow(P)
-        plt.title(str(self.file.ID))
-        #plt.imshow(P, aspect = 1/4)
+        # rescale intensity
+        val = np.quantile(self.P, (0.8, 0.9925))
         
-        plt.show()
+        #print("Quantile", val[0], val[1], 'fixed values', round(0.03*255), 0.3*255)
+        
+        self.P = exposure.rescale_intensity(self.P, in_range = (val[0], val[1]), out_range = np.uint8)
+        
+        if do_plot:
+            plt.figure()
+            plt.imshow(self.P)
+            plt.title(str(self.file.ID))
+            #plt.imshow(P, aspect = 1/4)
+            plt.show()
         
         
     def calc_alpha(self, alpha):
+        '''
+        MIP helper function
+        '''
         return np.sum(np.square(self.Pl - alpha * self.Ph))
     
     def calc_alpha_3d(self, alpha):
+        '''
+        MIP helper function
+        '''
         return np.sum(np.square(self.Vl_split - alpha * self.Vh_split))
     
-    def calcMIP_sliced(self, plot = 1):
-        ''' plot maximum intensity projection along second axis '''
-        
-            
+    def calcMIP3D(self, do_plot = True):
+        '''
+        plot maximum intensity projection along second axis
+        options:
+            do_plot = True
+        '''
+    
         # split along axis=1, 171 pixel / 9 = 19
         # get back 9 equally sized arrays
         self.Vl_split = np.split(self.Vl, 9, axis = 1)
@@ -335,87 +384,125 @@ class RSOM():
             self.Vl_split[idx] = np.amax(self.Vl_split[idx], axis = 1, keepdims = True)
             self.Vh_split[idx] = np.amax(self.Vh_split[idx], axis = 1, keepdims = True)
         
-        
         self.Vl_split = np.concatenate(self.Vl_split, axis = 1)
         self.Vh_split = np.concatenate(self.Vh_split, axis = 1)
             
-            
-        # global alpha calc
-        # TODO: maybe try slice-wise alpha calc?
+        # global alpha calculation (all slices)
         res = minimize_scalar(self.calc_alpha_3d, bounds=(0, 100), method='bounded')
-        
         alpha = res.x
         
         # RGB stack
         self.P_sliced = np.stack([self.Vl_split, alpha * self.Vh_split, np.zeros(self.Vl_split.shape)], axis = -1)
         
         self.P_sliced[self.P_sliced < 0] = 0
-        
         self.P_sliced = exposure.rescale_intensity(self.P_sliced, out_range = np.uint8)
         self.P_sliced = self.P_sliced.astype(dtype=np.uint8)
         
         # rescale intensity
         val = np.quantile(self.P_sliced,(0.8, 0.9925))
-        print("Quantile", val[0], val[1], 'fixed values', round(0.03*255), 0.2*255, 'up to', 0.3*255)
+        #print("Quantile", val[0], val[1], 'fixed values', round(0.03*255), 0.2*255, 'up to', 0.3*255)
         
         self.P_sliced = exposure.rescale_intensity(self.P_sliced, in_range = (val[0], val[1]), out_range = np.uint8)
     
-        if plot:
+        if do_plot:
             shp = self.P_sliced.shape
             P_ = self.P_sliced.copy()
             P_[:,:,-3:-1,:] = 255
             plt.figure()
             plt.imshow(P_.reshape((shp[0], shp[1]*shp[2], -1)))
+            plt.title(str(self.file.ID))
             plt.show()
         
         
-        # TODO: try global alpha calc, and local alpha calc and compare
-        # TODO: 
-        #       calculate Vl_split and Vh_split
-        #       calculate alpha, either for each slice manually, or global
-        #       merge to  R G B, getting 4D array (can copy this from merging function for the whole volume)
-        #       save thing to nii.gz
-        #       try labeling the MIP slices in ITK snap, ask Hailong how many layers we should segment
-        #       
-        #       Post-proc: interpolate MIP label slices back to original volume (interpolate on integer space ??)
-        #
-        #       this should then be the input for the 2.5D conv net, actually it's a 2d conv net
-        #
-        # TODO: CUT SOMEHOW TO EVEN OR UNEVEN INTEGER
-        
-        
     def mergeVOLUME_RGB(self):
-        ''' merge low frequency and high frequency data feeding into different
-        colour channels'''
-        
-        self.Vl_1 = self.projINTENSITY(self.Vl_1)
-        self.Vh_1 = self.projINTENSITY(self.Vh_1)
-        
+        '''
+        merge low frequency and high frequency data feeding into different
+        colour channels
+        '''
         B = np.zeros(np.shape(self.Vl_1))
-        
         
         self.Vm = np.stack([self.Vl_1, self.Vh_1, B], axis = -1)
         
-    @staticmethod
-    def projINTENSITY(V):
-        ''' rescale intensity of input Volume''' 
-        pl, ph = np.percentile(V, (0, 99))
+    def cutDEPTH(self):
+        ''' cut Vl and Vh to 500 x 171 x 333'''
         
-        return exposure.rescale_intensity(V, in_range=(pl, ph))
+        zmax = 500
+        
+        # extract shape
+        shp = self.Vl.shape
+        
+        if shp[0] >= zmax:
+            self.Vl = self.Vl[:500,:,:]
+            self.Vh = self.Vh[:500,:,:]
+        else:
+            ext = zmax - shp[0]
+            print('Extending volume. old shape:', shp)
+            
+            self.Vl = np.concatenate([self.Vl, np.zeros((ext, shp[1], shp[2]))], axis = 0)
+            self.Vh = np.concatenate([self.Vh, np.zeros((ext, shp[1], shp[2]))], axis = 0)  
+            
+            print('New shape:', self.Vl.shape)
+        
+    def saveMIP(self, destination, fstr = ''):
+        '''
+        save MIP as 2d image
+        '''
+         # generate Path object
+        destination = Path(destination)
+        
+        # generate filename
+        img_file = (destination / ('R' + 
+                                   self.file.DATETIME + 
+                                   self.file.ID +
+                                   '_' +
+                                   fstr +
+                                   '.png')).resolve()
+        print(str(img_file))
         
         
-    def cut236(self):
-        ''' cut the volume to 200x300x600'''
+        imageio.imwrite(img_file, self.P)
+
+    def saveSURFACE(self, destination, fstr = ''):
+        '''
+        save surface as 2d image with colorbar?
+        '''
+        plt.ioff()
+        plt.figure()
         
-        self.Vm = self.Vm[:200,:300,:600]
+        Surf = self.Sip-np.amin(self.Sip)
         
-    def cut236_2channel(self):
+        plt.imshow(Surf, cmap=cm.jet)
+        plt.colorbar()
+        #plt.show()
         
-        self.Vl = self.Vl[:200,:300,:600]
-        self.Vh = self.Vh[:200,:300,:600]
         
         
-    def saveMIP(self, fstr = ''):
+        
+        # generate Path object
+        destination = Path(destination)
+        
+        # generate filename
+        img_file = (destination / ('R' + 
+                                   self.file.DATETIME + 
+                                   self.file.ID +
+                                   '_' +
+                                   fstr +
+                                   '.png')).resolve()
+        print(str(img_file))
+        
+        plt.title(str(self.file.ID))
+        plt.savefig(img_file)
+        
+        plt.close() 
+        
+        
+        
+        
+        #imageio.imwrite(img_file, self.Sip)
+
+        
+        
+    def saveMIP3D(self, destination, fstr = ''):
         ''' save rgb maximum intensity projection volume'''
         
         # Vm is a 4-d numpy array, with the last dim holding RGB
@@ -425,15 +512,23 @@ class RSOM():
         self.P_sliced = self.P_sliced.view(rgb_dtype).reshape(shape_3d)
         img = nib.Nifti1Image(self.P_sliced, np.eye(4))
         
-        mat_file = self.file.LF
-        name = mat_file.name
-        name = name.rstrip('LF.mat') + fstr + '.nii.gz'
-        nii_file = mat_file.parents[0] / name
+        # generate Path object
+        destination = Path(destination)
         
+        # generate filename
+        nii_file = (destination / ('R' + 
+                                   self.file.DATETIME + 
+                                   self.file.ID +
+                                   '_' +
+                                   fstr +
+                                   '.nii.gz')).resolve()
+        print(str(nii_file))
         nib.save(img, str(nii_file))
         
-    def saveVOLUME(self, fstr = ''):
-        ''' save rgb volume'''
+    def saveVOLUME(self, destination, fstr = ''):
+        '''
+        save rgb volume
+        '''
         
         self.Vm = exposure.rescale_intensity(self.Vm, out_range = np.uint8)
         
@@ -444,18 +539,31 @@ class RSOM():
         self.Vm = self.Vm.view(rgb_dtype).reshape(shape_3d)
         img = nib.Nifti1Image(self.Vm, np.eye(4))
         
-        mat_file = self.file.LF
-        name = mat_file.name
-        name = name.rstrip('LF.mat') + fstr + '.nii.gz'
-        nii_file = mat_file.parents[0] / name
+        
+        # generate Path object
+        destination = Path(destination)
+        
+        # generate filename
+        nii_file = (destination / ('R' + 
+                                   self.file.DATETIME + 
+                                   self.file.ID +
+                                   '_' +
+                                   fstr +
+                                   '.nii.gz')).resolve()
+        print(str(nii_file))
+
         
         nib.save(img, str(nii_file))
+    
         
         
     class FileStruct():
-        """ helper class for data management"""
-        def __init__(self, filepathLF, filepathHF, filepathSURF, ID):
+        '''
+        helper class for data management
+        '''
+        def __init__(self, filepathLF, filepathHF, filepathSURF, ID, DATETIME):
             self.LF = filepathLF
             self.HF = filepathHF
             self.SURF = filepathSURF
             self.ID = ID
+            self.DATETIME = DATETIME
