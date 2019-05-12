@@ -353,6 +353,68 @@ class RSOM():
             plt.title(str(self.file.ID))
             #plt.imshow(P, aspect = 1/4)
             plt.show()
+            
+    def slidingMIP(self, axis=1):
+        '''
+        generate volume of mip's in a sliding fashion
+        '''
+        axis = int(axis)
+        if axis > 2:
+            axis = 2
+        if axis < 0:
+            axis = 0
+        
+        shp = self.Vl.shape
+        
+        window = 15
+        
+        if axis == 1:
+            Pl = np.zeros((shp[0],0,shp[2]))
+            Ph = np.zeros((shp[0],0,shp[2]))
+        elif axis == 0:
+            Pl = np.zeros((0, shp[1], shp[2]))
+            Ph = np.zeros((0, shp[1], shp[2]))
+                
+        for i in range(shp[axis]-int(window)):
+            if axis == 1:
+                subVl = self.Vl[:, i:i+window, :]
+                subVh = self.Vh[:, i:i+window, :]
+            elif axis == 0:
+                subVl = self.Vl[i:i+window, :, :]
+                subVh = self.Vh[i:i+window, :, :]
+                
+            #print(Pl.shape)
+            #print(subVl.shape)
+            
+            maxx = (np.amax(subVl, axis = axis, keepdims=True))
+            
+            #print(maxx.shape)
+            
+            #print('axis', axis)
+            
+            #print(Ph.shape)
+            Pl = np.concatenate((maxx, Pl), axis=axis)
+            Ph = np.concatenate((np.amax(subVh, axis=axis, keepdims=True), Ph), axis=axis)
+            #Pl[i] = np.amax(subVl, axis = axis)
+            #Ph[i] = np.amax(subVh, axis = axis)
+        
+        alpha = 16
+        
+        # RGB stack
+        P = np.stack([Pl, alpha * Ph, np.zeros(Ph.shape)], axis = -1)
+        
+        P[P < 0] = 0
+        P = exposure.rescale_intensity(P, out_range = np.uint8)
+        P = P.astype(dtype=np.uint8)
+        
+        # rescale intensity
+        val = np.quantile(P,(0.8, 0.9925))
+        #print("Quantile", val[0], val[1], 'fixed values', round(0.03*255), 0.2*255, 'up to', 0.3*255)
+        
+        P = exposure.rescale_intensity(P, in_range = (val[0], val[1]), out_range = np.uint8)
+        
+        return P
+        
         
         
     def calc_alpha(self, alpha):
@@ -390,6 +452,8 @@ class RSOM():
         # global alpha calculation (all slices)
         res = minimize_scalar(self.calc_alpha_3d, bounds=(0, 100), method='bounded')
         alpha = res.x
+        
+        #print(alpha)
         
         # RGB stack
         self.P_sliced = np.stack([self.Vl_split, alpha * self.Vh_split, np.zeros(self.Vl_split.shape)], axis = -1)
@@ -494,9 +558,7 @@ class RSOM():
         plt.savefig(img_file)
         
         plt.close() 
-        
-        
-        
+    
         
         #imageio.imwrite(img_file, self.Sip)
 
@@ -554,8 +616,6 @@ class RSOM():
 
         
         nib.save(img, str(nii_file))
-    
-        
         
     class FileStruct():
         '''
@@ -567,3 +627,191 @@ class RSOM():
             self.SURF = filepathSURF
             self.ID = ID
             self.DATETIME = DATETIME
+            
+            
+            
+            
+            
+            
+class RSOM_mip_interp():
+    def __init__(self, filepath):
+        ''' create an instance of RSOM_MIP_IP; requires path '''
+        self.filepath = filepath
+        
+    def readNII(self):
+        ''' read in the .nii.gz files specified in self.filepath'''
+        
+        img = nib.load(str(self.filepath))
+        self.L_sliced = img.get_fdata()
+        self.L_sliced = self.L_sliced.astype(np.uint8)
+        
+    def saveNII(self, destination, fstr = ''):
+        ''' '''
+        
+
+        self.L = self.L.astype(np.uint8)
+        img = nib.Nifti1Image(self.L, np.eye(4))
+        
+        file = self.filepath
+        
+        name = file.name
+        
+        name = name.replace('mip3d_l.nii.gz',('l' + fstr + '.nii.gz'))
+        
+            # generate Path object
+        destination = Path(destination)
+        
+        # generate filename
+        nii_file = destination / name
+        print(str(nii_file))
+        nib.save(img, str(nii_file))
+        
+    def interpolate(self):
+        ''' interpolate the .nii.gz label files along axis=1 '''
+        
+        # label volume is           depth x 9 x 333
+        # need to interpolate to    depth x 171 x 333
+        
+        x_mip = 9
+        x_rep = 171
+        
+        label_min = np.amin(self.L_sliced)
+        label_max = np.amax(self.L_sliced)
+        
+        #self.L_sliced = exposure.rescale_intensity(self.L_sliced, in_range = (label_min, label_max), out_range = np.uint8)
+        #self.L_sliced = self.L_sliced.astype(np.uint8)
+        
+        shp = self.L_sliced.shape
+    
+        # create grid for L_sliced
+        x1 = np.arange(shp[0])
+        x2 = np.linspace(np.floor(x_rep/x_mip/2), x_rep - np.ceil(x_rep/x_mip/2), num = x_mip)
+        x3 = np.arange(shp[2])
+        
+        # dimension to be interpolated
+        x2_q = np.arange(x_rep)
+        
+        
+        #x1_q, x2_q, x3_q = (
+                #x1[:, None, None], x2_q[None, :, None], x3[None, None, :])
+        
+        # TODO: 
+        #Interpolation somehow still does not work
+        # another approach, along axis=0, search for change in value,
+        # and create a 2d function, based on the indices
+        
+        # it works, just need to stack a for loop on top, in order to 
+        # process an aribitrary number of layers in z-direction
+        
+        # in case, label order is random, sort
+        
+        # determine label order of input
+        
+        # create synthetic extra label
+        # TODO: REMOVE THIS
+        #self.L_sliced[0:20,:,:] = 2
+        
+        L_sliced_ = self.L_sliced.copy().astype(np.int64)
+        
+        # cut in direction dim 0 throught middle of the volume
+        L_1d = L_sliced_[:,int(shp[1]/2),int(shp[2]/2)].copy()
+        
+        # find the number of labels, and their indices
+        # np.unique returns the labels in ascending order
+        labels, idx = np.unique(L_1d, return_index = True)
+        
+        n_labels = labels.size
+        
+        # TODO:
+        print('Warning. Processing data with poor implementation for label handling')
+        
+        for xx in np.arange(x_mip):
+            for yy in np.arange(shp[2]):
+            
+               idx_nz = np.nonzero(L_sliced_[:, xx, yy])
+               #print(idx_nz)
+               idx_nz = idx_nz[0][-1]
+               #print(idx_nz)
+               L_sliced_[idx_nz+1:, xx, yy] = 2
+               
+               #print(np.unique(L_sliced_[:, xx, yy], return_index = True))
+               
+               #print(L_sliced_[idx_nz, xx, yy])
+               
+        # TODO: 
+        #DANGEROUS HACK
+        print('warning, remove that dangerous hack')
+        n_labels = n_labels + 1
+        
+        
+        
+        # check if labels are in shape: 0 1 2 3 4 already
+        # TODO: check boolean expression
+#        if not ((labels[0] == 0) and (np.any(np.diff(labels) - 1))):
+#            
+#            print('reshaping')
+#            # if not: reshape
+#            # add some 'large' number to the labels
+#            L_sliced_ += 20
+#            
+#            layer_ctr = 0
+#            
+#            for nl in np.arange(n_labels):
+#                L_sliced_[L_sliced_ == labels[nl] + 20] = layer_ctr
+#                layer_ctr += 1
+                
+        # INPUT: in dim 0: ascending index: label order: 0 1 2 3 4
+        self.L = np.zeros((shp[0], x_rep, shp[2]))
+        
+        for nl in np.arange(n_labels - 1):
+            surf = np.zeros((x_mip, shp[2]))
+    
+            for xx in np.arange(x_mip):
+                for yy in np.arange(shp[2]):
+                    
+                    #idx = np.nonzero(np.logical_not(self.L_sliced[:, xx, yy]))
+                    idx = np.nonzero(L_sliced_[:, xx, yy])
+                    
+                    surf[xx, yy] = idx[0][0]
+                    
+            fn = interpolate.interp2d(x3, x2, surf, kind = 'cubic')
+            surf_ip = fn(x3, x2_q)
+            
+            
+            
+            for xx in np.arange(x_rep):
+                for yy in np.arange(shp[2]):
+                    self.L[0:np.round(surf_ip[xx, yy]).astype(np.int), xx, yy] += 1
+            
+            # NEXT LABEL
+            L_sliced_ -= 1
+            L_sliced_[L_sliced_ < 0] = 0
+            
+        # TODO   
+        print('Warning. Processing data with poor implementation for label handling')
+        self.L[self.L == 2] = 0
+        
+            
+        return self.L
+    
+        # RESULT: in dim 0: ascending index: label order: 4 3 2 1 0
+        
+        
+#        self.L = interpolate.interpn(
+#                (x1, x2, x3),
+#                self.L_sliced,
+#                (x1_q, x2_q, x3_q),
+#                method='linear',
+#                bounds_error = False,
+#                fill_value = None)
+#        
+#        self.L_255 = self.L.copy()
+#        
+#        self.L = np.round(self.L)
+#        self.L = exposure.rescale_intensity(self.L, in_range = np.uint8, out_range = (label_min, label_max))
+#        
+#        # TODO EROSION DILATION?
+#        #scipy.ndimage.morphology.grey_closing
+#        
+#        print('Shape of L', self.L.shape)
+

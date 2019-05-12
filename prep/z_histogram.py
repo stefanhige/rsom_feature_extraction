@@ -57,7 +57,10 @@ shp_vec = np.zeros((1,3))
 
 for idx, mat_lf in enumerate(all_mat_lf):
     
-    mat_hf = mat_lf.rstrip('LF.mat') + 'HF.mat'
+    mat_hf = mat_lf.replace('LF.mat','HF.mat')
+    er#TODO: review before running
+    
+    
     idx_1 = mat_lf.find('_')
     idx_2 = mat_lf.find('_', idx_1+1)
     mat_surf = 'Surf' + mat_lf[idx_1:idx_2+1] + '.mat'

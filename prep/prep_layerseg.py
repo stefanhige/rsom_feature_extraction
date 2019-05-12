@@ -51,8 +51,12 @@ from classes import RSOM
 #origin = '/home/sgerl/Documents/PYTHON/TestDataset20190411/selection'
 
 origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/allmat'
+origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
 
-destination = '/home/sgerl/Documents/RSOM/Diabetes/fullDataset/layer_seg'
+
+destination = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
+
+#destination = '/home/sgerl/Documents/RSOM/Diabetes/fullDataset/layer_seg'
 
 
 cwd = os.getcwd()
@@ -69,7 +73,9 @@ filenameLF_LIST = [el for el in all_files if el[-6:] == 'LF.mat']
 
 for idx, filenameLF in enumerate(filenameLF_LIST):
     # the other ones will be automatically defined
-    filenameHF = filenameLF.rstrip('LF.mat') + 'HF.mat'
+    filenameHF = filenameLF.replace('LF.mat','HF.mat')
+    #TODO: review before running
+    
     # extract datetime
     idx_1 = filenameLF.find('_')
     idx_2 = filenameLF.find('_', idx_1+1)
@@ -89,7 +95,7 @@ for idx, filenameLF in enumerate(filenameLF_LIST):
     Obj.cutDEPTH()
     
     # surface for quick check
-    Obj.saveSURFACE((destination + '/surf'), fstr = 'surf')
+    Obj.saveSURFACE((destination + ''), fstr = 'surf')
     
     # MIP image for quick check
     Obj.calcMIP(do_plot = False)
