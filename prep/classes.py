@@ -366,7 +366,7 @@ class RSOM():
         
         shp = self.Vl.shape
         
-        window = 15
+        window = 10
         
         if axis == 1:
             Pl = np.zeros((shp[0],0,shp[2]))
@@ -571,7 +571,7 @@ class RSOM():
         shape_3d = self.P_sliced.shape[0:3]
         rgb_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
         #self.Vm = self.P_sliced.astype('u1')
-        self.P_sliced = self.P_sliced.view(rgb_dtype).reshape(shape_3d)
+        self.P_sliced = self.P_sliced.copy().view(rgb_dtype).reshape(shape_3d)
         img = nib.Nifti1Image(self.P_sliced, np.eye(4))
         
         # generate Path object
@@ -598,7 +598,7 @@ class RSOM():
         shape_3d = self.Vm.shape[0:3]
         rgb_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
         self.Vm = self.Vm.astype('u1')
-        self.Vm = self.Vm.view(rgb_dtype).reshape(shape_3d)
+        self.Vm = self.Vm.copy().view(rgb_dtype).reshape(shape_3d)
         img = nib.Nifti1Image(self.Vm, np.eye(4))
         
         
