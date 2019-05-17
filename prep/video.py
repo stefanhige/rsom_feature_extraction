@@ -17,6 +17,7 @@ import nibabel as nib
 import numpy as np
 
 from skimage import transform
+from skimage import exposure
 
 #origin = '/home/sgerl/Documents/PYTHON/TestDataset20190411/selection'
 
@@ -61,33 +62,37 @@ Obj.flatSURFACE()
 Obj.cutDEPTH()
 
 # MIP image for quick check
-Obj.calcMIP(do_plot = True)
-Obj.calcMIP3D()
+#Obj.calcMIP(do_plot = True)
+#Obj.calcMIP3D()
 
 # sliding mip
 smip = Obj.slidingMIP(axis = 0)
 
-smip_fine = np.zeros((0, 2*smip.shape[1], 2*smip.shape[2], 3))
+smip_fine = np.zeros((0, 672, 352, 3))
 
 for i in range(smip.shape[0]):
-    sl = np.expand_dims(transform.resize(smip[i,:,:,:], (2*smip.shape[1],2*smip.shape[2]), order = 1), 0)
+    sl = np.expand_dims(transform.resize(smip[i,:,:,:], (672, 352), order = 1), 0)
 
     smip_fine = np.concatenate((smip_fine, sl), axis=0)
 
 
 #save rgb maximum intensity projection volume
 # Vm is a 4-d numpy array, with the last dim holding RGB
-shape_3d = smip.shape[0:3]
+    
+smip_fine = exposure.rescale_intensity(smip_fine, out_range = np.uint8)
+smip_fine = smip_fine.astype('u1')
+
+shape_3d = smip_fine.shape[0:3]
 rgb_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
-#self.Vm = self.P_sliced.astype('u1')
-smip_ = smip.view(rgb_dtype).reshape(shape_3d)
+
+smip_ = smip_fine.copy().view(rgb_dtype).reshape(shape_3d)
 img = nib.Nifti1Image(smip_, np.eye(4))
 
 # generate Path object
 destination = Path(destination)
 
 # generate filename
-nii_file = (destination / 'sliding_mip.nii_0.nii.gz').resolve()
+nii_file = (destination / 'sliding_mip.nii_0_window10.nii.gz').resolve()
 print(str(nii_file))
 nib.save(img, str(nii_file))
 
@@ -96,13 +101,14 @@ nib.save(img, str(nii_file))
 
 
 
-#import imageio
+import imageio
 #
 #reader = imageio.get_reader('imageio:cockatoo.mp4')
 #fps = reader.get_meta_data()['fps']
+fps = 40
+
+writer = imageio.get_writer('/home/sgerl/Documents/RSOM/myskin/skin_fast.mp4', fps=fps)
 #
-#writer = imageio.get_writer('~/cockatoo_gray.mp4', fps=fps)
-#
-#for im in reader:
-#    writer.append_data(im[:, :, 1])
-#writer.close()
+for i in reversed(range(smip_.shape[0])):
+    writer.append_data(smip_fine[i, 160:160+352, :, :])
+writer.close()
