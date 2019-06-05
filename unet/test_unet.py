@@ -12,7 +12,7 @@ from unet import UNet
 
 import numpy as np
 
-import matplotlib as plt
+# import matplotlib as plt
 
 import os
 
@@ -23,24 +23,12 @@ import nibabel as nib
 
 from dataloader_dev import RSOMLayerDataset, RandomZShift, ZeroCenter, CropToEven, ToTensor
 
-
-
-def plotMIP():
-    '''
     
-    '''
-    
-    
-def plotMIP_sliced():
-    '''
-    
-    '''
-    
-
-
-
 
 root_dir = '/home/sgerl/Documents/PYTHON/TestDataset20190411/selection/layerseg/dataloader_dev'
+
+
+os.environ["CUDA_VISIBLE_DEVICES"]='0'
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -63,9 +51,6 @@ dataloader = DataLoader(Obj, batch_size=1, shuffle=False, num_workers=0)
 epochs = 1
 
 # TODO: custom minibatch size 
-
-
-
 # TODO: add mirror padding beforehand??
 # TODO: torch data type
 # TODO: understand output shape?
@@ -102,9 +87,10 @@ for i in range(epochs):
                 #    print('label shape', y.shape)
                     
                 loss = F.cross_entropy(prediction, Y)
-                print('Loss:', loss.item())
+                
     
                 optim.zero_grad()
                 loss.backward()
                 optim.step()
                 
+    print('Loss:', loss.item())

@@ -10,7 +10,9 @@ dataloader test script
 
 import torch
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
+
+#from skimage import color
 
 import os
 
@@ -214,6 +216,165 @@ class CropToEven(object):
     
             
         return {'data': data, 'label': label}
+    
+    
+    
+    
+    
+#def plotMIP(sample, pred=None):
+#    '''
+#    result visualization
+#    '''
+#    if isinstance(sample, dict):
+#        data, label = sample['data'].numpy(), sample['label'].numpy()
+##        nInfo = 1
+##    else:
+##        data = sample
+##        if pred:
+##            nInfo = 2
+##        else:
+##            nInfo = 1
+#    #TODO: this can do better.
+#    # new approach: MIP is greyscale
+#    # missing prediction visualization
+#    # maybe display MIP in black and white
+#    
+#    # maximum intensity projection
+#    P = np.amax(data, axis=0)
+#    P = np.moveaxis(P, 0, 2)
+#    P[:,:,1] = 0.8*P[:,:,1] 
+#    P[P<0] = 0
+#    Pgray = color.rgb2gray(P)
+#    print(Pgray.shape)
+#    
+#    
+#    # replace amax with if sum / length >= 0.5
+#    # i.e. more than half the values are 1
+#    L_masked = np.amax(label, axis=0)
+#
+#    print(L_masked.shape)
+#
+#
+#    
+#    plt.figure()
+#    
+#    plt.imshow(Pgray, cmap='gray')
+#    
+#    #Pl_masked = np.dstack([Pl_masked, Pl_masked, Pl_masked])
+#    Pl_masked = np.ma.masked_where(Pl_masked==0, Pl_masked)
+#    
+#    #plt.imshow(Pl.astype(np.uint8), alpha=0.5
+#    plt.pcolormesh(Pl_masked, facecolor='m')
+#    
+#    plt.figure()
+#    plt.imshow(P.astype(np.uint8))
+#    
+#
+#
+#    return P
+
+
+#import numpy as np              #Used for holding and manipulating data
+#import numpy.random             #Used to generate random data
+#import matplotlib as mpl        #Used for controlling color
+#import matplotlib.colors        #Used for controlling color as well
+#import matplotlib.pyplot as plt #Use for plotting
+#
+##Generate random data
+#a = np.random.random(size=(10,10))
+#
+##This 30% of the data will be red
+#am1 = a<0.3                                 #Find data to colour special
+#am1 = np.ma.masked_where(am1 == False, am1) #Mask the data we are not colouring
+#
+##This 10% of the data will be green
+#am2 = np.logical_and(a>=0.3,a<0.4)          #Find data to colour special
+#am2 = np.ma.masked_where(am2 == False, am2) #Mask the data we are not colouring
+#
+##Colourmaps for each special colour to place. The left-hand colour (black) is
+##not used because all black pixels are masked. The right-hand colour (red or
+##green) is used because it represents the highest z-value of the mask matrices
+#cm1 = mpl.colors.ListedColormap(['black','red'])
+#cm2 = mpl.colors.ListedColormap(['black','green'])
+#
+#fig = plt.figure()                          #Make a new figure
+#ax = fig.add_subplot(111)                   #Add subplot to that figure, get ax
+#
+##Plot the original data. We'll overlay the specially-coloured data
+#ax.imshow(a,   aspect='auto', cmap='Greys', vmin=0, vmax=1)
+#
+##Plot the first mask. Values we wanted to colour (`a<0.3`) are masked, so they
+##do not show up. The values that do show up are coloured using the `cm1` colour
+##map. Since the range is constrained to `vmin=0, vmax=1` and a value of
+##`cm2==True` corresponds to a 1, the top value of `cm1` is applied to all such
+##pixels, thereby colouring them red.
+#ax.imshow(am1, aspect='auto', cmap=cm1, vmin=0, vmax=1);
+#ax.imshow(am2, aspect='auto', cmap=cm2, vmin=0, vmax=1);
+#plt.show()
+
+
+
+
+    #plt.title(str(self.file.ID))
+    #plt.imshow(P, aspect = 1/4)
+    #plt.show()
+    #self.Pl = np.amax(self.Vl, axis = axis)
+    #self.Ph = np.amax(self.Vh, axis = axis)
+        
+    # calculate alpha
+    #res = minimize_scalar(self.calc_alpha, bounds=(0, 100), method='bounded')
+    #alpha = res.x
+        
+    #self.P = np.dstack([self.Pl, alpha * self.Ph, np.zeros(self.Ph.shape)])
+        
+    # cut negative values, in order to allow rescale to uint8
+    #self.P[self.P < 0] = 0
+        
+    #self.P = exposure.rescale_intensity(self.P, out_range = np.uint8)
+    #self.P = self.P.astype(dtype=np.uint8)
+    
+    
+    
+#def plotMIP_sliced():
+#    '''
+#    
+#    '''
+#    pass
+
+
+#def colorEncode(labelmap, colors, mode='RBG'):
+#    labelmap = labelmap.astype(np.uint8)
+#    labelmap_rgb = np.zeros((labelmap.shape[0], labelmap.shape[1], 3),
+#                            dtype=np.uint8)
+#    for label in np.unique(labelmap):
+#        if label < 0:
+#            continue
+#        labelmap_rgb += (labelmap == label)[:, :, np.newaxis] * \
+#            np.tile(colors,
+#                    (labelmap.shape[0], labelmap.shape[1], 1))
+#
+#    if mode == 'BGR':
+#        return labelmap_rgb[:, :, ::-1]
+#    else:
+#        return labelmap_rgb
+#    
+#    
+#def visualize_result(data, pred, args):
+#    (img, seg, info) = data
+#
+#    # segmentation
+#    seg_color = colorEncode(seg, colors)
+#
+#    # prediction
+#    pred_color = colorEncode(pred, colors)
+#
+#    # aggregate images and save
+#    im_vis = np.concatenate((img, seg_color, pred_color),
+#                            axis=1).astype(np.uint8)
+#
+#    img_name = info.split('/')[-1]
+#    cv2.imwrite(os.path.join(args.result,
+#                img_name.replace('.jpg', '.png')), im_vis)
             
         
         
@@ -231,12 +392,13 @@ class CropToEven(object):
 
 # ==============================TEST===========================================
 
-#root_dir = '/home/sgerl/Documents/PYTHON/TestDataset20190411/selection/layerseg/dataloader_dev'
+# root_dir = '/home/sgerl/Documents/PYTHON/TestDataset20190411/selection/layerseg/dataloader_dev'
 
-#Obj = RSOMLayerDataset(root_dir, transform=CropToEven())
+# Obj = RSOMLayerDataset(root_dir, transform=transforms.Compose([RandomZShift(), ZeroCenter(), ToTensor()]))
 
-#sample = Obj[0]
+# sample = Obj[0]
 
+# P = plotMIP(sample)
 
 #Obj = RSOMLayerDataset(root_dir, transform=transforms.Compose([RandomZShift(), ZeroCenter(), ToTensor()]))
 #dat = Obj.readNII('/home/sgerl/Documents/PYTHON/TestDataset20190411/selection/layerseg/dataloader_dev/R_20170724150057_PAT001_RL01_l.nii.gz')
