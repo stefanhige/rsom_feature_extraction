@@ -94,6 +94,7 @@ class UNetConvBlock(nn.Module):
 
     def forward(self, x):
         out = self.block(x)
+        # print(out.shape)
         return out
 
 
@@ -127,5 +128,6 @@ class UNetUpBlock(nn.Module):
         crop1 = self.center_crop(bridge, up.shape[2:])
         out = torch.cat([up, crop1], 1)
         out = self.conv_block(out)
-
+        # debug
+        # print(out.shape)
         return out

@@ -85,11 +85,11 @@ class RSOMLayerDataset(Dataset):
         # read data
         data = self._readNII(data_path)
         data = np.stack([data['R'], data['G'], data['B']], axis=-1)
-        data = data.astype(np.float64)
+        data = data.astype(np.float32)
         
         # read label
         label = self._readNII(label_path)
-        label = label.astype(np.float64)
+        label = label.astype(np.float32)
         
         sample = {'data': data, 'label': label}
 
