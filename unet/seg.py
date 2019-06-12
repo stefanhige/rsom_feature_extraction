@@ -60,8 +60,11 @@ def train(model, iterator, optimizer, history, epoch, lossfn, args):
  
             data = torch.squeeze(data, dim=0)
             label = torch.squeeze(label, dim=0)
-            prediction = model(data)
             
+            
+
+            prediction = model(data)
+        
             # move back to save memory
             # prediction = prediction.to('cpu')
             loss = lossfn(prediction, label)
@@ -150,10 +153,12 @@ def eval(model, iterator, history, epoch, lossfn, args):
 
      
 
-# root_dir = '/home/gerlstefan/data/dataloader_dev'
-root_dir = '/home/gerlstefan/data/fullDataset/labeled'
-train_dir = os.path.join(root_dir, 'train')
-eval_dir = os.path.join(root_dir, 'val')
+train_dir = '/home/gerlstefan/data/dataloader_dev'
+eval_dir = train_dir
+
+# root_dir = '/home/gerlstefan/data/fullDataset/labeled'
+# train_dir = os.path.join(root_dir, 'train')
+# eval_dir = os.path.join(root_dir, 'val')
 
 
 os.environ["CUDA_VISIBLE_DEVICES"]='7'
@@ -201,11 +206,13 @@ args = arg_class()
 
 args.size_train = len(dataset_train)
 args.size_eval = len(dataset_eval)
+
+print("dataset len:", args.size_train)
 args.minibatch_size = 5
 args.device = device
 args.dtype = torch.float32
 args.non_blocking = True
-args.n_epochs = 50
+args.n_epochs = 30
 # model = debugnet()
 model = UNet(in_channels=3,
              n_classes=2,
@@ -218,7 +225,7 @@ model = UNet(in_channels=3,
 model = model.float()
 
 
-initial_lr = 1e-5
+initial_lr = 1e-4
 
 optimizer = torch.optim.Adam(model.parameters(), lr=initial_lr)
 # this does not worrk properly? jumping around?? wtf
@@ -246,7 +253,7 @@ for curr_epoch in range(args.n_epochs):
     curr_lr = optimizer.state_dict()['param_groups'][0]['lr']
  
     print(torch.cuda.memory_cached()*1e-6,'MB memory used')
-    train(model=model,
+    label = train(model=model,
         iterator=iterator_train,
         optimizer=optimizer,
         history=history,
@@ -277,4 +284,4 @@ for curr_epoch in range(args.n_epochs):
 
 print('finished. saving model')
 
-torch.save(best_model, '/home/gerlstefan/src/unet/bm_std')
+# torch.save(best_model, '/home/gerlstefan/src/unet/bm_std')
