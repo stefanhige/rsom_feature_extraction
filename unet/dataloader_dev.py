@@ -91,7 +91,12 @@ class RSOMLayerDataset(Dataset):
         label = self._readNII(label_path)
         label = label.astype(np.float32)
         
-        sample = {'data': data, 'label': label}
+        # add meta information
+        meta = {'filename': self.data[idx],
+                'dcrop':{'begin': None, 'end': None},
+                'lcrop':{'begin': None, 'end': None}}
+
+        sample = {'data': data, 'label': label, 'meta': meta}
 
         if self.transform:
             sample = self.transform(sample)
@@ -105,7 +110,7 @@ class ToTensor(object):
     """Convert ndarrays in sample to Tensors."""
 
     def __call__(self, sample):
-        data, label = sample['data'], sample['label']
+        data, label, meta = sample['data'], sample['label'], sample['meta']
         
         # data is [Z x X x Y x 3] [500 x 171 x 333 x 3]
         # label is [Z x X x Y] [500 x 171 x 333]
@@ -129,8 +134,10 @@ class ToTensor(object):
         # [X x Z x Y] [171 x 500 x 333]
         label = label.transpose((1, 0, 2))
         
+
         return {'data': torch.from_numpy(data),
-                'label': torch.from_numpy(label)}
+                'label': torch.from_numpy(label),
+                'meta': meta}
         
 
 # class random z-shift      
@@ -153,7 +160,7 @@ class RandomZShift(object):
             self.max_shift = max_shift
 
     def __call__(self, sample):
-        data, label = sample['data'], sample['label']
+        data, label, meta = sample['data'], sample['label'], sample['meta']
         assert isinstance(data, np.ndarray)
         assert isinstance(label, np.ndarray)
         
@@ -171,13 +178,15 @@ class RandomZShift(object):
         
             print('RandomZShift: Check if this array modification does the correct thing before actually using it')
             # TODO: verify
-            data = np.concatenate((data[:-abs(dz),:,:,:], shift_data) if dz > 0 else (shift_data, data[abs(dz):,:,:,:]), axis = 0)
-            label = np.concatenate((label[:-abs(dz),:,:], shift_label) if dz > 0 else (shift_label, label[abs(dz):,:,:]), axis = 0)
+            data = np.concatenate((data[:-abs(dz),:,:,:], shift_data)\
+                    if dz > 0 else (shift_data, data[abs(dz):,:,:,:]), axis = 0)
+            label = np.concatenate((label[:-abs(dz),:,:], shift_label)\
+                    if dz > 0 else (shift_label, label[abs(dz):,:,:]), axis = 0)
 
             # should be the same...
             assert (data_ishape == data.shape and label_ishape == label.shape)
         
-        return {'data': data, 'label': label}
+        return {'data': data, 'label': label, 'meta': meta}
     
 # class normalize
 class ZeroCenter(object):
@@ -185,7 +194,7 @@ class ZeroCenter(object):
     Zero center input volumes
     """    
     def __call__(self, sample):
-        data, label = sample['data'], sample['label']
+        data, label, meta = sample['data'], sample['label'], sample['meta']
         assert isinstance(data, np.ndarray)
         assert isinstance(label, np.ndarray)
         
@@ -195,7 +204,7 @@ class ZeroCenter(object):
         
         data -= meanvec
         
-        return {'data': data, 'label': label}
+        return {'data': data, 'label': label, 'meta': meta}
     
  
 # TODO CLASS implementation
@@ -205,7 +214,7 @@ class CropToEven(object):
     except for last dimension, this is RGB  = 3
     """
     def __call__(self, sample):
-        data, label = sample['data'], sample['label']
+        data, label, meta = sample['data'], sample['label'], sample['meta']
         assert isinstance(data, np.ndarray)
         assert isinstance(label, np.ndarray)
      
@@ -213,9 +222,16 @@ class CropToEven(object):
         
         data = data[IsOdd[0]:, IsOdd[1]:, IsOdd[2]:, : ]
         label = label[IsOdd[0]:, IsOdd[1]:, IsOdd[2]:]
-    
+        
+        # save, how much data was cropped
+        # using torch tensor, because dataloader will convert anyways
+        meta['dcrop']['begin'] = torch.from_numpy(np.array([IsOdd[0], IsOdd[1], IsOdd[2], 0], dtype=np.int16))
+        meta['dcrop']['end'] = torch.from_numpy(np.array([0, 0, 0, 0], dtype=np.int16))
             
-        return {'data': data, 'label': label}
+        meta['lcrop']['begin'] = torch.from_numpy(np.array([IsOdd[0], IsOdd[1], IsOdd[2]], dtype=np.int16))
+        meta['lcrop']['end'] = torch.from_numpy(np.array([0, 0, 0], dtype=np.int16))
+        
+        return {'data': data, 'label': label, 'meta': meta}
     
     
     
