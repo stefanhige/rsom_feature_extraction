@@ -1,16 +1,19 @@
-
 import torch
+
 from torch import nn
+
 import torch.nn.functional as F
 
 import numpy as np
 
 import os
+import copy
 
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
-from SizeEstimator import SizeEstimator
 
+from unet import UNet
+import lossfunctions as lfs
 # import nibabel as nib
 # from timeit import default_timer as timer
 
@@ -59,6 +62,8 @@ def train(model, iterator, optimizer, history, epoch, lossfn, args):
             label = torch.squeeze(label, dim=0)
             prediction = model(data)
             
+            # move back to save memory
+            # prediction = prediction.to('cpu')
             loss = lossfn(prediction, label)
             optimizer.zero_grad()
             loss.backward()
@@ -116,7 +121,7 @@ def eval(model, iterator, history, epoch, lossfn, args):
             data = torch.squeeze(data, dim=0)
             label = torch.squeeze(label, dim=0)
             prediction = model(data)
-            
+            # prediction = prediction.to('cpu')
             loss = lossfn(prediction, label)
             
             # loss running variable
@@ -128,49 +133,59 @@ def eval(model, iterator, history, epoch, lossfn, args):
         
             # print(epoch, i/args.size_train, i2/minibatches.size)
     
-    # running_loss adds up loss for every batch and minibatch,
-    # divide by size of testset*size of each batch
-    epoch_loss = running_loss / (args.size_eval*batch['data'].shape[1])
-    history['eval']['epoch'].append(epoch)
-    history['eval']['loss'].append(epoch_loss)
+        # running_loss adds up loss for every batch and minibatch,
+        # divide by size of testset*size of each batch
+        epoch_loss = running_loss / (args.size_eval*batch['data'].shape[1])
+        history['eval']['epoch'].append(epoch)
+        history['eval']['loss'].append(epoch_loss)
+# TODO 10 Jun 19
+# loss is not going down? with weighted loss fn even less.
+# maybe try different optimizer??
+# different loss fn?
+# but first look at one or two predictions of training and testset of algorithm
+# maybe there's a huge difference
+# ALSO: compare how los goes down within the first epoch!
+# ALSO: compare training loss and test loss of data.... read again stanford cnn
 
 
-   
+     
 
 # root_dir = '/home/gerlstefan/data/dataloader_dev'
 root_dir = '/home/gerlstefan/data/fullDataset/labeled'
+train_dir = os.path.join(root_dir, 'train')
+eval_dir = os.path.join(root_dir, 'val')
 
-os.environ["CUDA_VISIBLE_DEVICES"]=''
 
-# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-device = torch.device('cpu')
-# model = UNet(in_channels=3,
-#              n_classes=2,
-#              depth=3,
-#              wf=6,
-#              padding=True,
-#              batch_norm=True,
-#              up_mode='upsample').to(device)
+os.environ["CUDA_VISIBLE_DEVICES"]='7'
 
-# model = model.float()
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # print('Current GPU device:', torch.cuda.current_device()
 # print('model down_path first weight at', model.down_path[0].block.state_dict()['0.weight'].device)
 
 
-dataset_train = RSOMLayerDataset(root_dir, 
+dataset_train = RSOMLayerDataset(train_dir,
         transform=transforms.Compose([RandomZShift(),
             ZeroCenter(), 
             CropToEven(), 
             ToTensor()]))
-dataloader = DataLoader(dataset_train,
+dataloader_train = DataLoader(dataset_train,
         batch_size=1, 
         shuffle=False, 
         num_workers=4, 
         pin_memory=True)
 
-iterator_train = iter(dataloader)
-iterator_eval = iter(dataloader)
+dataset_eval = RSOMLayerDataset(eval_dir,
+        transform=transforms.Compose([RandomZShift(),
+            ZeroCenter(), 
+            CropToEven(), 
+            ToTensor()]))
+dataloader_eval = DataLoader(dataset_eval,
+        batch_size=1, 
+        shuffle=False, 
+        num_workers=4, 
+        pin_memory=True)
+
 class debugnet(nn.Module):
     def __init__(self):
         super(debugnet, self).__init__()
@@ -185,37 +200,81 @@ class arg_class():
 args = arg_class()
 
 args.size_train = len(dataset_train)
-args.size_eval = len(dataset_train)
-args.minibatch_size = 10
+args.size_eval = len(dataset_eval)
+args.minibatch_size = 5
 args.device = device
 args.dtype = torch.float32
 args.non_blocking = True
-args.n_epochs = 10
-debugmodel = debugnet()
+args.n_epochs = 50
+# model = debugnet()
+model = UNet(in_channels=3,
+             n_classes=2,
+             depth=3,
+             wf=6,
+             padding=True,
+             batch_norm=True,
+             up_mode='upsample').to(args.device)
 
-optimizer = torch.optim.Adam(debugmodel.parameters(), lr=1e-2)
-def lossfn(prediction, label):
+model = model.float()
+
+
+initial_lr = 1e-5
+
+optimizer = torch.optim.Adam(model.parameters(), lr=initial_lr)
+# this does not worrk properly? jumping around?? wtf
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1, last_epoch=-1)
+
+def debuglossfn(prediction, label):
     ip = torch.randn((3, 2), requires_grad=True)
     tg = torch.rand((3, 2), requires_grad=False)
     return F.binary_cross_entropy(F.sigmoid(ip), tg)
+
 history = {
     'train':{'epoch': [], 'loss': []},
     'eval':{'epoch': [], 'loss': []}
     }
 
-for curr_epoch in range(args.n_epochs)
-    train(model=debugmodel,
+best_model = copy.deepcopy(model.state_dict())
+best_loss = float('inf')
+ 
+print('Entering training loop..')
+for curr_epoch in range(args.n_epochs): 
+    # in every epoch, generate iterators
+    iterator_train = iter(dataloader_train)
+    iterator_eval = iter(dataloader_eval)
+    
+    curr_lr = optimizer.state_dict()['param_groups'][0]['lr']
+ 
+    print(torch.cuda.memory_cached()*1e-6,'MB memory used')
+    train(model=model,
         iterator=iterator_train,
         optimizer=optimizer,
         history=history,
         epoch=curr_epoch,
-        lossfn=lossfn,
+        lossfn=lfs.cross_entropy_2d,
         args=args)
 
-    eval(model=debugmodel,
+    print(torch.cuda.memory_cached()*1e-6,'MB memory used')
+    eval(model=model,
         iterator=iterator_eval,
         history=history,
         epoch=curr_epoch,
-        lossfn=lossfn,
+        lossfn=lfs.cross_entropy_2d,
         args=args)
+    scheduler.step()
 
+    # extract most recent eval loss
+    curr_loss = history['eval']['loss'][-1]
+    if curr_loss < best_loss:
+        best_loss = copy.deepcopy(curr_loss)
+        best_model = copy.deepcopy(model.state_dict())
+        found_nb = 'new best!'
+    else:
+        found_nb = ''
+
+    print('Epoch {:d} of {:d}: lr={:.0e}, L={:.2e}'.format(
+        curr_epoch+1, args.n_epochs, curr_lr, curr_loss), found_nb)
+
+print('finished. saving model')
+
+torch.save(best_model, '/home/gerlstefan/src/unet/bm_std')
