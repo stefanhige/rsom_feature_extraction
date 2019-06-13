@@ -39,39 +39,62 @@ pred_ideal *= 5
 
 label = np.zeros((1, 10, 1))
 label[:, 5:8, :] = 1
+label = label.astype(dtype=np.float64)
 
 nonz_idx = np.nonzero(label[0,:,0])
 
 print(nonz_idx)
 print(label)
 
+# some function
+def fnc(n):
+    '''
+    n = length
+    '''
+    # linear, starting at 1
+    y = np.arange(n) + 1.1
+    y = y.astype(np.float64)
+    return y
+    
+    
+
+
 # replace beginning with reverse function
-label[0,:nonz_idx[0],0] = np.flip(fnc(nonz_idx[0]))
-
+label[0,:nonz_idx[0][0],0] = np.flip(fnc(nonz_idx[0][0]))
+print(fnc(nonz_idx[0][0]))
+print(label)
 # replace end with function
-label[0,nonz_idx[-1],0] = fnc(label_size = nonz_idx[-1])
+ls = label.shape[1]
+print(ls)
+label[0,nonz_idx[0][-1]:,0] = fnc(ls-nonz_idx[0][-1])
+print(label)
 
 
 
-# weight vector linear ascending
-weight = np.array([6,5,4,3,2,1,2,3,4,5])
-weight = np.transpose([weight])
-weight =np.expand_dims(weight,0)
 
-# print('weight')
-# print(weight)
-# print(weight.shape)
 
-# convert to torch
-pred_ideal = torch.from_numpy(pred_ideal).float()
-label = torch.from_numpy(label).long()
-weight = torch.from_numpy(weight).float()
 
-lossfn1 = nn.CrossEntropyLoss(reduction='none')
-loss1 = lossfn1(pred_ideal, label)
-print('Standard cross entropy loss:', torch.sum(loss1))
-print(loss1.shape)
-print('weighted loss:', torch.sum(loss1*weight) )
+
+if 0:
+    # weight vector linear ascending
+    weight = np.array([6,5,4,3,2,1,2,3,4,5])
+    weight = np.transpose([weight])
+    weight =np.expand_dims(weight,0)
+    
+    # print('weight')
+    # print(weight)
+    # print(weight.shape)
+    
+    # convert to torch
+    pred_ideal = torch.from_numpy(pred_ideal).float()
+    label = torch.from_numpy(label).long()
+    weight = torch.from_numpy(weight).float()
+    
+    lossfn1 = nn.CrossEntropyLoss(reduction='none')
+    loss1 = lossfn1(pred_ideal, label)
+    print('Standard cross entropy loss:', torch.sum(loss1))
+    print(loss1.shape)
+    print('weighted loss:', torch.sum(loss1*weight) )
 
 # lsfn = nn.LogSoftmax()
 # pred_ideal_logs = lsfn(pred_ideal)
