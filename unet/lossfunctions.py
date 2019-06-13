@@ -7,7 +7,8 @@ def cross_entropy_2d(pred, target):
     '''
     doc string
     '''
-    fn = torch.nn.CrossEntropyLoss(weight=torch.tensor([0.1, 0.9]).to('cuda'))
+    # fn = torch.nn.CrossEntropyLoss(weight=torch.tensor([0.1, 0.9]).to('cuda'))
+    fn = torch.nn.CrossEntropyLoss()
     
     ps = pred.shape
     ts = target.shape
@@ -46,4 +47,16 @@ def cross_entropy_2d(pred, target):
     # dtype: long
     loss = fn(pred, target)
     return loss
+
+
+def custom_loss_1(pred, target):
+    '''
+    doc string
+    '''
+    
+
+
+
+
+
 

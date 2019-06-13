@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Fri May 10 14:48:49 2019
-
-dataloader test script
-
-@author: sgerl
-"""
 
 import torch
 import numpy as np
@@ -112,6 +103,9 @@ class ToTensor(object):
     def __call__(self, sample):
         data, label, meta = sample['data'], sample['label'], sample['meta']
         
+        ################ UPDATE
+        # data can either RGB or RG
+
         # data is [Z x X x Y x 3] [500 x 171 x 333 x 3]
         # label is [Z x X x Y] [500 x 171 x 333]
         
@@ -197,6 +191,8 @@ class ZeroCenter(object):
         data, label, meta = sample['data'], sample['label'], sample['meta']
         assert isinstance(data, np.ndarray)
         assert isinstance(label, np.ndarray)
+        # data still is RGB
+        assert data.shape[3] == 3
         
         # compute for all x,y,z mean for every color channel
         rgb_mean = np.around(np.mean(data, axis=(0, 1, 2))).astype(np.int16)
@@ -206,8 +202,25 @@ class ZeroCenter(object):
         
         return {'data': data, 'label': label, 'meta': meta}
     
- 
-# TODO CLASS implementation
+class DropBlue(object):
+    """
+    Drop the last slice of the RGB dimension
+    RSOM images are 2channel, so blue is empty anyways.
+    """
+    def __call__(self, sample):
+        data, label, meta = sample['data'], sample['label'], sample['meta']
+        assert isinstance(data, np.ndarray)
+        assert isinstance(label, np.ndarray)
+        # data still is RGB
+        assert data.shape[3] == 3
+
+        data = data[:,:,:,:2]
+
+        assert data.shape[3] == 2
+
+        return {'data': data, 'label': label, 'meta': meta}
+
+
 class CropToEven(object):
     """ 
     if Volume shape is not even numbers, simply crop the first element

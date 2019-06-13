@@ -8,6 +8,7 @@ import numpy as np
 
 import os
 import copy
+import json
 
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
@@ -17,7 +18,8 @@ import lossfunctions as lfs
 # import nibabel as nib
 # from timeit import default_timer as timer
 
-from dataloader_dev import RSOMLayerDataset, RandomZShift, ZeroCenter, CropToEven, ToTensor
+from dataloader_dev import RSOMLayerDataset
+from dataloader_dev import RandomZShift, ZeroCenter, CropToEven, DropBlue, ToTensor
 
 def train(model, iterator, optimizer, history, epoch, lossfn, args):
     '''
@@ -153,12 +155,12 @@ def eval(model, iterator, history, epoch, lossfn, args):
 
      
 
-train_dir = '/home/gerlstefan/data/dataloader_dev'
-eval_dir = train_dir
+# train_dir = '/home/gerlstefan/data/dataloader_dev'
+# eval_dir = train_dir
 
-# root_dir = '/home/gerlstefan/data/fullDataset/labeled'
-# train_dir = os.path.join(root_dir, 'train')
-# eval_dir = os.path.join(root_dir, 'val')
+root_dir = '/home/gerlstefan/data/fullDataset/labeled'
+train_dir = os.path.join(root_dir, 'train')
+eval_dir = os.path.join(root_dir, 'val')
 
 
 os.environ["CUDA_VISIBLE_DEVICES"]='7'
@@ -172,7 +174,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 dataset_train = RSOMLayerDataset(train_dir,
         transform=transforms.Compose([RandomZShift(),
             ZeroCenter(), 
-            CropToEven(), 
+            CropToEven(),
+            DropBlue(),
             ToTensor()]))
 dataloader_train = DataLoader(dataset_train,
         batch_size=1, 
@@ -183,7 +186,8 @@ dataloader_train = DataLoader(dataset_train,
 dataset_eval = RSOMLayerDataset(eval_dir,
         transform=transforms.Compose([RandomZShift(),
             ZeroCenter(), 
-            CropToEven(), 
+            CropToEven(),
+            DropBlue(),
             ToTensor()]))
 dataloader_eval = DataLoader(dataset_eval,
         batch_size=1, 
@@ -212,15 +216,15 @@ args.minibatch_size = 5
 args.device = device
 args.dtype = torch.float32
 args.non_blocking = True
-args.n_epochs = 30
+args.n_epochs = 50
 # model = debugnet()
-model = UNet(in_channels=3,
+model = UNet(in_channels=2,
              n_classes=2,
              depth=3,
              wf=6,
              padding=True,
              batch_norm=True,
-             up_mode='upsample').to(args.device)
+             up_mode='upconv').to(args.device)
 
 model = model.float()
 
@@ -229,7 +233,18 @@ initial_lr = 1e-4
 
 optimizer = torch.optim.Adam(model.parameters(), lr=initial_lr)
 # this does not worrk properly? jumping around?? wtf
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1, last_epoch=-1)
+# scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1, last_epoch=-1)
+
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 
+        mode='min', 
+        factor=0.1,
+        patience=5,
+        verbose=True,
+        threshold=1e-4,
+        threshold_mode='rel',
+        cooldown=0,
+        min_lr=0,
+        eps=1e-8)
 
 def debuglossfn(prediction, label):
     ip = torch.randn((3, 2), requires_grad=True)
@@ -268,10 +283,13 @@ for curr_epoch in range(args.n_epochs):
         epoch=curr_epoch,
         lossfn=lfs.cross_entropy_2d,
         args=args)
-    scheduler.step()
 
     # extract most recent eval loss
     curr_loss = history['eval']['loss'][-1]
+    
+    # use ReduceLROnPlateau scheduler
+    scheduler.step(curr_loss)
+    
     if curr_loss < best_loss:
         best_loss = copy.deepcopy(curr_loss)
         best_model = copy.deepcopy(model.state_dict())
@@ -281,7 +299,18 @@ for curr_epoch in range(args.n_epochs):
 
     print('Epoch {:d} of {:d}: lr={:.0e}, L={:.2e}'.format(
         curr_epoch+1, args.n_epochs, curr_lr, curr_loss), found_nb)
-
+    
 print('finished. saving model')
 
-# torch.save(best_model, '/home/gerlstefan/src/unet/bm_std')
+save_path = '/home/gerlstefan/models/layerseg/test'
+save_name = 'bestmodel_20190713'
+
+# save model state_dict
+torch.save(best_model,os.path.join(save_path, save_name))
+
+# save history tracking
+json_f = json.dumps(history)
+f = open(os.path.join(save_path, save_name + '_hist'),'w')
+f.write(json_f)
+f.close()
+

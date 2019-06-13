@@ -16,9 +16,10 @@ from unet import UNet
 import lossfunctions as lfs
 import nibabel as nib
 # from timeit import default_timer as timer
-from dataloader_dev import RSOMLayerDataset, RandomZShift, ZeroCenter, CropToEven, ToTensor
+from dataloader_dev import RSOMLayerDataset 
+from dataloader_dev import RandomZShift, ZeroCenter, CropToEven, DropBlue, ToTensor
 
-def pred(model, iterator, history, lossfn, args):
+def pred(model=None, iterator=None, history=None, lossfn=None, args=None):
     '''
     evaluate with the testset
     Args:   model
@@ -52,13 +53,13 @@ def pred(model, iterator, history, lossfn, args):
                 step=args.minibatch_size)
         # init empty prediction stack
         shp = batch['data'].shape
-        print(shp)
+        print('Data shape:', shp)
         # [0 x 2 x 500 x 332]
         prediction_stack = torch.zeros((0, 2, shp[3], shp[4]),
                 dtype=args.dtype,
                 requires_grad = False)
         prediction_stack = prediction_stack.to(args.device)
-        print(prediction_stack.shape)
+        # print(prediction_stack.shape)
 
         for i2, idx in enumerate(minibatches):
             if idx + args.minibatch_size < batch['data'].shape[1]:
@@ -76,7 +77,7 @@ def pred(model, iterator, history, lossfn, args):
             prediction = model(data)
             # prediction = prediction.to('cpu')
             # loss = lossfn(prediction, label)
-            print(prediction.shape)
+            # print(prediction.shape)
             # stack prediction to get volume again
             prediction = prediction.detach() 
             prediction_stack = torch.cat((prediction_stack, prediction), dim=0) 
@@ -92,10 +93,13 @@ def pred(model, iterator, history, lossfn, args):
         # TODO add padding for same dimension as original .nii.gz files
         print(batch['meta']['filename']) 
         m = batch['meta']
-        print(m['dcrop']['begin'], m['dcrop']['end'], m['lcrop']['begin'], m['lcrop']['end']) 
+        # print(m['dcrop']['begin'], m['dcrop']['end'], m['lcrop']['begin'], m['lcrop']['end']) 
 
         label = to_numpy(label, m)
-        saveNII(label,'/home/gerlstefan','testprednii_3')
+
+        filename = batch['meta']['filename'][0]
+        filename = filename.replace('rgb.nii.gz','')
+        saveNII(label, args.destination_dir, filename + 'pred')
 
         # compare to ground truth
         label_gt = batch['label']
@@ -105,7 +109,7 @@ def pred(model, iterator, history, lossfn, args):
 
         label_diff = label != label_gt
 
-        saveNII(label_diff,'/home/gerlstefan','testprednii_diff_3')
+        saveNII(label_diff, args.destination_dir, filename + 'dpred')
 
 def saveNII(V, path, fstr):
     V = V.astype(np.uint8)
@@ -113,7 +117,6 @@ def saveNII(V, path, fstr):
     
     fstr = fstr + '.nii.gz'
     nib.save(img, os.path.join(path, fstr))
-
 
 def to_numpy(V, meta):
     '''
@@ -165,26 +168,27 @@ def to_numpy(V, meta):
     print(V.shape)
     return V
 
-
-
 class arg_class():
     pass
 
 args = arg_class()
 
-os.environ["CUDA_VISIBLE_DEVICES"]='7'
+os.environ["CUDA_VISIBLE_DEVICES"]='0'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-
-
-pred_dir = '/home/gerlstefan/data/dataloader_dev'
+origin = '/home/gerlstefan/data/fullDataset/labeled/val'
+destination ='/home/gerlstefan/data/prediction/190713/val'
+model_path = '/home/gerlstefan/models/layerseg/test/bestmodel_20190712'
 
 # TODO: new dataset without labels
 # or optional labels to use also with evaluation set?
-dataset_pred = RSOMLayerDataset(pred_dir,
+
+# create Dataset of prediction data
+dataset_pred = RSOMLayerDataset(origin,
         transform=transforms.Compose([
             ZeroCenter(), 
-            CropToEven(), 
+            CropToEven(),
+            DropBlue(),
             ToTensor()]))
 
 dataloader_pred = DataLoader(dataset_pred,
@@ -201,34 +205,26 @@ args.minibatch_size = 5
 args.device = device
 args.dtype = torch.float32
 args.non_blocking = True
+args.destination_dir = destination
 
-history = []
-lossfn = []
-
-
-model = UNet(in_channels=3,
+model = UNet(in_channels=2,
              n_classes=2,
              depth=3,
              wf=6,
              padding=True,
              batch_norm=True,
-             up_mode='upsample').to(args.device)
+             up_mode='upconv').to(args.device)
 
 
 model = model.float()
 
-# model_path = '/home/gerlstefan/src/unet/bm_1Vol'
-model_path = '/home/gerlstefan/src/unet/bm_std'
-# model_path = '/home/gerlstefan/mod_1906102223_now_l0.04'
 model.load_state_dict(torch.load(model_path))
 
 
 iterator_pred = iter(dataloader_pred)
 
-p = pred(model=model,
+pred(model=model,
         iterator=iterator_pred,
-        history=history,
-        lossfn=lossfn,
         args=args)
 
     
