@@ -33,6 +33,7 @@ def train(model, iterator, optimizer, history, epoch, lossfn, args):
             args 
     '''
     model.train()
+    
     for i in range(args.size_train):
         # get the next batch of training data
         batch = next(iterator)
@@ -70,6 +71,7 @@ def train(model, iterator, optimizer, history, epoch, lossfn, args):
             # move back to save memory
             # prediction = prediction.to('cpu')
             loss = lossfn(prediction, label)
+            
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -135,8 +137,6 @@ def eval(model, iterator, history, epoch, lossfn, args):
             # this should scale linearly with minibatch size
             # have to verify!
             running_loss += loss.data.item()
-        
-            # print(epoch, i/args.size_train, i2/minibatches.size)
     
         # running_loss adds up loss for every batch and minibatch,
         # divide by size of testset*size of each batch
@@ -155,12 +155,12 @@ def eval(model, iterator, history, epoch, lossfn, args):
 
      
 
-# train_dir = '/home/gerlstefan/data/dataloader_dev'
-# eval_dir = train_dir
+train_dir = '/home/gerlstefan/data/dataloader_dev'
+eval_dir = train_dir
 
-root_dir = '/home/gerlstefan/data/fullDataset/labeled'
-train_dir = os.path.join(root_dir, 'train')
-eval_dir = os.path.join(root_dir, 'val')
+# root_dir = '/home/gerlstefan/data/fullDataset/labeled'
+# train_dir = os.path.join(root_dir, 'train')
+# eval_dir = os.path.join(root_dir, 'val')
 
 
 os.environ["CUDA_VISIBLE_DEVICES"]='7'
@@ -217,6 +217,7 @@ args.device = device
 args.dtype = torch.float32
 args.non_blocking = True
 args.n_epochs = 50
+args.data_dim = dataset_eval[0]['data'].shape
 # model = debugnet()
 model = UNet(in_channels=2,
              n_classes=2,
@@ -267,23 +268,28 @@ for curr_epoch in range(args.n_epochs):
     
     curr_lr = optimizer.state_dict()['param_groups'][0]['lr']
  
-    print(torch.cuda.memory_cached()*1e-6,'MB memory used')
-    label = train(model=model,
+    train(model=model,
         iterator=iterator_train,
         optimizer=optimizer,
         history=history,
         epoch=curr_epoch,
-        lossfn=lfs.cross_entropy_2d,
+        lossfn=lfs.custom_loss_1,
         args=args)
-
-    print(torch.cuda.memory_cached()*1e-6,'MB memory used')
+    
     eval(model=model,
         iterator=iterator_eval,
         history=history,
         epoch=curr_epoch,
-        lossfn=lfs.cross_entropy_2d,
+        lossfn=lfs.custom_loss_1,
         args=args)
 
+    print(torch.cuda.memory_cached()*1e-6,'MB memory used')
+    # extract the average training loss of the epoch
+    le_idx = history['train']['epoch'].index(curr_epoch)
+    le_losses = history['train']['loss'][le_idx:]
+    # divide by batch size (170) times dataset size
+    train_loss = sum(le_losses) / (args.data_dim[0]*args.size_train)
+    
     # extract most recent eval loss
     curr_loss = history['eval']['loss'][-1]
     
@@ -297,13 +303,13 @@ for curr_epoch in range(args.n_epochs):
     else:
         found_nb = ''
 
-    print('Epoch {:d} of {:d}: lr={:.0e}, L={:.2e}'.format(
-        curr_epoch+1, args.n_epochs, curr_lr, curr_loss), found_nb)
+    print('Epoch {:d} of {:d}: lr={:.0e}, Lt={:.2e}, Le={:.2e}'.format(
+        curr_epoch+1, args.n_epochs, curr_lr, train_loss, curr_loss), found_nb)
     
 print('finished. saving model')
 
 save_path = '/home/gerlstefan/models/layerseg/test'
-save_name = 'bestmodel_20190713'
+save_name = 'bestmodel_20190715'
 
 # save model state_dict
 torch.save(best_model,os.path.join(save_path, save_name))
