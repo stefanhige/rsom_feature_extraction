@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 #from skimage import color
 
 import os
-
+import copy
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 
@@ -85,7 +85,8 @@ class RSOMLayerDataset(Dataset):
         # add meta information
         meta = {'filename': self.data[idx],
                 'dcrop':{'begin': None, 'end': None},
-                'lcrop':{'begin': None, 'end': None}}
+                'lcrop':{'begin': None, 'end': None},
+                'weight': 0}
 
         sample = {'data': data, 'label': label, 'meta': meta}
 
@@ -163,19 +164,25 @@ class RandomZShift(object):
         label_ishape = label.shape
         
         # generate random dz offset
-        dz = int(round((self.max_shift[1] - self.max_shift[0]) * np.random.random_sample() + self.max_shift[0]))
+        dz = int(round((self.max_shift[1] - self.max_shift[0]) * torch.rand(1).item() + self.max_shift[0]))
         assert (dz >= self.max_shift[0] and dz <= self.max_shift[1])
         
         if dz:
             shift_data = np.zeros(((abs(dz), ) + data.shape[1:]), dtype = np.uint8)
             shift_label = np.zeros(((abs(dz), ) + label.shape[1:]), dtype = np.uint8)
         
-            print('RandomZShift: Check if this array modification does the correct thing before actually using it')
-            # TODO: verify
-            data = np.concatenate((data[:-abs(dz),:,:,:], shift_data)\
-                    if dz > 0 else (shift_data, data[abs(dz):,:,:,:]), axis = 0)
-            label = np.concatenate((label[:-abs(dz),:,:], shift_label)\
-                    if dz > 0 else (shift_label, label[abs(dz):,:,:]), axis = 0)
+            # print('RandomZShift: Check if this array modification does the correct thing before actually using it')
+            print('ZShift:', dz)
+            # positive dz will shift in +z direction, "downwards" inside skin
+            data = np.concatenate((shift_data, data[:-abs(dz),:,:,:])\
+                    if dz > 0 else (data[abs(dz):,:,:,:], shift_data), axis = 0)
+            label = np.concatenate((shift_label, label[:-abs(dz),:,:])\
+                    if dz > 0 else (label[abs(dz):,:,:], shift_label), axis = 0)
+            
+            # data = np.concatenate((data[:-abs(dz),:,:,:], shift_data)\
+            #         if dz > 0 else (shift_data, data[abs(dz):,:,:,:]), axis = 0)
+            # label = np.concatenate((label[:-abs(dz),:,:], shift_label)\
+            #         if dz > 0 else (shift_label, label[abs(dz):,:,:]), axis = 0)
 
             # should be the same...
             assert (data_ishape == data.shape and label_ishape == label.shape)
@@ -197,8 +204,9 @@ class ZeroCenter(object):
         # compute for all x,y,z mean for every color channel
         rgb_mean = np.around(np.mean(data, axis=(0, 1, 2))).astype(np.int16)
         meanvec = np.tile(rgb_mean, (data.shape[:-1] + (1,)))
-        
-        data -= meanvec
+       
+        # TODO: how to zero center??
+        data -= 127
         
         return {'data': data, 'label': label, 'meta': meta}
     
@@ -221,6 +229,65 @@ class DropBlue(object):
         return {'data': data, 'label': label, 'meta': meta}
 
 
+class precalcLossWeight(object):
+    """
+    precalculation of a weight matrix used in the cross entropy
+    loss function. It will be precalculated with the dataloader,
+    so it can be computed in parallel
+    call only after ToTensor!!
+    """
+    def __call__(self, sample):
+        data, label, meta = sample['data'], sample['label'], sample['meta']
+        assert isinstance(data, torch.Tensor)
+        assert isinstance(label, torch.Tensor)
+
+        # weight is meta['weight']
+
+        #TODO: calculation
+        target = label
+
+        # LOSS shape [Minibatch, Z, X]
+        target_shp = target.shape
+        weight = copy.deepcopy(target)
+
+ 
+        # loop over dim 0 and 2
+        for yy in np.arange(target_shp[0]):
+            for xx in np.arange(target_shp[2]):
+                
+                idx_nz = torch.nonzero(target[yy, :, xx])
+                idx_beg = idx_nz[0].item()
+
+                idx_end = idx_nz[-1].item()
+                # weight[yy,:idx_beg,xx] = np.flip(scalingfn(idx_beg))
+                # print(idx_beg, idx_end)
+                
+                A = self.scalingfn(idx_beg)
+                B = self.scalingfn(target_shp[1] - idx_end)
+
+                weight[yy,:idx_beg,xx] = A.unsqueeze(0).flip(1).squeeze()
+                # print('A reversed', A.unsqueeze(0).flip(1).squeeze())
+                # print('A', A)
+                
+                weight[yy,idx_end:,xx] = B
+                # weight[yy,:idx_beg,xx] = np.flip(scalingfn(idx_beg))
+                # weight[yy,idx_end:,xx] = scalingfn(label_shp[1] - idx_end)
+
+        meta['weight'] = weight.float()
+
+        return {'data': data, 'label': label, 'meta': meta}
+
+    @staticmethod
+    def scalingfn(l):
+        '''
+        l is length
+        '''
+        # linear, starting at 1
+        y = torch.arange(l) + 1
+        return y
+        
+
+
 class CropToEven(object):
     """ 
     if Volume shape is not even numbers, simply crop the first element
@@ -235,6 +302,10 @@ class CropToEven(object):
         
         data = data[IsOdd[0]:, IsOdd[1]:, IsOdd[2]:, : ]
         label = label[IsOdd[0]:, IsOdd[1]:, IsOdd[2]:]
+
+        if not isinstance(meta['weight'], int):
+            raise NotImplementedError('Weight was calulated before. Cropping implementation missing')
+            
         
         # save, how much data was cropped
         # using torch tensor, because dataloader will convert anyways
@@ -441,6 +512,7 @@ class CropToEven(object):
 
 #for sample in dataloader:
     #print(sample['data'].shape)
+
 
 # numpy array size of images
 # [H x W x C]

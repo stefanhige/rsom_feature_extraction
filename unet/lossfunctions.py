@@ -5,7 +5,7 @@ import warnings
 import copy 
 import numpy as np
 
-def cross_entropy_2d(pred, target):
+def cross_entropy_2d(pred, target, weight):
     '''
     doc string
     '''
@@ -54,7 +54,7 @@ def cross_entropy_2d(pred, target):
     return loss
 
 
-def custom_loss_1(pred, target):
+def custom_loss_1(pred, target, weight_dl):
     '''
     doc string
     '''
@@ -65,24 +65,17 @@ def custom_loss_1(pred, target):
     target = target.long()
     unred_loss = fn(pred, target)
 
-    # TODO fix that naming mess
-    label = target
 
     # LOSS shape [Minibatch, Z, X]
-    label_shp = label.shape
+    target_shp = target.shape
     loss_shp = unred_loss.shape
-    
-    # print(label_shp, loss_shp)
-
-    # we do it in numpy and then go back to torch
-    # because torch.flip() doesn't work on 1D ???
-
-    weight = copy.deepcopy(label)
+    weight = copy.deepcopy(target)
 
     # loop over dim 0 and 2
-    for yy in np.arange(label_shp[0]):
-        for xx in np.arange(label_shp[2]):
-            idx_nz = torch.nonzero(label[yy, :, xx])
+    for yy in np.arange(target_shp[0]):
+        for xx in np.arange(target_shp[2]):
+            
+            idx_nz = torch.nonzero(target[yy, :, xx])
             idx_beg = idx_nz[0].item()
 
             idx_end = idx_nz[-1].item()
@@ -90,7 +83,7 @@ def custom_loss_1(pred, target):
             # print(idx_beg, idx_end)
             
             A = scalingfn(idx_beg)
-            B = scalingfn(label_shp[1] - idx_end)
+            B = scalingfn(target_shp[1] - idx_end)
 
             weight[yy,:idx_beg,xx] = A.unsqueeze(0).flip(1).squeeze()
             # print('A reversed', A.unsqueeze(0).flip(1).squeeze())
@@ -112,6 +105,11 @@ def custom_loss_1(pred, target):
     
     # print('weight', weight.dtype)
     # print('unred_loss', unred_loss.dtype)
+    if weight_dl == weight.float():
+        print('yeah')
+    else:
+        print('have a look again')
+
     loss = weight.float() * unred_loss
     
     # import nibabel as nib

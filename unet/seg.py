@@ -16,10 +16,11 @@ from torchvision import transforms, utils
 from unet import UNet
 import lossfunctions as lfs
 # import nibabel as nib
-# from timeit import default_timer as timer
+from timeit import default_timer as timer
 
 from dataloader_dev import RSOMLayerDataset
-from dataloader_dev import RandomZShift, ZeroCenter, CropToEven, DropBlue, ToTensor
+from dataloader_dev import RandomZShift, ZeroCenter, CropToEven
+from dataloader_dev import DropBlue, ToTensor, precalcLossWeight
 
 def train(model, iterator, optimizer, history, epoch, lossfn, args):
     '''
@@ -38,6 +39,12 @@ def train(model, iterator, optimizer, history, epoch, lossfn, args):
         # get the next batch of training data
         batch = next(iterator)
         
+        # label_ = batch['label']
+        # print(label_.shape)
+        
+        # print(label_[:,:,0,:].sum().item())
+        # print(label_[:,:,-1,:].sum().item())
+                
         batch['label'] = batch['label'].to(
                 args.device, 
                 dtype=args.dtype, 
@@ -46,6 +53,11 @@ def train(model, iterator, optimizer, history, epoch, lossfn, args):
                 args.device,
                 args.dtype,
                 non_blocking=args.non_blocking)
+        batch['meta']['weight'] = batch['meta']['weight'].to(
+                args.device,
+                args.dtype,
+                non_blocking=args.non_blocking)
+
 
         # divide into minibatches
         minibatches = np.arange(batch['data'].shape[1],
@@ -56,21 +68,23 @@ def train(model, iterator, optimizer, history, epoch, lossfn, args):
                         idx:idx+args.minibatch_size, :, :]
                 label = batch['label'][:,
                         idx:idx+args.minibatch_size, :, :]
+                weight = batch['meta']['weight'][:,
+                        idx:idx+args.minibatch_size, :, :]
             else:
                 data = batch['data'][:, idx:, :, :]
-                label = batch['label'][:,idx:, :, :]
+                label = batch['label'][:, idx:, :, :]
+                weight = batch['meta']['weight'][:, idx:, :, :]
             
  
             data = torch.squeeze(data, dim=0)
             label = torch.squeeze(label, dim=0)
+            weight = torch.squeeze(weight, dim=0)
             
-            
-
             prediction = model(data)
         
             # move back to save memory
             # prediction = prediction.to('cpu')
-            loss = lossfn(prediction, label)
+            loss = lossfn(prediction, label, weight)
             
             optimizer.zero_grad()
             loss.backward()
@@ -155,28 +169,37 @@ def eval(model, iterator, history, epoch, lossfn, args):
 
      
 
-train_dir = '/home/gerlstefan/data/dataloader_dev'
-eval_dir = train_dir
+# train_dir = '/home/gerlstefan/data/dataloader_dev'
+# eval_dir = train_dir
 
-# root_dir = '/home/gerlstefan/data/fullDataset/labeled'
-# train_dir = os.path.join(root_dir, 'train')
-# eval_dir = os.path.join(root_dir, 'val')
+root_dir = '/home/gerlstefan/data/fullDataset/labeled'
+train_dir = os.path.join(root_dir, 'train')
+eval_dir = os.path.join(root_dir, 'val')
 
+save_path = '/home/gerlstefan/models/layerseg/test'
+save_name = 'model_20190716_2__1'
+
+
+
+
+logfile = open(os.path.join(save_path, 'log_' + save_name),'x')
 
 os.environ["CUDA_VISIBLE_DEVICES"]='7'
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# print('Current GPU device:', torch.cuda.current_device()
-# print('model down_path first weight at', model.down_path[0].block.state_dict()['0.weight'].device)
+print('Current GPU device:', torch.cuda.current_device())
 
+zshift = (-50, 100)
+print('zshift:', zshift, file=logfile)
 
 dataset_train = RSOMLayerDataset(train_dir,
-        transform=transforms.Compose([RandomZShift(),
+    transform=transforms.Compose([RandomZShift(zshift),
             ZeroCenter(), 
             CropToEven(),
             DropBlue(),
-            ToTensor()]))
+            ToTensor(),
+            precalcLossWeight()]))
 dataloader_train = DataLoader(dataset_train,
         batch_size=1, 
         shuffle=False, 
@@ -188,7 +211,8 @@ dataset_eval = RSOMLayerDataset(eval_dir,
             ZeroCenter(), 
             CropToEven(),
             DropBlue(),
-            ToTensor()]))
+            ToTensor(),
+            precalcLossWeight()]))
 dataloader_eval = DataLoader(dataset_eval,
         batch_size=1, 
         shuffle=False, 
@@ -210,13 +234,13 @@ args = arg_class()
 
 args.size_train = len(dataset_train)
 args.size_eval = len(dataset_eval)
-
-print("dataset len:", args.size_train)
+print('TRAIN dataset len', args.size_train)
+print('EVAL dataset len ', args.size_eval)
 args.minibatch_size = 5
 args.device = device
 args.dtype = torch.float32
 args.non_blocking = True
-args.n_epochs = 50
+args.n_epochs = 5 
 args.data_dim = dataset_eval[0]['data'].shape
 # model = debugnet()
 model = UNet(in_channels=2,
@@ -239,7 +263,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=initial_lr)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 
         mode='min', 
         factor=0.1,
-        patience=5,
+        patience=3,
         verbose=True,
         threshold=1e-4,
         threshold_mode='rel',
@@ -267,7 +291,10 @@ for curr_epoch in range(args.n_epochs):
     iterator_eval = iter(dataloader_eval)
     
     curr_lr = optimizer.state_dict()['param_groups'][0]['lr']
- 
+
+    if curr_epoch == 1:
+        tic = timer()
+    
     train(model=model,
         iterator=iterator_train,
         optimizer=optimizer,
@@ -276,12 +303,22 @@ for curr_epoch in range(args.n_epochs):
         lossfn=lfs.custom_loss_1,
         args=args)
     
+    if curr_epoch == 1:
+        toc = timer()
+        print('Training took:', toc - tic)
+        tic = timer()
+    
     eval(model=model,
         iterator=iterator_eval,
         history=history,
         epoch=curr_epoch,
         lossfn=lfs.custom_loss_1,
         args=args)
+
+    if curr_epoch == 1:
+        toc = timer()
+        print('Evaluation took:', toc - tic)
+
 
     print(torch.cuda.memory_cached()*1e-6,'MB memory used')
     # extract the average training loss of the epoch
@@ -305,18 +342,19 @@ for curr_epoch in range(args.n_epochs):
 
     print('Epoch {:d} of {:d}: lr={:.0e}, Lt={:.2e}, Le={:.2e}'.format(
         curr_epoch+1, args.n_epochs, curr_lr, train_loss, curr_loss), found_nb)
+    print('Epoch {:d} of {:d}: lr={:.0e}, Lt={:.2e}, Le={:.2e}'.format(
+        curr_epoch+1, args.n_epochs, curr_lr, train_loss, curr_loss), found_nb, file=logfile)
     
-print('finished. saving model')
 
-save_path = '/home/gerlstefan/models/layerseg/test'
-save_name = 'bestmodel_20190715'
+print('finished. saving model')
 
 # save model state_dict
 torch.save(best_model,os.path.join(save_path, save_name))
 
+logfile.close()
 # save history tracking
 json_f = json.dumps(history)
-f = open(os.path.join(save_path, save_name + '_hist'),'w')
+f = open(os.path.join(save_path,'hist_' + save_name),'w')
 f.write(json_f)
 f.close()
 

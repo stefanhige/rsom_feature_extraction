@@ -3,8 +3,8 @@ import os
 import shutil
 
 def split(root_dir, 
-        test=0.15, 
-        val=0.15,
+        test=0.2, 
+        val=0.17,
         reshuffle=False,
         data_str='_rgb.nii.gz',
         label_str='_l.nii.gz'):
@@ -47,11 +47,11 @@ def split(root_dir,
             random.seed(1220)
         random.shuffle(data)
 
-        spl1 = int(test * len(data))
-        spl2 = int(val * len(data))
+        spl1 = int(val * len(data))
+        spl2 = int(test * len(data))
         val_data = data[:spl1]
         test_data = data[spl1:spl1+spl2]
-        train_data = data[spl2+spl2:]
+        train_data = data[spl1+spl2:]
         
         # debug
         assert val_data[-1] != test_data[0]
@@ -100,6 +100,6 @@ def merge(root_dir):
 
             shutil.move(os.path.join(cdir, file), root_dir)
 
-# ddir = '/home/gerlstefan/data/fullDataset/labeled_backup'
-# split(ddir)
+ddir = '/home/gerlstefan/data/fullDataset/labeled_backup'
+split(ddir)
 # merge(ddir)
