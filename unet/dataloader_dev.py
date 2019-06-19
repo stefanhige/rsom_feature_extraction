@@ -14,21 +14,23 @@ import nibabel as nib
 
 
 class RSOMLayerDataset(Dataset):
-    """rsom dataset class for layer segmentation"""
+    """
+    rsom dataset class for layer segmentation
+    
+    Args:
+        root_dir (string): Directory with all the nii.gz files.
+        data_str (string): end part of filename of training data.
+        label_str (string): end part of filename of segmentation ground truth data.
+        transform (callable, optional): Optional transform to be applied
+                            on a sample.
+    """
 
     def __init__(self, 
                  root_dir, 
                  data_str='_rgb.nii.gz', 
                  label_str='_l.nii.gz', 
                  transform=None):
-        """
-        Args:
-            root_dir (string): Directory with all the nii.gz files.
-            data_str (string): end part of filename of training data.
-            label_str (string): end part of filename of segmentation ground truth data.
-            transform (callable, optional): Optional transform to be applied
-                on a sample.
-        """
+
         assert os.path.exists(root_dir) and os.path.isdir(root_dir), \
         'root_dir not a valid directory'
         
