@@ -178,8 +178,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 origin = '/home/gerlstefan/data/fullDataset/labeled/val'
 # origin = '/home/gerlstefan/data/dataloader_dev'
-destination ='/home/gerlstefan/data/prediction/190716/val'
-model_path = '/home/gerlstefan/models/layerseg/test/bestmodel_20190716'
+destination ='/home/gerlstefan/data/prediction/190717/val'
+model_path = '/home/gerlstefan/models/layerseg/test/model_20190717'
 
 # TODO: new dataset without labels
 # or optional labels to use also with evaluation set?

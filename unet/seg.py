@@ -9,6 +9,7 @@ import numpy as np
 import os
 import copy
 import json
+import warnings
 
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
@@ -124,7 +125,12 @@ def eval(model, iterator, history, epoch, lossfn, args):
                 args.device,
                 args.dtype,
                 non_blocking=args.non_blocking)
-        
+        batch['meta']['weight'] = batch['meta']['weight'].to(
+                args.device,
+                args.dtype,
+                non_blocking=args.non_blocking)
+
+       
         # divide into minibatches
         minibatches = np.arange(batch['data'].shape[1],
                 step=args.minibatch_size)
@@ -134,16 +140,21 @@ def eval(model, iterator, history, epoch, lossfn, args):
                         idx:idx+args.minibatch_size, :, :]
                 label = batch['label'][:,
                         idx:idx+args.minibatch_size, :, :]
+                weight = batch['meta']['weight'][:,
+                        idx:idx+args.minibatch_size, :, :]
             else:
                 data = batch['data'][:, idx:, :, :]
                 label = batch['label'][:,idx:, :, :]
-            
+                weight = batch['meta']['weight'][:, idx:, :, :]
  
             data = torch.squeeze(data, dim=0)
             label = torch.squeeze(label, dim=0)
+            weight = torch.squeeze(weight, dim=0)
+            
             prediction = model(data)
+
             # prediction = prediction.to('cpu')
-            loss = lossfn(prediction, label)
+            loss = lossfn(prediction, label, weight)
             
             # loss running variable
             # TODO: check if this works
@@ -177,13 +188,16 @@ train_dir = os.path.join(root_dir, 'train')
 eval_dir = os.path.join(root_dir, 'val')
 
 save_path = '/home/gerlstefan/models/layerseg/test'
-save_name = 'model_20190716_2__1'
+save_name = 'model_20190717_1'
 
 
 
-
-logfile = open(os.path.join(save_path, 'log_' + save_name),'x')
-
+try:
+    logfile = open(os.path.join(save_path, 'log_' + save_name),'x')
+except:
+    logfile = open(os.path.join(save_path, 'log_' + save_name),'a')
+    warnings.warn('logfile already exists! appending to existing file..', UserWarning) 
+    
 os.environ["CUDA_VISIBLE_DEVICES"]='7'
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -196,7 +210,7 @@ print('zshift:', zshift, file=logfile)
 dataset_train = RSOMLayerDataset(train_dir,
     transform=transforms.Compose([RandomZShift(zshift),
             ZeroCenter(), 
-            CropToEven(),
+            CropToEven(network_depth=5),
             DropBlue(),
             ToTensor(),
             precalcLossWeight()]))
@@ -209,7 +223,7 @@ dataloader_train = DataLoader(dataset_train,
 dataset_eval = RSOMLayerDataset(eval_dir,
         transform=transforms.Compose([RandomZShift(),
             ZeroCenter(), 
-            CropToEven(),
+            CropToEven(network_depth=5),
             DropBlue(),
             ToTensor(),
             precalcLossWeight()]))
@@ -240,7 +254,7 @@ args.minibatch_size = 5
 args.device = device
 args.dtype = torch.float32
 args.non_blocking = True
-args.n_epochs = 5 
+args.n_epochs = 30 
 args.data_dim = dataset_eval[0]['data'].shape
 # model = debugnet()
 model = UNet(in_channels=2,

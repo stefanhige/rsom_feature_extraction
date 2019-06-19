@@ -65,61 +65,66 @@ def custom_loss_1(pred, target, weight_dl):
     target = target.long()
     unred_loss = fn(pred, target)
 
-
-    # LOSS shape [Minibatch, Z, X]
-    target_shp = target.shape
-    loss_shp = unred_loss.shape
-    weight = copy.deepcopy(target)
-
-    # loop over dim 0 and 2
-    for yy in np.arange(target_shp[0]):
-        for xx in np.arange(target_shp[2]):
-            
-            idx_nz = torch.nonzero(target[yy, :, xx])
-            idx_beg = idx_nz[0].item()
-
-            idx_end = idx_nz[-1].item()
-            # weight[yy,:idx_beg,xx] = np.flip(scalingfn(idx_beg))
-            # print(idx_beg, idx_end)
-            
-            A = scalingfn(idx_beg)
-            B = scalingfn(target_shp[1] - idx_end)
-
-            weight[yy,:idx_beg,xx] = A.unsqueeze(0).flip(1).squeeze()
-            # print('A reversed', A.unsqueeze(0).flip(1).squeeze())
-            # print('A', A)
-            
-            weight[yy,idx_end:,xx] = B
-            # weight[yy,:idx_beg,xx] = np.flip(scalingfn(idx_beg))
-            # weight[yy,idx_end:,xx] = scalingfn(label_shp[1] - idx_end)
-
-    # so now, weight should be descending to 1, where label is 1,
-    # and then ascend again
-
-    # verify this by printing one slice
-    # print(weight[2,:,100].shape)
-    # print(weight[2,:,100])
-
-    # multiply weight with unreduced element-wise loss
-    # to get the final loss
-    
-    # print('weight', weight.dtype)
-    # print('unred_loss', unred_loss.dtype)
-    if weight_dl == weight.float():
-        print('yeah')
-    else:
-        print('have a look again')
-
+    weight = weight_dl
     loss = weight.float() * unred_loss
     
-    # import nibabel as nib
+    return torch.sum(loss)
+ 
+    # # LOSS shape [Minibatch, Z, X]
+    # target_shp = target.shape
+    # loss_shp = unred_loss.shape
+
+    # precalculated weight
+    # if 0:
+
+    #     weight = copy.deepcopy(target)
+
+    #     # loop over dim 0 and 2
+    #     for yy in np.arange(target_shp[0]):
+    #         for xx in np.arange(target_shp[2]):
+                
+    #             idx_nz = torch.nonzero(target[yy, :, xx])
+    #             idx_beg = idx_nz[0].item()
+
+    #             idx_end = idx_nz[-1].item()
+    #             # weight[yy,:idx_beg,xx] = np.flip(scalingfn(idx_beg))
+    #             # print(idx_beg, idx_end)
+                
+    #             A = scalingfn(idx_beg)
+    #             B = scalingfn(target_shp[1] - idx_end)
+
+    #             weight[yy,:idx_beg,xx] = A.unsqueeze(0).flip(1).squeeze()
+    #             # print('A reversed', A.unsqueeze(0).flip(1).squeeze())
+    #             # print('A', A)
+                
+    #             weight[yy,idx_end:,xx] = B
+    #             # weight[yy,:idx_beg,xx] = np.flip(scalingfn(idx_beg))
+    #             # weight[yy,idx_end:,xx] = scalingfn(label_shp[1] - idx_end)
+
+    #     # so now, weight should be descending to 1, where label is 1,
+    #     # and then ascend again
+
+    #     # verify this by printing one slice
+    #     # print(weight[2,:,100].shape)
+    #     # print(weight[2,:,100])
+
+    #     # multiply weight with unreduced element-wise loss
+    #     # to get the final loss
+        
+    #     # print('weight', weight.dtype)
+    #     # print('unred_loss', unred_loss.dtype)
+    #     if torch.all(weight_dl == weight.float()):
+    #         print('yeah')
+    #     else:
+    #         print('have a look again')
+
+   # import nibabel as nib
     # V = weight.to('cpu').numpy()
     # V = V.astype(np.float)
     # img = nib.Nifti1Image(V, np.eye(4))
     
     # nib.save(img, '/home/gerlstefan/weight_test.nii.gz')
 
-    return torch.sum(loss)
 
 def scalingfn(l):
     '''
@@ -131,14 +136,38 @@ def scalingfn(l):
 
 
 
+def smoothness_loss(pred, target):
+    '''
+    smoothness loss x-y plane, ie. perfect label
+    separation in z-direction will cause zero loss
+    
+    first try only calculating the loss on label "1"
+    as this is a 2-label problem only anyways
+    '''
+    pass
+   
+
+    # target shape
+    # [minibatch x Z x X]
+    
+    
+    # torch.nn.functional.conv2d(input, weight, bias=None, stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros')
+    # input – minibatch,in_channels,iH,iW
+    # weight filters of shape out_channels,in_channels/groups,kH,kW
+
+    # so Z needs to be minibatch, in_channels = 1, iH = minibatch, iW = X
+    # target needs to be reshaped to
+    # [Z, 1, minibatch, X]
+    # weight needs to be defined as
+    # [1, 1, minibatch, minibatch]
+    # options: padding=0, groups=1, dilation=1
+    # maybe add ReLu or abs() function before (need to check pred values!)
 
 
-
-
-
-
-
-
+    # then to calculate loss
+    # for each output pixel of the conv
+    # abs((convResult + 1 / centerPixelValue + 1) - 1)
+    
 
 
 

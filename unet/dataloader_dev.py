@@ -172,7 +172,7 @@ class RandomZShift(object):
             shift_label = np.zeros(((abs(dz), ) + label.shape[1:]), dtype = np.uint8)
         
             # print('RandomZShift: Check if this array modification does the correct thing before actually using it')
-            print('ZShift:', dz)
+            # print('ZShift:', dz)
             # positive dz will shift in +z direction, "downwards" inside skin
             data = np.concatenate((shift_data, data[:-abs(dz),:,:,:])\
                     if dz > 0 else (data[abs(dz):,:,:,:], shift_data), axis = 0)
@@ -293,11 +293,21 @@ class CropToEven(object):
     if Volume shape is not even numbers, simply crop the first element
     except for last dimension, this is RGB  = 3
     """
+    def __init__(self,network_depth=3):
+        # how the unet works, without getting a upscaling error, the input shape must be a multiplier of 2**(network_depth-1)
+        self.maxdiv = 2**(network_depth - 1)
+        self.network_depth = network_depth
+
     def __call__(self, sample):
         data, label, meta = sample['data'], sample['label'], sample['meta']
         assert isinstance(data, np.ndarray)
         assert isinstance(label, np.ndarray)
-     
+        
+        # for backward compatibility
+        # easy version: first crop to even, crop rest afterwards, if necessary
+        initial_dshape = data.shape
+        initial_lshape = label.shape
+
         IsOdd = np.mod(data.shape[:-1], 2)
         
         data = data[IsOdd[0]:, IsOdd[1]:, IsOdd[2]:, : ]
@@ -314,7 +324,48 @@ class CropToEven(object):
             
         meta['lcrop']['begin'] = torch.from_numpy(np.array([IsOdd[0], IsOdd[1], IsOdd[2]], dtype=np.int16))
         meta['lcrop']['end'] = torch.from_numpy(np.array([0, 0, 0], dtype=np.int16))
+
         
+        # before cropping
+        #            [Z  x Batch x Y  x 3]
+        # data shape [500 x 171 x 333 x 3]
+        # after cropping
+        # data shape [500 x 170 x 332 x 3]
+
+        # need to crop Z and Y
+        
+        # check if Z and Y are divisible through self.maxdiv
+        rem0 = np.mod(data.shape[0], self.maxdiv)
+        rem2 = np.mod(data.shape[2], self.maxdiv)
+        
+        if rem0 or rem2:
+            if rem0:
+                # crop Z
+                data = data[int(np.floor(rem0/2)):-int(np.ceil(rem0/2)), :, :, :]
+                label = label[int(np.floor(rem0/2)):-int(np.ceil(rem0/2)), :, :]
+
+            if rem2:
+                # crop Y
+                data = data[ :, :, int(np.floor(rem2/2)):-int(np.ceil(rem2/2)), :]
+                label = label[:, :, int(np.floor(rem2/2)):-int(np.ceil(rem2/2))]
+        
+            # add to meta information, how much has been cropped
+            meta['dcrop']['begin'] += torch.from_numpy(np.array([np.floor(rem0/2), 0, np.floor(rem2/2), 0], dtype=np.int16))
+            meta['dcrop']['end'] += torch.from_numpy(np.array([np.ceil(rem0/2), 0, np.ceil(rem2/2), 0], dtype=np.int16))
+                
+            meta['lcrop']['begin'] += torch.from_numpy(np.array([np.floor(rem0/2), 0, np.floor(rem2/2)], dtype=np.int16))
+            meta['lcrop']['end'] += torch.from_numpy(np.array([np.ceil(rem0/2), 0, np.ceil(rem2/2)], dtype=np.int16))
+
+        assert np.all(np.array(initial_dshape) == meta['dcrop']['begin'].numpy()
+                + meta['dcrop']['end'].numpy()
+                + np.array(data.shape)),\
+                'Shapes and Crop do not match'
+
+        assert np.all(np.array(initial_lshape) == meta['lcrop']['begin'].numpy()
+                + meta['lcrop']['end'].numpy()
+                + np.array(label.shape)),\
+                'Shapes and Crop do not match'
+
         return {'data': data, 'label': label, 'meta': meta}
     
     
