@@ -477,17 +477,12 @@ dirs={'train':train_dir,'eval':eval_dir, 'model':model_dir, 'pred':''}
 os.environ["CUDA_VISIBLE_DEVICES"]='7'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-filestrings = ['190721_unet4_dropout_no_clw', '190721_unet4_dropout_low_clw']
 
-for i, class_weight in enumerate((None, (0.25, 0.75))):
-    print(filestrings[i])
-    print(class_weight)
-
-    net1 = LayerUNET(device=device,
+net1 = LayerUNET(device=device,
                      model_depth=4,
                      dataset_zshift=(-50, 200),
                      dirs=dirs,
-                     filename = filestrings[i],
+                     filename = 'test_smoothness_loss',
                      optimizer = 'Adam',
                      initial_lr = 1e-4,
                      scheduler_patience = 3,
@@ -497,12 +492,39 @@ for i, class_weight in enumerate((None, (0.25, 0.75))):
                      class_weight=None
                      )
 
-    net1.printConfiguration()
-    net1.printConfiguration('logfile')
-    print(net1.model, file=net1.logfile)
+net1.printConfiguration()
+net1.printConfiguration('logfile')
+print(net1.model, file=net1.logfile)
 
-    net1.train_all_epochs()
-    net1.save()
+net1.train_all_epochs()
+net1.save()
+
+
+# filestrings = ['190721_unet4_dropout_no_clw', '190721_unet4_dropout_low_clw']
+# for i, class_weight in enumerate((None, (0.25, 0.75))):
+#     print(filestrings[i])
+#     print(class_weight)
+
+#     net1 = LayerUNET(device=device,
+#                      model_depth=4,
+#                      dataset_zshift=(-50, 200),
+#                      dirs=dirs,
+#                      filename = filestrings[i],
+#                      optimizer = 'Adam',
+#                      initial_lr = 1e-4,
+#                      scheduler_patience = 3,
+#                      lossfn = lfs.custom_loss_1,
+#                      epochs = 20,
+#                      dropout=True,
+#                      class_weight=None
+#                      )
+
+#     net1.printConfiguration()
+#     net1.printConfiguration('logfile')
+#     print(net1.model, file=net1.logfile)
+
+#     net1.train_all_epochs()
+#     net1.save()
 
 # PARAMETER SWEEPS
 # class weights: None,  (weight_background, weight_Epidermis)   ~ (0.11, 0.89) class distribution is (0.89, 0.11)

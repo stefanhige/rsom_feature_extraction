@@ -1,5 +1,4 @@
 import torch
-# import torch.nn as nn
 import warnings
 # from torch import nn
 import copy 
@@ -65,8 +64,14 @@ def custom_loss_1(pred, target, spatial_weight, class_weight=None):
     unred_loss = fn(pred, target)
 
     loss = spatial_weight.float() * unred_loss
-    
-    return torch.sum(loss)
+    loss = torch.sum(loss)
+    # print('L COMP', loss)
+    # print(loss.requires_grad)
+    more =  100*smoothness_loss(pred)
+    # print('S COMP', more)
+    loss += more
+    # print(more.requires_grad)
+    return loss 
  
 
 def scalingfn(l):
@@ -78,7 +83,6 @@ def scalingfn(l):
     return y
 
 
-
 def smoothness_loss(pred):
     '''
     smoothness loss x-y plane, ie. perfect label
@@ -88,12 +92,18 @@ def smoothness_loss(pred):
     as this is a 2-label problem only anyways
     '''
     pred_shape = pred.shape 
-    print('prediction shape', pred.shape)
-    label = (pred[:,1,:,:] > pred[:,0,:,:]).float()
-    print(label)
+    # print('prediction shape', pred.shape)
+    label = (pred[:,1,:,:] - pred[:,0,:,:]).float()
+    
+    label = torch.nn.functional.relu(label)
+    #add reLU?
+    
+    #look at values?
+
+    
     label = label.view(-1)
-    print(label.shape)
-    print(label)
+    # print(label.shape)
+    # print(label)
 
     window = 5
 
@@ -102,12 +112,12 @@ def smoothness_loss(pred):
     # [minibatch x in_channels x iW]
     label = torch.unsqueeze(label, 0)
     label = torch.unsqueeze(label, 0)
-    print('label after unsqueeze')
-    print(label.shape)
+    # print('label after unsqueeze')
+    # print(label.shape)
 
     # weight 
-    weight = torch.ones(1, 1, window).float() / window
-    print('conv weight:', weight)
+    weight = torch.ones(1, 1, window).float().to('cuda') / window
+    # print('conv weight:', weight)
 
     label_conv = torch.nn.functional.conv1d(input=label, 
             weight=weight,
@@ -115,25 +125,24 @@ def smoothness_loss(pred):
     
     label_conv = torch.squeeze(label_conv)
     label = torch.squeeze(label)
-    print('shapes after conv:', label_conv.shape, label.shape)
-
+    # print('shapes after conv:', label_conv.shape, label.shape)
     label_smoothness =torch.abs((label_conv+1) / (label+1)-1)
-    print(label_smoothness)
-    print('sum label_smoothness', torch.sum(label_smoothness))
+    # print(label_smoothness)
+    # print('sum label_smoothness', torch.sum(label_smoothness))
 
-    edge_corr = torch.zeros((10))
+    edge_corr = torch.zeros((pred_shape[3])).to('cuda')
     edge_corr[int(math.floor(window/2)):-int(math.floor(window/2))] = 1
-    print(edge_corr)
-    edge_corr = edge_corr.repeat(pred_shape[0]*pred_shape[3])
-    print(edge_corr)
+    # print(edge_corr)
+    edge_corr = edge_corr.repeat(pred_shape[0]*pred_shape[2])
+    # print(edge_corr)
 
     label_smoothness *= edge_corr
-    print('edge corrected label smoothness')
-    print(label_smoothness)
-    print(torch.sum(label_smoothness))
+    # print('edge corrected label smoothness')
+    # print(label_smoothness)
+    # print(torch.sum(label_smoothness))
     # target shape
     # [minibatch x Z x X]
-    
+    return torch.sum(label_smoothness)    
     
     # torch.nn.functional.conv2d(input, weight, bias=None, stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros')
     # input – minibatch,in_channels,iH,iW
