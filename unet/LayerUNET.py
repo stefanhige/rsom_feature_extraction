@@ -9,6 +9,7 @@ import torch.nn.functional as F
 import numpy as np
 
 import os
+import sys
 import copy
 import json
 import warnings
@@ -32,7 +33,16 @@ class LayerUNET():
     class for setting up, training and evaluating of layer segmentation
     with unet on RSOM dataset
     Args:
-        
+        device             torch.device()     'cuda' 'cpu'
+        model_depth        int                 unet depth
+        dataset_zshift     int or (int, int)   data aug. zshift
+        dirs               dict of string      use these directories
+        filename           string              pattern to save output
+        initial_lr         float               initial learning rate
+        scheduler_patience int                 n epochs before lr reduction
+        lossfn             function            custom lossfunction
+        class_weight       (float, float)      class weight for classes (0, 1)
+        epochs             int                 number of epochs 
     '''
     def __init__(self,
                  device=torch.device('cuda'),
@@ -44,7 +54,9 @@ class LayerUNET():
                  initial_lr = 1e-4,
                  scheduler_patience = 3,
                  lossfn = lfs.custom_loss_1,
-                 epochs = 30
+                 class_weight = None,
+                 epochs = 30,
+                 dropout = False
                  ):
         
         # PROCESS LOGGING
@@ -62,12 +74,24 @@ class LayerUNET():
              wf=6,
              padding=True,
              batch_norm=True,
-             up_mode='upconv').to(device)
+             up_mode='upconv',
+             dropout=dropout)
+        self.model_dropout = dropout
         
+        self.model = self.model.to(device)
+        self.model = self.model.float()
+        
+        print(self.model.down_path[0].block.state_dict()['0.weight'].device)
+
         self.model_depth = model_depth
         
         # LOSSFUNCTION
         self.lossfn = lossfn
+        if class_weight is not None:
+            self.class_weight = torch.tensor(class_weight, dtype=torch.float32)
+            self.class_weight = self.class_weight.to(device)
+        else:
+            self.class_weight = None
         
         
         # DIRECTORIES
@@ -88,7 +112,7 @@ class LayerUNET():
         
         self.train_dataloader = DataLoader(self.train_dataset,
                                            batch_size=1, 
-                                           shuffle=False, 
+                                           shuffle=True, 
                                            num_workers=4, 
                                            pin_memory=True)
 
@@ -110,10 +134,13 @@ class LayerUNET():
         
         
         # OPTIMIZER
+        self.initial_lr = initial_lr
         if optimizer == 'Adam':
             self.optimizer = torch.optim.Adam(
                     self.model.parameters(),
-                    lr=self.initial_lr)
+                    lr=self.initial_lr,
+                    weight_decay = 0
+                    )
         
         # SCHEDULER
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -149,28 +176,41 @@ class LayerUNET():
         self.args.n_epochs = epochs
         self.args.data_dim = self.eval_dataset[0]['data'].shape
         
+    def printConfiguration(self, destination='stdout'):
+        if destination == 'stdout':
+            where = sys.stdout
+        elif destination == 'logfile':
+            where = self.logfile
         
-    def printConfiguration(self):
-        for where in (sys.stdout, self.logfile):
-            print('LayerUNET configuration:',file=where)
-            print('TRAIN dataset loc:', self.dirs['train'], file=where)
-            print('TRAIN dataset len:', self.args.size_train, file=where)
-            print('EVAL dataset loc:', self.dirs['eval'], file=where)
-            print('EVAL dataset len:', self.args.size_eval, file=where)
-            print('EPOCHS:', self.args.n_epochs, file=where)
-            print('DATA shape:', self.args.data_dim, file=where)
-            print('OPTIMIZER missing name', file=where)
-            print('initial lr:', self.initial_lr, file=where)
-            print('lossfunction:', self.lossfn)
-            
-    def train_all_epochs(self): 
-        self.best_model = copy.deepcopy(model.to('cpu').state_dict())
+        print('LayerUNET configuration:',file=where)
+        print('DATA: train dataset loc:', self.dirs['train'], file=where)
+        print('      train dataset len:', self.args.size_train, file=where)
+        print('      eval dataset loc:', self.dirs['eval'], file=where)
+        print('      eval dataset len:', self.args.size_eval, file=where)
+        print('      shape:', self.args.data_dim, file=where)
+        print('      zshift:', self.train_dataset_zshift)
+        print('EPOCHS:', self.args.n_epochs, file=where)
+        print('OPTIMIZER:', self.optimizer, file=where)
+        print('initial lr:', self.initial_lr, file=where)
+        print('LOSS: fn', self.lossfn, file=where)
+        print('      class_weight', self.class_weight, file=where)
+        print('CNN:  unet', file=where)
+        print('      depth', self.model_depth, file=where)
+        print('      dropout?', self.model_dropout, file=where)
+        print('OUT:  model:', self.dirs['model'], file=where)
+        print('      pred:', self.dirs['pred'], file=where)
+
+    def train_all_epochs(self):  
+        self.best_model = copy.deepcopy(self.model.state_dict())
+        for k, v in self.best_model.items():
+            self.best_model[k] = v.to('cpu')
+        
         self.best_loss = float('inf')
- 
+        
         print('Entering training loop..')
         for curr_epoch in range(self.args.n_epochs): 
             # in every epoch, generate iterators
-            train_iterator = iter(self.train_dataloder)
+            train_iterator = iter(self.train_dataloader)
             eval_iterator = iter(self.eval_dataloader)
             
             curr_lr = self.optimizer.state_dict()['param_groups'][0]['lr']
@@ -196,7 +236,7 @@ class LayerUNET():
             le_idx = self.history['train']['epoch'].index(curr_epoch)
             le_losses = self.history['train']['loss'][le_idx:]
             # divide by batch size (170) times dataset size
-            train_loss = sum(le_losses) / (args.data_dim[0]*args.size_train)
+            train_loss = sum(le_losses) / (self.args.data_dim[0]*self.args.size_train)
             
             # extract most recent eval loss
             curr_loss = self.history['eval']['loss'][-1]
@@ -206,18 +246,21 @@ class LayerUNET():
             
             if curr_loss < self.best_loss:
                 self.best_loss = copy.deepcopy(curr_loss)
-                self.best_model = copy.deepcopy(self.model.to('cpu').state_dict())
+                self.best_model = copy.deepcopy(self.model.state_dict())
+                for k, v in self.best_model.items():
+                    self.best_model[k] = v.to('cpu')
                 found_nb = 'new best!'
             else:
                 found_nb = ''
         
             print('Epoch {:d} of {:d}: lr={:.0e}, Lt={:.2e}, Le={:.2e}'.format(
-                curr_epoch+1, args.n_epochs, curr_lr, train_loss, curr_loss), found_nb)
+                curr_epoch+1, self.args.n_epochs, curr_lr, train_loss, curr_loss), found_nb)
             print('Epoch {:d} of {:d}: lr={:.0e}, Lt={:.2e}, Le={:.2e}'.format(
-                curr_epoch+1, args.n_epochs, curr_lr, train_loss, curr_loss), found_nb, file=self.logfile)
+                curr_epoch+1, self.args.n_epochs, curr_lr, train_loss, curr_loss), found_nb, file=self.logfile)
     
         print('finished. saving model')
-        
+        self.logfile.close()
+    
     def train(self, iterator, epoch):
         '''
         train one epoch
@@ -230,15 +273,15 @@ class LayerUNET():
                 args 
         '''
         # PARSE
-        model = self.model
-        optimizer = self.optimizer
-        history = self.history
-        lossfn = self.lossfn
-        args = self.args
+        # model = self.model
+        # optimizer = self.optimizer
+        # history = self.history
+        # lossfn = self.lossfn
+        # args = self.args
         
-        model.train()
+        self.model.train()
         
-        for i in range(args.size_train):
+        for i in range(self.args.size_train):
             # get the next batch of training data
             batch = next(iterator)
             
@@ -249,30 +292,30 @@ class LayerUNET():
             # print(label_[:,:,-1,:].sum().item())
                     
             batch['label'] = batch['label'].to(
-                    args.device, 
-                    dtype=args.dtype, 
-                    non_blocking=args.non_blocking)
+                    self.args.device, 
+                    dtype=self.args.dtype, 
+                    non_blocking=self.args.non_blocking)
             batch['data'] = batch['data'].to(
-                    args.device,
-                    args.dtype,
-                    non_blocking=args.non_blocking)
+                    self.args.device,
+                    self.args.dtype,
+                    non_blocking=self.args.non_blocking)
             batch['meta']['weight'] = batch['meta']['weight'].to(
-                    args.device,
-                    args.dtype,
-                    non_blocking=args.non_blocking)
+                    self.args.device,
+                    self.args.dtype,
+                    non_blocking=self.args.non_blocking)
         
         
             # divide into minibatches
             minibatches = np.arange(batch['data'].shape[1],
-                    step=args.minibatch_size)
+                    step=self.args.minibatch_size)
             for i2, idx in enumerate(minibatches): 
-                if idx + args.minibatch_size < batch['data'].shape[1]:
+                if idx + self.args.minibatch_size < batch['data'].shape[1]:
                     data = batch['data'][:,
-                            idx:idx+args.minibatch_size, :, :]
+                            idx:idx+self.args.minibatch_size, :, :]
                     label = batch['label'][:,
-                            idx:idx+args.minibatch_size, :, :]
+                            idx:idx+self.args.minibatch_size, :, :]
                     weight = batch['meta']['weight'][:,
-                            idx:idx+args.minibatch_size, :, :]
+                            idx:idx+self.args.minibatch_size, :, :]
                 else:
                     data = batch['data'][:, idx:, :, :]
                     label = batch['label'][:, idx:, :, :]
@@ -283,25 +326,29 @@ class LayerUNET():
                 label = torch.squeeze(label, dim=0)
                 weight = torch.squeeze(weight, dim=0)
                 
-                prediction = model(data)
+                prediction = self.model(data)
             
                 # move back to save memory
                 # prediction = prediction.to('cpu')
-                loss = lossfn(prediction, label, weight)
+                loss = self.lossfn(
+                        pred=prediction, 
+                        target=label,
+                        spatial_weight=weight,
+                        class_weight=self.class_weight)
                 
-                optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 loss.backward()
-                optimizer.step()
+                self.optimizer.step()
         
                 frac_epoch = epoch +\
-                        i/args.size_train +\
-                        i2/(args.size_train * minibatches.size)
+                        i/self.args.size_train +\
+                        i2/(self.args.size_train * minibatches.size)
                 
                 # print(epoch, i/args.size_train, i2/minibatches.size)
-                history['train']['epoch'].append(frac_epoch)
-                history['train']['loss'].append(loss.data.item())
+                self.history['train']['epoch'].append(frac_epoch)
+                self.history['train']['loss'].append(loss.data.item())
                 
-    def eval(self, epoch):
+    def eval(self, iterator, epoch):
         '''
         evaluate with the validationset
         Args:   model
@@ -313,44 +360,43 @@ class LayerUNET():
                 args
         '''
         # PARSE
-        model = self.model
-        iterator = self.eval_iterator
-        history = self.history
-        lossfn = self.lossfn
-        args = self.args
+        # model = self.model
+        # history = self.history
+        # lossfn = self.lossfn
+        # args = self.args
         
         
-        model.eval()
+        self.model.eval()
         running_loss = 0.0
         
-        for i in range(args.size_eval):
+        for i in range(self.args.size_eval):
             # get the next batch of the testset
+            
             batch = next(iterator)
             batch['label'] = batch['label'].to(
-                    args.device, 
-                    dtype=args.dtype, 
-                    non_blocking=args.non_blocking)
+                    self.args.device, 
+                    dtype=self.args.dtype, 
+                    non_blocking=self.args.non_blocking)
             batch['data'] = batch['data'].to(
-                    args.device,
-                    args.dtype,
-                    non_blocking=args.non_blocking)
+                    self.args.device,
+                    self.args.dtype,
+                    non_blocking=self.args.non_blocking)
             batch['meta']['weight'] = batch['meta']['weight'].to(
-                    args.device,
-                    args.dtype,
-                    non_blocking=args.non_blocking)
+                    self.args.device,
+                    self.args.dtype,
+                    non_blocking=self.args.non_blocking)
         
-           
             # divide into minibatches
             minibatches = np.arange(batch['data'].shape[1],
-                    step=args.minibatch_size)
+                    step=self.args.minibatch_size)
             for i2, idx in enumerate(minibatches):
-                if idx + args.minibatch_size < batch['data'].shape[1]:
+                if idx + self.args.minibatch_size < batch['data'].shape[1]:
                     data = batch['data'][:,
-                            idx:idx+args.minibatch_size, :, :]
+                            idx:idx+self.args.minibatch_size, :, :]
                     label = batch['label'][:,
-                            idx:idx+args.minibatch_size, :, :]
+                            idx:idx+self.args.minibatch_size, :, :]
                     weight = batch['meta']['weight'][:,
-                            idx:idx+args.minibatch_size, :, :]
+                            idx:idx+self.args.minibatch_size, :, :]
                 else:
                     data = batch['data'][:, idx:, :, :]
                     label = batch['label'][:,idx:, :, :]
@@ -360,10 +406,14 @@ class LayerUNET():
                 label = torch.squeeze(label, dim=0)
                 weight = torch.squeeze(weight, dim=0)
                 
-                prediction = model(data)
+                prediction = self.model(data)
         
                 # prediction = prediction.to('cpu')
-                loss = lossfn(prediction, label, weight)
+                loss = self.lossfn(
+                        pred=prediction, 
+                        target=label,
+                        spatial_weight=weight,
+                        class_weight=self.class_weight)
                 
                 # loss running variable
                 # TODO: check if this works
@@ -374,28 +424,49 @@ class LayerUNET():
         
             # running_loss adds up loss for every batch and minibatch,
             # divide by size of testset*size of each batch
-            epoch_loss = running_loss / (args.size_eval*batch['data'].shape[1])
-            history['eval']['epoch'].append(epoch)
-            history['eval']['loss'].append(epoch_loss)
-            
-            self.logfile.close()
-            
-    def save(self):
+            epoch_loss = running_loss / (self.args.size_eval*batch['data'].shape[1])
+            self.history['eval']['epoch'].append(epoch)
+            self.history['eval']['loss'].append(epoch_loss)
+           
+    def calc_weight_std(self, model):
+        '''
+        calculate the standard deviation of all weights in model_dir
+
+        '''
+        if isinstance(model, nn.Module):
+            model = model.state_dict()
         
-        torch.save(self.best_model, os.path.join(self.dirs['model'], + 'mod_' + filename))
+        all_values = np.array([])
+
+        for name, values in model.items():
+            if 'weight' in name:
+                values = values.to('cpu').numpy()
+                values = values.ravel()
+                all_values = np.concatenate((all_values, values))
+
+        stdd = np.std(all_values)
+        mean = np.mean(all_values)
+        print('model number of weights:', len(all_values))
+        print('model weights standard deviation:', stdd)
+        print('model weights mean value:        ', mean)
+
+
+    def save(self):
+        torch.save(self.best_model, os.path.join(self.dirs['model'], 'mod_' + self.filename + '.pt'))
         
         json_f = json.dumps(self.history)
-        f = open(os.path.join(self.dirs['model'],'hist_' + filename),'w')
+        f = open(os.path.join(self.dirs['model'],'hist_' + self.filename + '.json'),'w')
         f.write(json_f)
         f.close()
-            
             
     class helperClass():
         pass
         
         
 # EXECUTION TEST
-        
+# train_dir = '/home/gerlstefan/data/dataloader_dev'
+# eval_dir = train_dir
+
 root_dir = '/home/gerlstefan/data/fullDataset/labeled'
 train_dir = os.path.join(root_dir, 'train')
 eval_dir = os.path.join(root_dir, 'val')
@@ -405,23 +476,42 @@ model_dir = '/home/gerlstefan/models/layerseg/test'
 dirs={'train':train_dir,'eval':eval_dir, 'model':model_dir, 'pred':''}
 os.environ["CUDA_VISIBLE_DEVICES"]='7'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        
-#net1 = LayerUNET(device=device,
-#                 model_depth=3,
-#                 dataset_zshift=0,
-#                 dirs=dirs,
-#                 filename = 'test',
-#                 optimizer = 'Adam',
-#                 initial_lr = 1e-4,
-#                 scheduler_patience = 3,
-#                 lossfn = lfs.custom_loss_1,
-#                 epochs = 30
-#                 )
 
+filestrings = ['190721_unet4_dropout_no_clw', '190721_unet4_dropout_low_clw']
 
-# net1.train_all()
+for i, class_weight in enumerate((None, (0.25, 0.75))):
+    print(filestrings[i])
+    print(class_weight)
 
-        
+    net1 = LayerUNET(device=device,
+                     model_depth=4,
+                     dataset_zshift=(-50, 200),
+                     dirs=dirs,
+                     filename = filestrings[i],
+                     optimizer = 'Adam',
+                     initial_lr = 1e-4,
+                     scheduler_patience = 3,
+                     lossfn = lfs.custom_loss_1,
+                     epochs = 20,
+                     dropout=True,
+                     class_weight=None
+                     )
+
+    net1.printConfiguration()
+    net1.printConfiguration('logfile')
+    print(net1.model, file=net1.logfile)
+
+    net1.train_all_epochs()
+    net1.save()
+
+# PARAMETER SWEEPS
+# class weights: None,  (weight_background, weight_Epidermis)   ~ (0.11, 0.89) class distribution is (0.89, 0.11)
+# lossfunctions: standard cross entropy,  weighted cross entropy, weighted cross entropy with smoothness?
+# different normalization -127...126,  -5...250, 0...255
+# different data augumentation values dataset_zshift   (-50, 100) ..   (-50, 200 ?)
+
+# different depth of unet    3, 4 , 5
+
             
                 
     

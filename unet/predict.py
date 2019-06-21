@@ -90,7 +90,6 @@ def pred(model=None, iterator=None, history=None, lossfn=None, args=None):
         label = (prediction_stack[:,1,:,:] > prediction_stack[:,0,:,:])
         print(label.shape)
        
-        # TODO add padding for same dimension as original .nii.gz files
         print(batch['meta']['filename']) 
         m = batch['meta']
         # print(m['dcrop']['begin'], m['dcrop']['end'], m['lcrop']['begin'], m['lcrop']['end']) 
@@ -107,7 +106,10 @@ def pred(model=None, iterator=None, history=None, lossfn=None, args=None):
         label_gt = torch.squeeze(label_gt, dim=0)
         label_gt = to_numpy(label_gt, m)
 
-        label_diff = label != label_gt
+        label_diff = (label > label_gt).astype(np.uint8)
+        label_diff += 2*(label < label_gt).astype(np.uint8)
+        
+        # label_diff = label != label_gt
 
         saveNII(label_diff, args.destination_dir, filename + 'dpred')
 
@@ -178,8 +180,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 origin = '/home/gerlstefan/data/fullDataset/labeled/val'
 # origin = '/home/gerlstefan/data/dataloader_dev'
-destination ='/home/gerlstefan/data/prediction/190717/val'
-model_path = '/home/gerlstefan/models/layerseg/test/model_20190717'
+destination ='/home/gerlstefan/data/prediction/190721_low_clw/val'
+model_path = '/home/gerlstefan/models/layerseg/test/mod_190721_unet4_dropout_low_clw.pt'
 
 # TODO: new dataset without labels
 # or optional labels to use also with evaluation set?
@@ -188,7 +190,7 @@ model_path = '/home/gerlstefan/models/layerseg/test/model_20190717'
 dataset_pred = RSOMLayerDataset(origin,
         transform=transforms.Compose([
             ZeroCenter(), 
-            CropToEven(),
+            CropToEven(network_depth=4),
             DropBlue(),
             ToTensor()]))
 
@@ -210,7 +212,7 @@ args.destination_dir = destination
 
 model = UNet(in_channels=2,
              n_classes=2,
-             depth=3,
+             depth=4,
              wf=6,
              padding=True,
              batch_norm=True,
