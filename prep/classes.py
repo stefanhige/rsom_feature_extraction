@@ -272,15 +272,27 @@ class RSOM():
             
         else:
             #static
-        
-            self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0, 0.2))
-            self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0, 0.1))
+            
+            # first dataset has these settings:
+            
+#            self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0, 0.2))
+#            self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0, 0.1))
+#            
+#            self.Vl_1 = self.Vl_1**2
+#            self.Vh_1 = self.Vh_1**2
+#            
+#            self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0.05, 1))
+#            self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0.02, 1))
+            
+            self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0, 0.25))
+            self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0, 0.125))
             
             self.Vl_1 = self.Vl_1**2
             self.Vh_1 = self.Vh_1**2
             
             self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0.05, 1))
             self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0.02, 1))
+            
 
         #print('min:', np.amin(self.Vl_1))
         #print('max:', np.amax(self.Vl_1))
@@ -353,8 +365,75 @@ class RSOM():
             plt.title(str(self.file.ID))
             #plt.imshow(P, aspect = 1/4)
             plt.show()
-            
+    
     def slidingMIP(self, axis=1):
+        '''
+        generate volume of mip's in a sliding fashion
+        on the basis of Vl_1 and Vh_1
+        '''
+        axis = int(axis)
+        if axis > 2:
+            axis = 2
+        if axis < 0:
+            axis = 0
+        
+        shp = self.Vl_1.shape
+        # print('shape before', self.Vl_1.shape, self.Vh_1.shape)
+        
+        window = 6
+        
+        assert not window % 2, 'window should be even, otherwise strange things may happen'
+        
+        if axis == 1:
+            Pl = np.zeros((shp[0], 0, shp[2]))
+            Ph = np.zeros((shp[0], 0, shp[2]))
+        elif axis == 0:
+            Pl = np.zeros((0, shp[1], shp[2]))
+            Ph = np.zeros((0, shp[1], shp[2]))
+        # todo:extend till end
+        for i in range(shp[axis]):
+            if axis == 1:
+                
+                # at the beginning
+                if i < (window/2):
+                    
+                    subVl = self.Vl_1[:, :i+int(window/2), :]
+                    subVh = self.Vh_1[:, :i+int(window/2), :]
+            
+                # at the end  
+                elif i > (shp[axis] - 1) - (window/2):
+                    subVl = self.Vl_1[:, i-int(window/2):, :]
+                    subVh = self.Vh_1[:, i-int(window/2):, :]
+                
+                # otherwise
+                else:
+                    subVl = self.Vl_1[:, i-int(window/2):i+int(window/2), :]
+                    subVh = self.Vh_1[:, i-int(window/2):i+int(window/2), :]
+            
+            # print(subVl.shape, subVh.shape)
+            # elif axis == 0:
+            #    subVl = self.Vl_1[i:i+window, :, :]
+            #    subVh = self.Vh_1[i:i+window, :, :]
+                
+            #print(Pl.shape)
+            #print(subVl.shape)
+            
+            maxVl = (np.amax(subVl, axis = axis, keepdims=True))
+            
+            #print(maxx.shape)
+            
+            #print('axis', axis)
+            
+            #print(Ph.shape)
+            Pl = np.concatenate((Pl, maxVl), axis=axis)
+            Ph = np.concatenate((Ph, np.amax(subVh, axis=axis, keepdims=True)), axis=axis)
+            
+        self.Vl_1 = Pl
+        self.Vh_1 = Ph
+        # print('shape after', self.Vl_1.shape, self.Vh_1.shape)
+        
+            
+    def slidingMIP_old(self, axis=1):
         '''
         generate volume of mip's in a sliding fashion
         '''

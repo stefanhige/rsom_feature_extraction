@@ -48,15 +48,15 @@ from classes import RSOM
 # define folder
 
 
-#origin = '/home/sgerl/Documents/PYTHON/TestDataset20190411/selection'
+# origin = '/home/sgerl/Documents/PYTHON/TestDataset20190411/selection'
 
 origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/allmat'
-origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
+# origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
 
 
-destination = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
-
-#destination = '/home/sgerl/Documents/RSOM/Diabetes/fullDataset/layer_seg'
+# destination = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
+# destination = '/home/sgerl/Documents/PYTHON/TestDataset20190411/selection/other_preproccessing_tests/sliding_mip_6'
+destination = '/home/sgerl/Documents/RSOM/Diabetes/fullDataset/layer_seg_prep3'
 
 
 cwd = os.getcwd()
@@ -95,25 +95,25 @@ for idx, filenameLF in enumerate(filenameLF_LIST):
     Obj.cutDEPTH()
     
     # surface for quick check
-    Obj.saveSURFACE((destination + ''), fstr = 'surf')
+    # Obj.saveSURFACE((destination + ''), fstr = 'surf')
     
     # MIP image for quick check
-    Obj.calcMIP(do_plot = False)
-    Obj.saveMIP(destination, fstr = 'mip')
+    # Obj.calcMIP(do_plot = False)
+    # Obj.saveMIP(destination, fstr = 'mip')
     
     # MIP 3D for annotation
-    Obj.calcMIP3D(do_plot = False)
-    Obj.saveMIP3D(destination, fstr = 'mip3d')
+    # Obj.calcMIP3D(do_plot = False)
+    #Obj.saveMIP3D(destination, fstr = 'mip3d')
     
     # VOLUME
     Obj.normINTENSITY()
     Obj.rescaleINTENSITY(dynamic_rescale = False)
+    Obj.slidingMIP()
     Obj.mergeVOLUME_RGB()
-    Obj.saveVOLUME(destination, fstr = 'rgb')
+    Obj.saveVOLUME(destination, fstr = '_3_rgb')
     
     print('Processing file', idx+1, 'of', len(filenameLF_LIST))
-    
-    
+
 
 
 
