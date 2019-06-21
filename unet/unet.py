@@ -15,6 +15,7 @@ class UNet(nn.Module):
         padding=False,
         batch_norm=False,
         up_mode='upconv',
+        dropout=False
     ):
         """
         Implementation of
@@ -39,11 +40,13 @@ class UNet(nn.Module):
                            'upconv' will use transposed convolutions for
                            learned upsampling.
                            'upsample' will use bilinear upsampling.
+            dropout (bool) if True, add dropout layer in up block
         """
         super(UNet, self).__init__()
         assert up_mode in ('upconv', 'upsample')
         self.padding = padding
         self.depth = depth
+        self.dropout = dropout
         prev_channels = in_channels
         self.down_path = nn.ModuleList()
         for i in range(depth):
@@ -54,9 +57,15 @@ class UNet(nn.Module):
 
         self.up_path = nn.ModuleList()
         for i in reversed(range(depth - 1)):
-            self.up_path.append(
-                UNetUpBlock(prev_channels, 2 ** (wf + i), up_mode, padding, batch_norm)
-            )
+            if self.dropout and i<=1:
+                # dropout = True
+                 self.up_path.append(
+                UNetUpBlock(prev_channels, 2 ** (wf + i), up_mode, padding, batch_norm, True)
+                )
+            else:
+                self.up_path.append(
+                    UNetUpBlock(prev_channels, 2 ** (wf + i), up_mode, padding, batch_norm, False)
+                )
             prev_channels = 2 ** (wf + i)
 
         self.last = nn.Conv2d(prev_channels, n_classes, kernel_size=1)
@@ -99,7 +108,7 @@ class UNetConvBlock(nn.Module):
 
 
 class UNetUpBlock(nn.Module):
-    def __init__(self, in_size, out_size, up_mode, padding, batch_norm):
+    def __init__(self, in_size, out_size, up_mode, padding, batch_norm, dropout):
         super(UNetUpBlock, self).__init__()
         if up_mode == 'upconv':
             self.up = nn.ConvTranspose2d(in_size, out_size, kernel_size=2, stride=2)
@@ -112,6 +121,9 @@ class UNetUpBlock(nn.Module):
                 # Changed from align_corners=None to True
                 nn.Conv2d(in_size, out_size, kernel_size=1),
             )
+
+        self.is_dropout = dropout
+        self.dropout = nn.Dropout(p=0.5)
 
         self.conv_block = UNetConvBlock(in_size, out_size, padding, batch_norm)
 
@@ -127,7 +139,14 @@ class UNetUpBlock(nn.Module):
         up = self.up(x)
         crop1 = self.center_crop(bridge, up.shape[2:])
         out = torch.cat([up, crop1], 1)
+        if self.is_dropout:
+            out = self.dropout(out)
+            # print('self.training', self.dropout.training)
+        else:
+            # print('self.training', self.dropout.training)
+            pass
         out = self.conv_block(out)
         # debug
         # print(out.shape)
         return out
+
