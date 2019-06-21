@@ -4,7 +4,7 @@ import warnings
 # from torch import nn
 import copy 
 import numpy as np
-
+import math
 def cross_entropy_2d(pred, target, weight):
     '''
     doc string
@@ -54,77 +54,20 @@ def cross_entropy_2d(pred, target, weight):
     return loss
 
 
-def custom_loss_1(pred, target, weight_dl):
+def custom_loss_1(pred, target, spatial_weight, class_weight=None):
     '''
     doc string
     '''
-
-    fn = torch.nn.CrossEntropyLoss(reduction='none')
+    fn = torch.nn.CrossEntropyLoss(weight=class_weight, reduction='none')
     
     pred = pred.float()
     target = target.long()
     unred_loss = fn(pred, target)
 
-    weight = weight_dl
-    loss = weight.float() * unred_loss
+    loss = spatial_weight.float() * unred_loss
     
     return torch.sum(loss)
  
-    # # LOSS shape [Minibatch, Z, X]
-    # target_shp = target.shape
-    # loss_shp = unred_loss.shape
-
-    # precalculated weight
-    # if 0:
-
-    #     weight = copy.deepcopy(target)
-
-    #     # loop over dim 0 and 2
-    #     for yy in np.arange(target_shp[0]):
-    #         for xx in np.arange(target_shp[2]):
-                
-    #             idx_nz = torch.nonzero(target[yy, :, xx])
-    #             idx_beg = idx_nz[0].item()
-
-    #             idx_end = idx_nz[-1].item()
-    #             # weight[yy,:idx_beg,xx] = np.flip(scalingfn(idx_beg))
-    #             # print(idx_beg, idx_end)
-                
-    #             A = scalingfn(idx_beg)
-    #             B = scalingfn(target_shp[1] - idx_end)
-
-    #             weight[yy,:idx_beg,xx] = A.unsqueeze(0).flip(1).squeeze()
-    #             # print('A reversed', A.unsqueeze(0).flip(1).squeeze())
-    #             # print('A', A)
-                
-    #             weight[yy,idx_end:,xx] = B
-    #             # weight[yy,:idx_beg,xx] = np.flip(scalingfn(idx_beg))
-    #             # weight[yy,idx_end:,xx] = scalingfn(label_shp[1] - idx_end)
-
-    #     # so now, weight should be descending to 1, where label is 1,
-    #     # and then ascend again
-
-    #     # verify this by printing one slice
-    #     # print(weight[2,:,100].shape)
-    #     # print(weight[2,:,100])
-
-    #     # multiply weight with unreduced element-wise loss
-    #     # to get the final loss
-        
-    #     # print('weight', weight.dtype)
-    #     # print('unred_loss', unred_loss.dtype)
-    #     if torch.all(weight_dl == weight.float()):
-    #         print('yeah')
-    #     else:
-    #         print('have a look again')
-
-   # import nibabel as nib
-    # V = weight.to('cpu').numpy()
-    # V = V.astype(np.float)
-    # img = nib.Nifti1Image(V, np.eye(4))
-    
-    # nib.save(img, '/home/gerlstefan/weight_test.nii.gz')
-
 
 def scalingfn(l):
     '''
@@ -136,7 +79,7 @@ def scalingfn(l):
 
 
 
-def smoothness_loss(pred, target):
+def smoothness_loss(pred):
     '''
     smoothness loss x-y plane, ie. perfect label
     separation in z-direction will cause zero loss
@@ -144,9 +87,50 @@ def smoothness_loss(pred, target):
     first try only calculating the loss on label "1"
     as this is a 2-label problem only anyways
     '''
-    pass
-   
+    pred_shape = pred.shape 
+    print('prediction shape', pred.shape)
+    label = (pred[:,1,:,:] > pred[:,0,:,:]).float()
+    print(label)
+    label = label.view(-1)
+    print(label.shape)
+    print(label)
 
+    window = 5
+
+    # add 2 extra dimensions
+    # conv1d needs input of shape
+    # [minibatch x in_channels x iW]
+    label = torch.unsqueeze(label, 0)
+    label = torch.unsqueeze(label, 0)
+    print('label after unsqueeze')
+    print(label.shape)
+
+    # weight 
+    weight = torch.ones(1, 1, window).float() / window
+    print('conv weight:', weight)
+
+    label_conv = torch.nn.functional.conv1d(input=label, 
+            weight=weight,
+            padding=int(math.floor(window/2)))
+    
+    label_conv = torch.squeeze(label_conv)
+    label = torch.squeeze(label)
+    print('shapes after conv:', label_conv.shape, label.shape)
+
+    label_smoothness =torch.abs((label_conv+1) / (label+1)-1)
+    print(label_smoothness)
+    print('sum label_smoothness', torch.sum(label_smoothness))
+
+    edge_corr = torch.zeros((10))
+    edge_corr[int(math.floor(window/2)):-int(math.floor(window/2))] = 1
+    print(edge_corr)
+    edge_corr = edge_corr.repeat(pred_shape[0]*pred_shape[3])
+    print(edge_corr)
+
+    label_smoothness *= edge_corr
+    print('edge corrected label smoothness')
+    print(label_smoothness)
+    print(torch.sum(label_smoothness))
     # target shape
     # [minibatch x Z x X]
     
