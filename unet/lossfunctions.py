@@ -67,9 +67,9 @@ def custom_loss_1(pred, target, spatial_weight, class_weight=None):
     loss = torch.sum(loss)
     # print('L COMP', loss)
     # print(loss.requires_grad)
-    more =  100*smoothness_loss(pred)
+    # more =  100*smoothness_loss(pred)
     # print('S COMP', more)
-    loss += more
+    # loss += more
     # print(more.requires_grad)
     return loss 
  

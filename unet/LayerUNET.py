@@ -467,37 +467,45 @@ class LayerUNET():
 # train_dir = '/home/gerlstefan/data/dataloader_dev'
 # eval_dir = train_dir
 
-root_dir = '/home/gerlstefan/data/fullDataset/labeled'
-train_dir = os.path.join(root_dir, 'train')
-eval_dir = os.path.join(root_dir, 'val')
+root_dirs = ['/home/gerlstefan/data/fullDataset/labeled',
+            '/home/gerlstefan/data/fullDataset/labeled_prep2',
+            '/home/gerlstefan/data/fullDataset/labeled_prep3']
+
+model_names = ['190722_dataset1',
+               '190722_dataset2',
+               '190722_dataset3']
 
 model_dir = '/home/gerlstefan/models/layerseg/test'
         
-dirs={'train':train_dir,'eval':eval_dir, 'model':model_dir, 'pred':''}
 os.environ["CUDA_VISIBLE_DEVICES"]='7'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+for idx, root_dir in enumerate(root_dirs):
+    print(model_names[idx])
+    print(root_dir)
+    train_dir = os.path.join(root_dir, 'train')
+    eval_dir = os.path.join(root_dir, 'val')
+    dirs={'train':train_dir,'eval':eval_dir, 'model':model_dir, 'pred':''}
 
+    net1 = LayerUNET(device=device,
+                         model_depth=4,
+                         dataset_zshift=(-50, 200),
+                         dirs=dirs,
+                         filename=model_names[idx],
+                         optimizer='Adam',
+                         initial_lr=1e-4,
+                         scheduler_patience=3,
+                         lossfn=lfs.custom_loss_1,
+                         epochs=30,
+                         dropout=True,
+                         class_weight=None
+                         )
 
-net1 = LayerUNET(device=device,
-                     model_depth=4,
-                     dataset_zshift=(-50, 200),
-                     dirs=dirs,
-                     filename = 'test_smoothness_loss',
-                     optimizer = 'Adam',
-                     initial_lr = 1e-4,
-                     scheduler_patience = 3,
-                     lossfn = lfs.custom_loss_1,
-                     epochs = 20,
-                     dropout=True,
-                     class_weight=None
-                     )
+    net1.printConfiguration()
+    net1.printConfiguration('logfile')
+    print(net1.model, file=net1.logfile)
 
-net1.printConfiguration()
-net1.printConfiguration('logfile')
-print(net1.model, file=net1.logfile)
-
-net1.train_all_epochs()
-net1.save()
+    net1.train_all_epochs()
+    net1.save()
 
 
 # filestrings = ['190721_unet4_dropout_no_clw', '190721_unet4_dropout_low_clw']

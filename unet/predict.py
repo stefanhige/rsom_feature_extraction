@@ -178,10 +178,10 @@ args = arg_class()
 os.environ["CUDA_VISIBLE_DEVICES"]='7'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-origin = '/home/gerlstefan/data/fullDataset/labeled/val'
+origin = '/home/gerlstefan/data/fullDataset/labeled_prep3/val'
 # origin = '/home/gerlstefan/data/dataloader_dev'
-destination ='/home/gerlstefan/data/prediction/190721_low_clw/val'
-model_path = '/home/gerlstefan/models/layerseg/test/mod_190721_unet4_dropout_low_clw.pt'
+destination ='/home/gerlstefan/data/prediction/190722_dataset3/val'
+model_path = '/home/gerlstefan/models/layerseg/test/mod_190723_dataset3.pt'
 
 # TODO: new dataset without labels
 # or optional labels to use also with evaluation set?

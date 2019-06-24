@@ -35,7 +35,7 @@ def split(root_dir,
         
         # create paths
         train_dir = os.path.join(root_dir, 'train')
-        test_dir = os.path.join(root_dir, 'test')
+        test_dir = os.path.join(root_dir, '.test')
         val_dir = os.path.join(root_dir, 'val')
         assert os.path.exists(train_dir), 'Please mkdir'
         assert os.path.exists(test_dir), 'Please mkdir'
@@ -100,6 +100,6 @@ def merge(root_dir):
 
             shutil.move(os.path.join(cdir, file), root_dir)
 
-ddir = '/home/gerlstefan/data/fullDataset/labeled_backup'
+ddir = '/home/gerlstefan/data/fullDataset/labeled_prep3'
 split(ddir)
 # merge(ddir)
