@@ -65,14 +65,28 @@ def custom_loss_1(pred, target, spatial_weight, class_weight=None):
 
     loss = spatial_weight.float() * unred_loss
     loss = torch.sum(loss)
-    # print('L COMP', loss)
-    # print(loss.requires_grad)
-    # more =  100*smoothness_loss(pred)
-    # print('S COMP', more)
-    # loss += more
-    # print(more.requires_grad)
+    
     return loss 
  
+def custom_loss_1_smooth(pred, target, spatial_weight, class_weight=None, smoothness_weight=100):
+
+    fn = torch.nn.CrossEntropyLoss(weight=class_weight, reduction='none')
+    
+    pred = pred.float()
+    target = target.long()
+    unred_loss = fn(pred, target)
+
+    loss = spatial_weight.float() * unred_loss
+    loss = torch.sum(loss)
+    
+    # add smoothness loss
+    print(smoothness_weight)
+    more =  smoothness_weight*smoothness_loss(pred)
+    loss += more
+    
+    return loss 
+ 
+
 
 def scalingfn(l):
     '''
@@ -93,14 +107,11 @@ def smoothness_loss(pred):
     '''
     pred_shape = pred.shape 
     # print('prediction shape', pred.shape)
+   
+    # this gives nonzero entries for label "1"
     label = (pred[:,1,:,:] - pred[:,0,:,:]).float()
-    
     label = torch.nn.functional.relu(label)
-    #add reLU?
-    
-    #look at values?
 
-    
     label = label.view(-1)
     # print(label.shape)
     # print(label)
@@ -115,7 +126,7 @@ def smoothness_loss(pred):
     # print('label after unsqueeze')
     # print(label.shape)
 
-    # weight 
+    # weights of the convolutions are simply 1, and divided by the window size
     weight = torch.ones(1, 1, window).float().to('cuda') / window
     # print('conv weight:', weight)
 
@@ -126,22 +137,30 @@ def smoothness_loss(pred):
     label_conv = torch.squeeze(label_conv)
     label = torch.squeeze(label)
     # print('shapes after conv:', label_conv.shape, label.shape)
+    
+    # for perfectly smooth label, this value is zero
+    # e.g. if label_conv[i] = label[i], -> 1/1 - 1 = 0
     label_smoothness =torch.abs((label_conv+1) / (label+1)-1)
+    
     # print(label_smoothness)
     # print('sum label_smoothness', torch.sum(label_smoothness))
 
+    # edge correction, steps at the boundaries do not count as unsmooth,
+    # therefore corresponding entries of label_smoothness are zeroed out
     edge_corr = torch.zeros((pred_shape[3])).to('cuda')
     edge_corr[int(math.floor(window/2)):-int(math.floor(window/2))] = 1
     # print(edge_corr)
     edge_corr = edge_corr.repeat(pred_shape[0]*pred_shape[2])
     # print(edge_corr)
-
     label_smoothness *= edge_corr
+    
     # print('edge corrected label smoothness')
     # print(label_smoothness)
     # print(torch.sum(label_smoothness))
     # target shape
     # [minibatch x Z x X]
+    
+    # return some loss measure, as the sum of all smoothness losses
     return torch.sum(label_smoothness)    
     
     # torch.nn.functional.conv2d(input, weight, bias=None, stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros')

@@ -54,6 +54,7 @@ class LayerUNET():
                  initial_lr = 1e-4,
                  scheduler_patience = 3,
                  lossfn = lfs.custom_loss_1,
+                 lossfn_smoothness = 0,
                  class_weight = None,
                  epochs = 30,
                  dropout = False
@@ -92,6 +93,8 @@ class LayerUNET():
             self.class_weight = self.class_weight.to(device)
         else:
             self.class_weight = None
+
+        self.lossfn_smoothness = lossfn_smoothness
         
         
         # DIRECTORIES
@@ -194,6 +197,7 @@ class LayerUNET():
         print('initial lr:', self.initial_lr, file=where)
         print('LOSS: fn', self.lossfn, file=where)
         print('      class_weight', self.class_weight, file=where)
+        print('      smoothnes param', self.lossfn_smoothness, file=where)
         print('CNN:  unet', file=where)
         print('      depth', self.model_depth, file=where)
         print('      dropout?', self.model_dropout, file=where)
@@ -334,7 +338,8 @@ class LayerUNET():
                         pred=prediction, 
                         target=label,
                         spatial_weight=weight,
-                        class_weight=self.class_weight)
+                        class_weight=self.class_weight,
+                        smoothness_weight = self.lossfn_smoothness)
                 
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -350,7 +355,7 @@ class LayerUNET():
                 
     def eval(self, iterator, epoch):
         '''
-        evaluate with the validationset
+        evaluate with the validation set
         Args:   model
                 iterator
                 optimizer
@@ -413,7 +418,8 @@ class LayerUNET():
                         pred=prediction, 
                         target=label,
                         spatial_weight=weight,
-                        class_weight=self.class_weight)
+                        class_weight=self.class_weight,
+                        smoothness_weight=self.lossfn_smoothness)
                 
                 # loss running variable
                 # TODO: check if this works
@@ -421,6 +427,13 @@ class LayerUNET():
                 # this should scale linearly with minibatch size
                 # have to verify!
                 running_loss += loss.data.item()
+                
+                # adds up all the dice coeeficients of all samples
+                # processes each slice individually
+                # in the end need to divide by number of samples*number of slices per sample
+                # in the end it needs to divided by the number of iterations
+                # running_dice += self.dice_coeff(pred=prediction,
+                #                     target=label)
         
             # running_loss adds up loss for every batch and minibatch,
             # divide by size of testset*size of each batch
@@ -450,6 +463,31 @@ class LayerUNET():
         print('model weights standard deviation:', stdd)
         print('model weights mean value:        ', mean)
 
+    def jaccard_index(pred, target):
+        '''
+        calculate the jaccard index per slice and return
+        the sum of jaccard indices
+        '''
+        # TODO: implementation never used or tested
+
+        # shapes
+        # [slices, x, x]
+
+        pred_shape = pred.shape
+        print(pred.shape)
+
+        # for every slice
+        jaccard_sum = 0.0
+        for slc in range(pred_shape[0]):
+            pflat = pred[slc, :, :]
+            tflat = target[slc, :, :]
+            intersection = (pflat * tflat).sum()
+            jaccard_sum += intersection/(pflat.sum() + tflat.sum())
+            
+        return jaccard_sum
+
+
+
 
     def save(self):
         torch.save(self.best_model, os.path.join(self.dirs['model'], 'mod_' + self.filename + '.pt'))
@@ -467,21 +505,29 @@ class LayerUNET():
 # train_dir = '/home/gerlstefan/data/dataloader_dev'
 # eval_dir = train_dir
 
-root_dirs = ['/home/gerlstefan/data/fullDataset/labeled',
-            '/home/gerlstefan/data/fullDataset/labeled_prep2',
-            '/home/gerlstefan/data/fullDataset/labeled_prep3']
+# try 3 loss functions
+N = 4
 
-model_names = ['190722_dataset1',
-               '190722_dataset2',
-               '190722_dataset3']
+
+root_dir = '/home/gerlstefan/data/fullDataset/labeled'
+
+model_names = ['190724_no_smooth',
+               '190724_50_smooth',
+               '190724_100_smooth',
+               '190724_200_smooth'
+                ]
+
+loss_smoothnesses = [0, 50, 100, 200]
+
 
 model_dir = '/home/gerlstefan/models/layerseg/test'
         
-os.environ["CUDA_VISIBLE_DEVICES"]='7'
+os.environ["CUDA_VISIBLE_DEVICES"]='4'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-for idx, root_dir in enumerate(root_dirs):
+
+for idx in range(N):
     print(model_names[idx])
-    print(root_dir)
+    print('smoothness:', loss_smoothnesses[idx])
     train_dir = os.path.join(root_dir, 'train')
     eval_dir = os.path.join(root_dir, 'val')
     dirs={'train':train_dir,'eval':eval_dir, 'model':model_dir, 'pred':''}
@@ -494,7 +540,8 @@ for idx, root_dir in enumerate(root_dirs):
                          optimizer='Adam',
                          initial_lr=1e-4,
                          scheduler_patience=3,
-                         lossfn=lfs.custom_loss_1,
+                         lossfn=lfs.custom_loss_1_smooth,
+                         lossfn_smoothness = loss_smoothnesses[idx],
                          epochs=30,
                          dropout=True,
                          class_weight=None
@@ -505,7 +552,7 @@ for idx, root_dir in enumerate(root_dirs):
     print(net1.model, file=net1.logfile)
 
     net1.train_all_epochs()
-    net1.save()
+    # net1.save()
 
 
 # filestrings = ['190721_unet4_dropout_no_clw', '190721_unet4_dropout_low_clw']
