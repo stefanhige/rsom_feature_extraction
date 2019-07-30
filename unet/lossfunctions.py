@@ -80,7 +80,6 @@ def custom_loss_1_smooth(pred, target, spatial_weight, class_weight=None, smooth
     loss = torch.sum(loss)
     
     # add smoothness loss
-    print(smoothness_weight)
     more =  smoothness_weight*smoothness_loss(pred)
     loss += more
     

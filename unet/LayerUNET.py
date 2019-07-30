@@ -505,29 +505,27 @@ class LayerUNET():
 # train_dir = '/home/gerlstefan/data/dataloader_dev'
 # eval_dir = train_dir
 
-# try 3 loss functions
+# try 4 class weights
 N = 4
 
 
 root_dir = '/home/gerlstefan/data/fullDataset/labeled'
 
-model_names = ['190724_no_smooth',
-               '190724_50_smooth',
-               '190724_100_smooth',
-               '190724_200_smooth'
+model_names = ['190725_no_clw',
+               '190725_0p7_clw',
+               '190725_0p8_clw',
+               '190725_0p9_clw'
                 ]
 
-loss_smoothnesses = [0, 50, 100, 200]
-
+class_weight_list = [None, (0.3, 0.7), (0.2, 0.8), (0.11, 0.89)]
 
 model_dir = '/home/gerlstefan/models/layerseg/test'
         
-os.environ["CUDA_VISIBLE_DEVICES"]='4'
+os.environ["CUDA_VISIBLE_DEVICES"]='3'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 for idx in range(N):
     print(model_names[idx])
-    print('smoothness:', loss_smoothnesses[idx])
     train_dir = os.path.join(root_dir, 'train')
     eval_dir = os.path.join(root_dir, 'val')
     dirs={'train':train_dir,'eval':eval_dir, 'model':model_dir, 'pred':''}
@@ -541,10 +539,10 @@ for idx in range(N):
                          initial_lr=1e-4,
                          scheduler_patience=3,
                          lossfn=lfs.custom_loss_1_smooth,
-                         lossfn_smoothness = loss_smoothnesses[idx],
+                         lossfn_smoothness = 50,
                          epochs=30,
                          dropout=True,
-                         class_weight=None
+                         class_weight=class_weight_list[idx]
                          )
 
     net1.printConfiguration()
@@ -552,7 +550,7 @@ for idx in range(N):
     print(net1.model, file=net1.logfile)
 
     net1.train_all_epochs()
-    # net1.save()
+    net1.save()
 
 
 # filestrings = ['190721_unet4_dropout_no_clw', '190721_unet4_dropout_low_clw']
