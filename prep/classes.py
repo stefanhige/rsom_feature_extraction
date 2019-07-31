@@ -7,6 +7,8 @@ Created on Mon May  6 16:44:10 2019
 """
 from pathlib import Path
 
+import os
+
 
 import scipy.io as sio
 from scipy import interpolate
@@ -585,7 +587,8 @@ class RSOM():
             self.Vh = np.concatenate([self.Vh, np.zeros((ext, shp[1], shp[2]))], axis = 0)  
             
             print('New shape:', self.Vl.shape)
-        
+
+    
     def saveMIP(self, destination, fstr = ''):
         '''
         save MIP as 2d image
@@ -706,6 +709,85 @@ class RSOM():
             self.SURF = filepathSURF
             self.ID = ID
             self.DATETIME = DATETIME
+            
+
+class RSOM_vessel(RSOM):
+    '''
+    additional methods for preparing RSOM data for vessel segmentation,
+    e.g. cut away epidermis
+    '''
+    
+    def cutLAYER(self, path, fstr='layer_pred.nii.gz'):
+        '''
+        cut off the epidermis with loading corresponding segmentation mask.
+        '''
+        print('cutLayer method')
+        
+        
+         # load PATXXX_RLXX_layer_pred.nii.gz
+        filename = 'R' + self.file.DATETIME + self.file.ID + '_' + fstr
+        file = os.path.join(path, filename)
+        
+        img = nib.load(file)
+        self.S = img.get_fdata()
+        self.S = self.S.astype(np.uint8)
+        
+        assert self.Vl.shape == self.S.shape, 'Shapes of raw and segmentation do not match'
+        
+        print(self.Vl.shape)
+        print(self.S.shape)
+        
+        
+        # for every slice in x-y plane, calculate label sum
+        label_sum = np.sum(self.S, axis=(1, 2))
+        
+        max_occupation = np.amax(label_sum) / (self.S.shape[1] * self.S.shape[2])
+        max_occupation_idx = np.argmax(label_sum)
+        
+        print('Max occ', max_occupation)
+        print('idx max occ', max_occupation_idx)
+        
+        # normalize
+        label_sum = label_sum.astype(np.double) / np.amax(label_sum)
+        
+        # define cutoff parameter
+        cutoff = 0.05
+        
+        label_sum_bin = label_sum > cutoff
+             
+        label_sum_idx = np.squeeze(np.nonzero(label_sum_bin))
+    
+        layer_end = label_sum_idx[-1]
+        
+        self.Vl[:layer_end,:,:] = 0
+        self.Vl[:layer_end:,:,:] = 0
+        self.Vh[:layer_end,:,:] = 0
+        self.Vh[:layer_end:,:,:] = 0
+        
+        
+        # assert Vl and Vh shapes are same as segmentation mask (especially z),
+        # this method can only be called after cutDEPTH
+        
+        # steps
+        
+       
+        
+        # for every slice in x-y plane, calculate label sum
+        
+        # normalise to 1
+        
+        # first occurange of some factor starting from dermis towards epidermis
+        # will be the point where to cut the dermis
+        
+        # maybe add some constant to cut away more..?
+        
+    def _rescaleINTENSITY(self, dynamic_rescale=False):
+        '''
+        overrides method in class RSOM, because vessel segmentation needs 
+        different rescalé
+        '''
+        print('Vessel rescaleINTENSITY method')
+        
             
             
             
