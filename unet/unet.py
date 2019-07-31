@@ -57,15 +57,19 @@ class UNet(nn.Module):
 
         self.up_path = nn.ModuleList()
         for i in reversed(range(depth - 1)):
-            if self.dropout and i<=1:
+            print(i)
+            # if self.dropout and i<=1:
+            if self.dropout and i<depth-2:
                 # dropout = True
-                 self.up_path.append(
-                UNetUpBlock(prev_channels, 2 ** (wf + i), up_mode, padding, batch_norm, True)
-                )
+                self.up_path.append(
+                    UNetUpBlock(prev_channels, 2 ** (wf + i), up_mode, padding, batch_norm, True)
+                    )
+                # print('UNetUpBlock w dropout')
             else:
                 self.up_path.append(
                     UNetUpBlock(prev_channels, 2 ** (wf + i), up_mode, padding, batch_norm, False)
                 )
+                # print('UNetUpBlock')
             prev_channels = 2 ** (wf + i)
 
         self.last = nn.Conv2d(prev_channels, n_classes, kernel_size=1)
