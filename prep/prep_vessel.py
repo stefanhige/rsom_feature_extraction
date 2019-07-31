@@ -77,13 +77,13 @@ for idx, filenameLF in enumerate(filenameLF_LIST):
     #Obj.saveMIP3D(destination, fstr = 'mip3d')
     
     # cut epidermis
-    Obj.cutLAYER(origin_layer, fstr='layer_pred.nii.gz')
+    # Obj.cutLAYER(origin_layer, fstr='layer_pred.nii.gz')
     
     # VOLUME
     Obj.normINTENSITY()
     Obj.rescaleINTENSITY(dynamic_rescale = False)
     
     Obj.mergeVOLUME_RGB()
-    Obj.saveVOLUME(destination, fstr = 'v_rgb')
+    Obj.saveVOLUME(destination, fstr = 'v_TEST_rgb')
     
     print('Processing file', idx+1, 'of', len(filenameLF_LIST))

@@ -124,17 +124,22 @@ class RSOM():
             # create copy 
             self.Vl_notflat = self.Vl.copy()
             self.Vh_notflat = self.Vh.copy()
-            
+
         # for every surface element, calculate the offset
         # and shift volume elements perpendicular to surface
         for i in np.arange(np.size(self.Vl, 1)):
             for j in np.arange(np.size(self.Vl, 2)):
                 
                 offs = int(-np.around(Sip[i, j]/2))
+                print(offs)
                 # TODO: why not replace with zeros?
                 self.Vl[:, i, j] = np.roll(self.Vl[:, i, j], offs);
                 self.Vh[:, i, j] = np.roll(self.Vh[:, i, j], offs);
-
+                
+                # replaced values rolled inside epidermis with zero
+                if offs < 0:
+                    self.Vl[offs:, i, j] = 0
+                    self.Vh[offs:, i, j] = 0
         
     def plotSURFACE(self):
         '''
