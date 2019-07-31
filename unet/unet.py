@@ -57,7 +57,7 @@ class UNet(nn.Module):
 
         self.up_path = nn.ModuleList()
         for i in reversed(range(depth - 1)):
-            print(i)
+            # print(i)
             # if self.dropout and i<=1:
             if self.dropout and i<depth-2:
                 # dropout = True
