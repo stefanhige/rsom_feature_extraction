@@ -55,6 +55,8 @@ class RSOM():
         idx_2 = filepathLF.name.find('_', idx_1+1)
         DATETIME = filepathLF.name[idx_1:idx_2+1]
         
+        self.layer_end = ''
+        
         
         self.file = self.FileStruct(filepathLF, filepathHF, filepathSURF, ID, DATETIME)
         
@@ -131,12 +133,12 @@ class RSOM():
             for j in np.arange(np.size(self.Vl, 2)):
                 
                 offs = int(-np.around(Sip[i, j]/2))
-                print(offs)
+                
                 # TODO: why not replace with zeros?
                 self.Vl[:, i, j] = np.roll(self.Vl[:, i, j], offs);
                 self.Vh[:, i, j] = np.roll(self.Vh[:, i, j], offs);
                 
-                # replaced values rolled inside epidermis with zero
+                # replace values rolled inside epidermis with zero
                 if offs < 0:
                     self.Vl[offs:, i, j] = 0
                     self.Vh[offs:, i, j] = 0
@@ -696,7 +698,9 @@ class RSOM():
         nii_file = (destination / ('R' + 
                                    self.file.DATETIME + 
                                    self.file.ID +
-                                   '_' +
+                                   '_z'+
+                                   str(self.layer_end) +
+                                   '_' +                                   
                                    fstr +
                                    '.nii.gz')).resolve()
         print(str(nii_file))
@@ -764,40 +768,72 @@ class RSOM_vessel(RSOM):
     
         layer_end = label_sum_idx[-1]
         
-        self.Vl[:layer_end,:,:] = 0
-        self.Vl[:layer_end:,:,:] = 0
-        self.Vh[:layer_end,:,:] = 0
-        self.Vh[:layer_end:,:,:] = 0
+        # additional fixed pixel offset
+        offs = 5
+        layer_end += offs
+        
+        # replace with zeros
+        #self.Vl[:layer_end,:,:] = 0
+        #self.Vh[:layer_end,:,:] = 0
+        
+        # cut away
+        self.Vl = self.Vl[layer_end:, :, :]
+        self.Vh = self.Vh[layer_end:, :, :]
+        
+        self.layer_end = layer_end
+        print(layer_end)
         
         
-        # assert Vl and Vh shapes are same as segmentation mask (especially z),
-        # this method can only be called after cutDEPTH
+        # keep meta information?
         
-        # steps
         
-       
         
-        # for every slice in x-y plane, calculate label sum
-        
-        # normalise to 1
-        
-        # first occurange of some factor starting from dermis towards epidermis
-        # will be the point where to cut the dermis
-        
-        # maybe add some constant to cut away more..?
-        
-    def _rescaleINTENSITY(self, dynamic_rescale=False):
+    def rescaleINTENSITY(self):
         '''
         overrides method in class RSOM, because vessel segmentation needs 
         different rescalé
         '''
         print('Vessel rescaleINTENSITY method')
+        self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0, 0.25))
+        self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0, 0.1))
+        #self.Vl_1[:,:,:] = 0
+            
+        self.Vl_1 = self.Vl_1**2
+        self.Vh_1 = self.Vh_1**2
+            
+        self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0.05, 1))
+        self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0.05, 1))
         
-            
-            
-            
-            
-            
+        
+    def thresholdSEGMENTATION(self):
+        
+        self.Vseg = np.logical_or(np.logical_or((self.Vh_1 + self.Vl_1) >= 1, 
+                                                self.Vl_1 > 0.3),
+                                    self.Vh_1 > 0.7)
+        return self.Vseg
+        
+        
+        
+    def saveSEGMENTATION(self, destination, fstr='th'):
+        '''
+        save rgb volume
+        '''
+    
+        Vseg = self.Vseg.astype(np.uint8)
+        img = nib.Nifti1Image(Vseg, np.eye(4))
+        
+        fstr = fstr + '.nii.gz'
+        path = os.path.join(destination,
+                            'R' + 
+                            self.file.DATETIME + 
+                            self.file.ID +
+                            '_' +                                
+                            fstr +
+                            '.nii.gz')
+                            
+        
+        nib.save(img, path)
+        
             
 class RSOM_mip_interp():
     def __init__(self, filepath):

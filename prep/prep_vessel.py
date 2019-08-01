@@ -42,8 +42,8 @@ filenameLF_LIST = [el for el in all_files if el[-6:] == 'LF.mat']
 
 for idx, filenameLF in enumerate(filenameLF_LIST):
     
-    #if idx >= 1:
-    #    break
+    if idx >= 1:
+        break
     # the other ones will be automatically defined
     filenameHF = filenameLF.replace('LF.mat','HF.mat')
     
@@ -77,13 +77,16 @@ for idx, filenameLF in enumerate(filenameLF_LIST):
     #Obj.saveMIP3D(destination, fstr = 'mip3d')
     
     # cut epidermis
-    # Obj.cutLAYER(origin_layer, fstr='layer_pred.nii.gz')
+    Obj.cutLAYER(origin_layer, fstr='layer_pred.nii.gz')
     
     # VOLUME
     Obj.normINTENSITY()
-    Obj.rescaleINTENSITY(dynamic_rescale = False)
+    Obj.rescaleINTENSITY()
     
-    Obj.mergeVOLUME_RGB()
-    Obj.saveVOLUME(destination, fstr = 'v_TEST_rgb')
+    debug = Obj.thresholdSEGMENTATION()
+    Obj.saveSEGMENTATION(destination, fstr='th')
+    
+    #Obj.mergeVOLUME_RGB()
+    #Obj.saveVOLUME(destination, fstr = 'v2_rgb')
     
     print('Processing file', idx+1, 'of', len(filenameLF_LIST))
