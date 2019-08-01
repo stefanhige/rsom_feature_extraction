@@ -96,7 +96,68 @@ class RSOMLayerDataset(Dataset):
             sample = self.transform(sample)
 
         return sample
+
+class RSOMLayerDatasetUnlabeled(RSOMLayerDataset):
+    """
+    rsom dataset class for layer segmentation
+    for prediction of unlabeled data only
     
+    Args:
+        root_dir (string): Directory with all the nii.gz files.
+        data_str (string): end part of filename of training data
+        transform (callable, optional): Optional transform to be applied
+                            on a sample.
+    """
+    def __init__(self, root_dir, data_str='_rgb.nii.gz', transform=None):
+        
+        assert os.path.exists(root_dir) and os.path.isdir(root_dir), \
+        'root_dir not a valid directory'
+        
+        self.root_dir = root_dir
+        self.transform = transform
+        
+        assert isinstance(data_str, str), 'data_str or label_str not valid.'
+        
+        self.data_str = data_str
+        # self.label_str = ''
+        
+        # get all files in root_dir
+        all_files = os.listdir(path = root_dir)
+        # extract the  data files
+        self.data = [el for el in all_files if el[-len(data_str):] == data_str]
+        
+        # assert len(self.data) == \
+            # len([el for el in all_files if el[-len(label_str):] == label_str]), \
+            # 'Amount of data and label files not equal.'
+
+    def __getitem__(self, idx):
+        data_path = os.path.join(self.root_dir, 
+                            self.data[idx])
+        # label_path = os.path.join(self.root_dir, 
+        #                            self.data[idx].replace(self.data_str, self.label_str))
+        
+        # read data
+        data = self._readNII(data_path)
+        data = np.stack([data['R'], data['G'], data['B']], axis=-1)
+        data = data.astype(np.float32)
+        
+        # read label
+        # label = self._readNII(label_path)
+        # label = label.astype(np.float32)
+        label = np.zeros((data.shape[0], data.shape[1], data.shape[2], 1), dtype=np.float32)
+        
+        # add meta information
+        meta = {'filename': self.data[idx],
+                'dcrop':{'begin': None, 'end': None},
+                'lcrop':{'begin': None, 'end': None},
+                'weight': 0}
+
+        sample = {'data': data, 'label': label, 'meta': meta}
+
+        if self.transform:
+            sample = self.transform(sample)
+
+        return sample
 
 
 # transform

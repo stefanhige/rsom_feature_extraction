@@ -506,18 +506,16 @@ class LayerUNET():
 # eval_dir = train_dir
 
 # try 4 class weights
-N = 4
+N = 2
 
 
 root_dir = '/home/gerlstefan/data/fullDataset/labeled'
 
-model_names = ['190725_no_clw',
-               '190725_0p7_clw',
-               '190725_0p8_clw',
-               '190725_0p9_clw'
+model_names = ['190731_depth3',
+               '190731_depth4'
                 ]
 
-class_weight_list = [None, (0.3, 0.7), (0.2, 0.8), (0.11, 0.89)]
+depth_list = [3, 4]
 
 model_dir = '/home/gerlstefan/models/layerseg/test'
         
@@ -525,13 +523,13 @@ os.environ["CUDA_VISIBLE_DEVICES"]='3'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 for idx in range(N):
-    print(model_names[idx])
+    print(model_names[idx], depth_list[idx])
     train_dir = os.path.join(root_dir, 'train')
     eval_dir = os.path.join(root_dir, 'val')
     dirs={'train':train_dir,'eval':eval_dir, 'model':model_dir, 'pred':''}
 
     net1 = LayerUNET(device=device,
-                         model_depth=4,
+                         model_depth=depth_list[idx],
                          dataset_zshift=(-50, 200),
                          dirs=dirs,
                          filename=model_names[idx],
@@ -540,9 +538,9 @@ for idx in range(N):
                          scheduler_patience=3,
                          lossfn=lfs.custom_loss_1_smooth,
                          lossfn_smoothness = 50,
-                         epochs=30,
+                         epochs=40,
                          dropout=True,
-                         class_weight=class_weight_list[idx]
+                         class_weight=(0.3, 0.7),
                          )
 
     net1.printConfiguration()
