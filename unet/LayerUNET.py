@@ -506,30 +506,49 @@ class LayerUNET():
 # eval_dir = train_dir
 
 # try 4 class weights
-N = 2
+N = 5
 
 
-root_dir = '/home/gerlstefan/data/fullDataset/labeled'
+root_dir = '/home/gerlstefan/data/fullDataset/crossval'
 
-model_names = ['190731_depth3',
-               '190731_depth4'
-                ]
+root_dirs =[os.path.join(root_dir,'0'),
+            os.path.join(root_dir,'1'),
+            os.path.join(root_dir,'2'),
+            os.path.join(root_dir,'3'),
+            os.path.join(root_dir,'4')]
 
-depth_list = [3, 4]
+model_name = '190802_crossval'
 
-model_dir = '/home/gerlstefan/models/layerseg/test'
+model_names = [model_name + '0',
+               model_name + '1',
+               model_name + '2',
+               model_name + '3',
+               model_name + '4']
+
+print('SWEEP WITH')
+print(*root_dirs, sep='\n')
+print('MODEL NAMES')
+print(*model_names, sep='\n')
+
+
+model_dir = '/home/gerlstefan/models/layerseg/crossval'
         
-os.environ["CUDA_VISIBLE_DEVICES"]='3'
+os.environ["CUDA_VISIBLE_DEVICES"]='4'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+assert N == len(model_names)
+
 for idx in range(N):
-    print(model_names[idx], depth_list[idx])
+    root_dir = root_dirs[idx]
+    print('current model')
+    print(model_names[idx], root_dir)
+
     train_dir = os.path.join(root_dir, 'train')
     eval_dir = os.path.join(root_dir, 'val')
     dirs={'train':train_dir,'eval':eval_dir, 'model':model_dir, 'pred':''}
 
     net1 = LayerUNET(device=device,
-                         model_depth=depth_list[idx],
+                         model_depth=4,
                          dataset_zshift=(-50, 200),
                          dirs=dirs,
                          filename=model_names[idx],
@@ -538,7 +557,7 @@ for idx in range(N):
                          scheduler_patience=3,
                          lossfn=lfs.custom_loss_1_smooth,
                          lossfn_smoothness = 50,
-                         epochs=40,
+                         epochs=30,
                          dropout=True,
                          class_weight=(0.3, 0.7),
                          )
