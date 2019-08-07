@@ -795,7 +795,7 @@ class RSOM_vessel(RSOM):
         '''
         print('Vessel rescaleINTENSITY method')
         self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0, 0.25))
-        self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0, 0.1))
+        self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0, 0.15))
         #self.Vl_1[:,:,:] = 0
             
         self.Vl_1 = self.Vl_1**2

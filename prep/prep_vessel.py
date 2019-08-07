@@ -16,8 +16,8 @@ from classes import RSOM_vessel
 # define folder
 
 
-origin = '/home/sgerl/Documents/PYTHON/TestDatasetVessel/mat'
-origin_layer = '/home/sgerl/Documents/PYTHON/TestDatasetVessel/layer_pred'
+origin = '/home/sgerl/Documents/PYTHON/TestDatasetVesselGood/mat'
+origin_layer = '/home/sgerl/Documents/PYTHON/TestDatasetVesselGood/layer_pred'
 
 # origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/allmat'
 # origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
@@ -25,7 +25,7 @@ origin_layer = '/home/sgerl/Documents/PYTHON/TestDatasetVessel/layer_pred'
 
 # destination = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
 # destination = '/home/sgerl/Documents/PYTHON/TestDataset20190411/selection/other_preproccessing_tests/sliding_mip_6'
-destination = '/home/sgerl/Documents/PYTHON/TestDatasetVessel/output'
+destination = '/home/sgerl/Documents/PYTHON/TestDatasetVesselGood/output'
 
 
 cwd = os.getcwd()
@@ -42,8 +42,8 @@ filenameLF_LIST = [el for el in all_files if el[-6:] == 'LF.mat']
 
 for idx, filenameLF in enumerate(filenameLF_LIST):
     
-    if idx >= 1:
-        break
+    #if idx >= 1:
+    #    break
     # the other ones will be automatically defined
     filenameHF = filenameLF.replace('LF.mat','HF.mat')
     
@@ -86,7 +86,7 @@ for idx, filenameLF in enumerate(filenameLF_LIST):
     debug = Obj.thresholdSEGMENTATION()
     Obj.saveSEGMENTATION(destination, fstr='th')
     
-    #Obj.mergeVOLUME_RGB()
-    #Obj.saveVOLUME(destination, fstr = 'v2_rgb')
+    Obj.mergeVOLUME_RGB()
+    Obj.saveVOLUME(destination, fstr = 'v_p15_rgb')
     
     print('Processing file', idx+1, 'of', len(filenameLF_LIST))
