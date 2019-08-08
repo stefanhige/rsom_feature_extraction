@@ -486,9 +486,6 @@ class LayerUNET():
             
         return jaccard_sum
 
-
-
-
     def save(self):
         torch.save(self.best_model, os.path.join(self.dirs['model'], 'mod_' + self.filename + '.pt'))
         
@@ -506,29 +503,13 @@ class LayerUNET():
 # eval_dir = train_dir
 
 # try 4 class weights
-N = 5
+N = 1
 
 
-root_dir = '/home/gerlstefan/data/fullDataset/crossval'
+root_dir = '/home/gerlstefan/data/fullDataset/slice_shuffle'
 
-root_dirs =[os.path.join(root_dir,'0'),
-            os.path.join(root_dir,'1'),
-            os.path.join(root_dir,'2'),
-            os.path.join(root_dir,'3'),
-            os.path.join(root_dir,'4')]
 
-model_name = '190802_crossval'
-
-model_names = [model_name + '0',
-               model_name + '1',
-               model_name + '2',
-               model_name + '3',
-               model_name + '4']
-
-print('SWEEP WITH')
-print(*root_dirs, sep='\n')
-print('MODEL NAMES')
-print(*model_names, sep='\n')
+model_name = '190808_slice_shuffle'
 
 
 model_dir = '/home/gerlstefan/models/layerseg/crossval'
@@ -536,12 +517,11 @@ model_dir = '/home/gerlstefan/models/layerseg/crossval'
 os.environ["CUDA_VISIBLE_DEVICES"]='4'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-assert N == len(model_names)
-
 for idx in range(N):
-    root_dir = root_dirs[idx]
+    root_dir = root_dir
+
     print('current model')
-    print(model_names[idx], root_dir)
+    print(model_name, root_dir)
 
     train_dir = os.path.join(root_dir, 'train')
     eval_dir = os.path.join(root_dir, 'val')
@@ -551,7 +531,7 @@ for idx in range(N):
                          model_depth=4,
                          dataset_zshift=(-50, 200),
                          dirs=dirs,
-                         filename=model_names[idx],
+                         filename=model_name,
                          optimizer='Adam',
                          initial_lr=1e-4,
                          scheduler_patience=3,

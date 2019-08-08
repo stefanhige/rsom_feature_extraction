@@ -292,6 +292,24 @@ class DropBlue(object):
         return {'data': data, 'label': label, 'meta': meta}
 
 
+class SwapDim(object):
+    """
+    swap x and y dimension to train network for the other view
+    """
+    def __call__(self, sample):
+        data, label, meta = sample['data'], sample['label'], sample['meta']
+        assert isinstance(data, np.ndarray)
+        assert isinstance(label, np.ndarray)
+        # data still is RGB
+        assert data.shape[3] == 3
+
+        # data is [Z x X x Y x 3] [500 x 171 x 333 x 3]
+        # label is [Z x X x Y] [500 x 171 x 333]
+        
+        data = np.swapaxes(data, 1, 2)
+        label = np.swapaxes(label, 1, 2)
+       
+
 class precalcLossWeight(object):
     """
     precalculation of a weight matrix used in the cross entropy
