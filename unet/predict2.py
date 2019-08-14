@@ -81,6 +81,7 @@ def segment(pred1, pred2=None):
     label = (pred1[:,1,:,:] > pred1[:,0,:,:])
     print('segmentation mask shape')
     print(label.shape)
+    stop
 
     return label
    
@@ -95,23 +96,37 @@ def predict_all(model, iterator, args, model2=None, iterator2=None, ensemble=Fal
         prediction = predict1(model, batch, args)
 
         if ensemble:
-            batch = next(iterator2)
+            batch2 = next(iterator2)
             prediction2 = predict1(model2, batch2, args)
-            label = segment(pred1=prediction, pred2=prediction2)
-        else:
-            label = segment(pred1 = prediction)
+            print('segment with 2 predictions')
+            print('prediction shapes')
+            print(prediction.shape, prediction2.shape)
+            # try converting to numpy first.
+            prediction = to_numpy_pred(prediction, batch['meta'])
+            prediction2 = to_numpy_pred(prediction2, batch2['meta'])
+            print('numpy shapes')
+            print(prediction.shape, prediction2.shape)
 
-        label = to_numpy(label, batch['meta'])
-        
-        print('Label shape is:', label.shape)
-        label = np.swapaxes(label, 1, 2)
-        print('After swapaxes:', label.shape)
+            prediction2 = np.swapaxes(prediction2, 1, 2)
+            print('finally:')
+            print(prediction.shape, prediction2.shape)
+            
+            # label = segment(pred1=prediction, pred2=prediction2)
+        else:
+            # label = segment(pred1 = prediction)
+            pass
         
         filename = batch['meta']['filename'][0]
         filename = filename.replace('rgb.nii.gz','')
- 
+        combined = prediction + prediction2
+        label = combined[:,:,:,1] > combined[:,:,:,0]
         saveNII(label, args.destination_dir, filename + 'pred')
- 
+        #img = nib.Nifti1Image(np.squeeze(prediction2[:,:,:,1]), np.eye(4))
+        #fstr = filename
+        #fstr = fstr + 'pred2.nii.gz'
+        #nib.save(img, os.path.join(args.destination_dir, fstr))
+
+
 
 def to_numpy(V, meta):
     '''
@@ -163,6 +178,49 @@ def to_numpy(V, meta):
     print(V.shape)
     return V
 
+def to_numpy_pred(V, meta):
+    '''
+    more than one dimensional label
+
+    '''
+    # torch sizes X is batch size, C is Classes
+    # and for the label
+    # [X x C x Z x Y] [170 x 2 x 500 x 328]
+    
+    # we want to reshape to
+    # numpy sizes
+    # label
+    # [Z x X x Y x C] [500 x 170 x 328 x 2]
+    
+    # here: we only need to backtransform labels
+    print(V.shape)
+    if not isinstance(V, np.ndarray):
+        assert isinstance(V, torch.Tensor)
+        V = V.numpy()
+    V = V.transpose((2, 0, 3, 1))
+
+    # add padding, which was removed before,
+    # and saved in meta['lcrop'] and meta['dcrop']
+
+    # structure for np.pad
+    # (before0, after0), (before1, after1), ..)
+    
+    # parse label crop
+    b = (meta['lcrop']['begin']).numpy().squeeze()
+    e = (meta['lcrop']['end']).numpy().squeeze()
+    print('b, e')
+    print(b, e)
+    print(b.shape, e.shape)
+    
+    pad_width = ((b[0], e[0]), (b[1], e[1]), (b[2], e[2]), (0, 0))
+    print(V.shape)
+    
+    V = np.pad(V, pad_width, 'edge')
+
+    print(V.shape)
+    return V
+
+
 def saveNII(V, path, fstr):
     V = V.astype(np.uint8)
     img = nib.Nifti1Image(V, np.eye(4))
@@ -176,20 +234,19 @@ class arg_class():
 
 args = arg_class()
 
-os.environ["CUDA_VISIBLE_DEVICES"]='3'
+os.environ["CUDA_VISIBLE_DEVICES"]='1'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+# ============== MODEL ===================================
 origin = '/home/gerlstefan/data/fullDataset/labeled/val'
-# origin = '/home/gerlstefan/data/dataloader_dev'
-destination ='/home/gerlstefan/data/prediction/test_dimswap'
-model_path = '/home/gerlstefan/models/layerseg/dimswap/mod_190808_dimswap_test.pt'
+destination ='/home/gerlstefan/data/prediction/test_dimswap2'
 
+model_path = '/home/gerlstefan/models/layerseg/test/mod_190731_depth4.pt'
 
 # create Dataset of prediction data
 dataset_pred = RSOMLayerDataset(origin,
         transform=transforms.Compose([
             ZeroCenter(),
-            SwapDim(),
             CropToEven(network_depth=4),
             DropBlue(),
             ToTensor()]))
@@ -204,7 +261,7 @@ args.size_pred = len(dataset_pred)
 
 print("Predicting ", args.size_pred, " Volumes.")
 
-args.minibatch_size = 5
+args.minibatch_size = 1
 args.device = device
 args.dtype = torch.float32
 args.non_blocking = True
@@ -223,5 +280,38 @@ model.load_state_dict(torch.load(model_path))
 
 iterator_pred = iter(dataloader_pred)
 
-predict_all(model, iterator_pred, args)
+# ================ MODEL2 =================================
+
+model2_path = '/home/gerlstefan/models/layerseg/dimswap/mod_190808_dimswap_test.pt'
+
+# create Dataset of prediction data
+dataset2_pred = RSOMLayerDataset(origin,
+        transform=transforms.Compose([
+            ZeroCenter(),
+            SwapDim(),
+            CropToEven(network_depth=4),
+            DropBlue(),
+            ToTensor()]))
+
+dataloader2_pred = DataLoader(dataset2_pred,
+        batch_size=1, 
+        shuffle=False, 
+        num_workers=4, 
+        pin_memory=True)
+
+model2 = UNet(in_channels=2,
+             n_classes=2,
+             depth=4,
+             wf=6,
+             padding=True,
+             batch_norm=True,
+             up_mode='upconv').to(args.device)
+model2 = model2.float()
+model2.load_state_dict(torch.load(model2_path))
+
+
+iterator2_pred = iter(dataloader2_pred)
+
+
+predict_all(model, iterator_pred, args, model2=model2, iterator2=iterator2_pred, ensemble=True)
 

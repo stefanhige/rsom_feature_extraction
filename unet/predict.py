@@ -6,6 +6,7 @@ import torch.nn.functional as F
 
 import numpy as np
 
+from scipy import ndimage
 import os
 import copy
 
@@ -95,28 +96,60 @@ def pred(model=None, iterator=None, history=None, lossfn=None, args=None):
 
         label = to_numpy(label, m)
 
+        label = smooth(label)
+
         filename = batch['meta']['filename'][0]
         filename = filename.replace('rgb.nii.gz','')
+        print('Saving', filename)
         saveNII(label, args.destination_dir, filename + 'pred')
-
-        # compare to ground truth
-        label_gt = batch['label']
+        if 0:
+            # compare to ground truth
+            label_gt = batch['label']
       
-        label_gt = torch.squeeze(label_gt, dim=0)
-        label_gt = to_numpy(label_gt, m)
+            label_gt = torch.squeeze(label_gt, dim=0)
+            label_gt = to_numpy(label_gt, m)
 
-        label_diff = (label > label_gt).astype(np.uint8)
-        label_diff += 2*(label < label_gt).astype(np.uint8)
+            label_diff = (label > label_gt).astype(np.uint8)
+            label_diff += 2*(label < label_gt).astype(np.uint8)
         
-        # label_diff = label != label_gt
+            # label_diff = label != label_gt
 
-        saveNII(label_diff, args.destination_dir, filename + 'dpred')
+            saveNII(label_diff, args.destination_dir, filename + 'dpred')
+
+def smooth(label):
+    '''
+    smooth the prediction
+    '''
+    
+    # steps
+    # 1. fill holes inside the label
+    ldtype = label.dtype
+#    sel = ndimage.generate_binary_structure(np.ndim(label), np.ndim(label))
+#    sel = ndimage.iterate_structure(sel, 2)
+#    print(sel.astype(int))
+    label = ndimage.binary_fill_holes(label).astype(ldtype)
+    label_shape = label.shape
+    label = np.pad(label, 2, mode='edge')
+    label = ndimage.binary_closing(label, iterations=2)
+    label = label[2:-2,2:-2,2:-2]
+    assert label_shape == label.shape
+    # 2. scan along z-dimension change in label 0->1 1->0
+    #    if there's more than one transition each, one needs to be dropped
+    #    after filling holes, we hope to be able to drop the outer one
+    # 3. get 2x 2-D surface data with surface height being the index in z-direction
+    # 4. apply suitable kernel in order to smooth
+    #    smooth fine structure, eg with a 5x5 moving average
+    #    smooth coarse structure, eg with a 25x25 average and crop everything which is above average*factor
+    #           -> hopefully spikes will be removed.
+
+
+    return label
 
 def saveNII(V, path, fstr):
     V = V.astype(np.uint8)
     img = nib.Nifti1Image(V, np.eye(4))
     
-    fstr = fstr + '.nii.gz'
+    fstr = fstr + '_fhc2.nii.gz'
     nib.save(img, os.path.join(path, fstr))
 
 def to_numpy(V, meta):
@@ -174,12 +207,12 @@ class arg_class():
 
 args = arg_class()
 
-os.environ["CUDA_VISIBLE_DEVICES"]='6'
+os.environ["CUDA_VISIBLE_DEVICES"]='1'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 origin = '/home/gerlstefan/data/fullDataset/labeled/val'
 # origin = '/home/gerlstefan/data/dataloader_dev'
-destination ='/home/gerlstefan/data/prediction/190731_depth4/val'
+destination ='/home/gerlstefan/data/prediction/190814_test_smooth'
 model_path = '/home/gerlstefan/models/layerseg/test/mod_190731_depth4.pt'
 
 # TODO: new dataset without labels
@@ -203,7 +236,7 @@ dataloader_pred = DataLoader(dataset_pred,
 args.size_pred = len(dataset_pred)
 
 print("Predicting ", args.size_pred, " Volumes.")
-args.minibatch_size = 5
+args.minibatch_size = 1
 args.device = device
 args.dtype = torch.float32
 args.non_blocking = True
