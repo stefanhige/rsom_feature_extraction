@@ -309,6 +309,7 @@ class SwapDim(object):
         data = np.swapaxes(data, 1, 2)
         label = np.swapaxes(label, 1, 2)
        
+        return {'data': data, 'label': label, 'meta': meta}
 
 class precalcLossWeight(object):
     """

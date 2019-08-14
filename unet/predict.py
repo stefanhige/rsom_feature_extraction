@@ -15,7 +15,7 @@ from torchvision import transforms, utils
 from unet import UNet
 import lossfunctions as lfs
 import nibabel as nib
-# from timeit import default_timer as timer
+
 from dataloader_dev import RSOMLayerDataset 
 from dataloader_dev import RandomZShift, ZeroCenter, CropToEven, DropBlue, ToTensor
 
@@ -87,9 +87,8 @@ def pred(model=None, iterator=None, history=None, lossfn=None, args=None):
         # transform -> labels
         
         
-        label = (prediction_stack[:,1,:,:] > prediction_stack[:,0,:,:])
-        print(label.shape)
-       
+        label = (prediction_stack[:,1,:,:] > prediction_stack[:,0,:,:]) 
+        print(label.shape) 
         print(batch['meta']['filename']) 
         m = batch['meta']
         # print(m['dcrop']['begin'], m['dcrop']['end'], m['lcrop']['begin'], m['lcrop']['end']) 

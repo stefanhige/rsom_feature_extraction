@@ -26,6 +26,8 @@ from dataloader_dev import RSOMLayerDataset
 from dataloader_dev import RandomZShift, ZeroCenter, CropToEven
 from dataloader_dev import DropBlue, ToTensor, precalcLossWeight
 
+from dataloader_dev import SwapDim
+
 
 
 class LayerUNET():
@@ -107,7 +109,8 @@ class LayerUNET():
         
         self.train_dataset = RSOMLayerDataset(self.dirs['train'],
             transform=transforms.Compose([RandomZShift(dataset_zshift),
-                                          ZeroCenter(), 
+                                          ZeroCenter(),
+                                          SwapDim(),
                                           CropToEven(network_depth=self.model_depth),
                                           DropBlue(),
                                           ToTensor(),
@@ -124,7 +127,8 @@ class LayerUNET():
         
         self.eval_dataset = RSOMLayerDataset(self.dirs['eval'],
             transform=transforms.Compose([RandomZShift(),
-                                          ZeroCenter(), 
+                                          ZeroCenter(),
+                                          SwapDim(),
                                           CropToEven(network_depth=self.model_depth),
                                           DropBlue(),
                                           ToTensor(),
@@ -506,15 +510,15 @@ class LayerUNET():
 N = 1
 
 
-root_dir = '/home/gerlstefan/data/fullDataset/slice_shuffle'
+root_dir = '/home/gerlstefan/data/fullDataset/labeled'
 
 
-model_name = '190808_slice_shuffle'
+model_name = '190808_dimswap_test'
 
 
-model_dir = '/home/gerlstefan/models/layerseg/crossval'
+model_dir = '/home/gerlstefan/models/layerseg/dimswap'
         
-os.environ["CUDA_VISIBLE_DEVICES"]='4'
+os.environ["CUDA_VISIBLE_DEVICES"]='7'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 for idx in range(N):
@@ -522,7 +526,6 @@ for idx in range(N):
 
     print('current model')
     print(model_name, root_dir)
-
     train_dir = os.path.join(root_dir, 'train')
     eval_dir = os.path.join(root_dir, 'val')
     dirs={'train':train_dir,'eval':eval_dir, 'model':model_dir, 'pred':''}
