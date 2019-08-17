@@ -39,8 +39,6 @@ def pred(model=None, iterator=None, history=None, lossfn=None, args=None):
         m = batch['meta']
         print(m['dcrop']['begin'], m['dcrop']['end'], m['lcrop']['begin'], m['lcrop']['end']) 
         
-        
-        
         # batch['label'] = batch['label'].to(
         #         args.device, 
         #         dtype=args.dtype, 
@@ -102,7 +100,7 @@ def pred(model=None, iterator=None, history=None, lossfn=None, args=None):
         label = smooth(label, filename)
 
         print('Saving', filename)
-        saveNII(label, args.destination_dir, filename + 'pred')
+        saveNII(label, args.destination_dir, filename + 'pred_unif_med_unif')
         if 0:
             # compare to ground truth
             label_gt = batch['label']
@@ -122,9 +120,6 @@ def smooth(label, filename):
     smooth the prediction
     '''
     
-    # steps
-    # TODO 0: remove label detections really far away from center of label
-
     # 1. fill holes inside the label
     ldtype = label.dtype
     label = ndimage.binary_fill_holes(label).astype(ldtype)
@@ -149,27 +144,15 @@ def smooth(label, filename):
     for xx in np.arange(label_shape[1]):
         for yy in np.arange(label_shape[2]):
             nz = np.nonzero(label[:,xx,yy])
-            # print('Coords:', xx, yy)
-            # print(nz)
             
             if nz[0].size != 0:
                 idx_up = nz[0][0]
                 idx_lo = nz[0][-1]
-                # print(idx_up, idx_lo)
-
                 surf_up[xx,yy] = idx_up
                 surf_lo[xx,yy] = idx_lo
-    # save as greyscale image?
-    imsave(os.path.join(args.destination_dir, filename + 'diff.png'), np.abs((surf_up-surf_lo)).astype(np.uint8))
-    imsave(os.path.join(args.destination_dir, filename + 'up.png'), surf_up.astype(np.uint8))
-    imsave(os.path.join(args.destination_dir, filename + 'lo.png'), surf_lo.astype(np.uint8))
-
-    # 4. apply suitable kernel in order to smooth
-    #    smooth fine structure, eg with a 5x5 moving average
-    surf_up = ndimage.uniform_filter(surf_up, size=(9, 5), mode='nearest')
-    surf_lo = ndimage.uniform_filter(surf_lo, size=(9, 5), mode='nearest')
-
-    
+   
+    #    smooth coarse structure, eg with a 25x25 average and crop everything which is above average*factor
+    #           -> hopefully spikes will be removed.
     surf_up_m = ndimage.median_filter(surf_up, size=(26, 26), mode='nearest')
     surf_lo_m = ndimage.median_filter(surf_lo, size=(26, 26), mode='nearest')
     
@@ -179,15 +162,13 @@ def smooth(label, filename):
                 surf_up[xx,yy] = surf_up_m[xx,yy]
             if surf_lo[xx,yy] > surf_lo_m[xx,yy]:
                 surf_lo[xx,yy] = surf_lo_m[xx,yy]
-   
-    imsave(os.path.join(args.destination_dir, filename + 'up_uni9x5.png'), surf_up.astype(np.uint8))
-    imsave(os.path.join(args.destination_dir, filename + 'lo_uni9x5.png'), surf_lo.astype(np.uint8))
-    
-    #    smooth coarse structure, eg with a 25x25 average and crop everything which is above average*factor
-    #           -> hopefully spikes will be removed.
+
+    # apply suitable kernel in order to smooth
+    # smooth fine structure, eg with a 5x5 moving average
+    surf_up = ndimage.uniform_filter(surf_up, size=(9, 5), mode='nearest')
+    surf_lo = ndimage.uniform_filter(surf_lo, size=(9, 5), mode='nearest')
 
     # 5. reconstruct label
-
     label_rec = np.zeros(label_shape, dtype=np.uint8)
     for xx in np.arange(label_shape[1]):
         for yy in np.arange(label_shape[2]):
@@ -200,7 +181,7 @@ def saveNII(V, path, fstr):
     V = V.astype(np.uint8)
     img = nib.Nifti1Image(V, np.eye(4))
     
-    fstr = fstr + '_fhc2.nii.gz'
+    fstr = fstr + '.nii.gz'
     nib.save(img, os.path.join(path, fstr))
 
 def to_numpy(V, meta):
