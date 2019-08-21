@@ -14,7 +14,9 @@ from PIL import Image
 #Define Network
 class Deep_Vessel_Net_FC(nn.Module):
 
-    def __init__(self, settings, print_=False):
+    def __init__(self, 
+                 in_channels=2, 
+                 print_=False): #whats with n_classes? 
         super(Deep_Vessel_Net_FC, self).__init__()
         self.settings = settings
         self.num_channels = int(settings["dataloader"]["num_channels"])
