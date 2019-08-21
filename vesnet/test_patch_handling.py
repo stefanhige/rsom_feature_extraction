@@ -7,34 +7,56 @@ Created on Wed Aug 21 16:41:18 2019
 """
 import numpy as np
 
-from patch_handling import get_patch_ndim
+from patch_handling import get_patches, get_volume
+
+
+def test(A, divs, offset):
+    A_p = get_patches(A, divs, offset)
+    A_ = get_volume(A_p, divs, offset)
+
+    if A_.shape == A.shape:
+        if np.all(A_ == A):
+            print('Test passed.')
+        else:
+            print('Test failed.',A.shape, divs, offset) 
+    else:
+        print('Test failed.', A.shape, A_.shape, divs, offset) 
 
 
 # TEST 1D
-A = np.random.random_sample((100))
-patches = []
-for idx in np.arange(2):
-    print(idx)
-    
-    A_1patch_new = get_patch_ndim(A, idx, divs=2, offset=6)
-       
-    patches.append(A_1patch_new)
-    
-patches = np.array(patches)
-
-stop
+V = np.random.random_sample((100))
+test(V, 2, 6)
+test(V, 3, 0)
+test(V, 2, 9)
 
 # TEST 2D
+V = np.random.random_sample((100, 100))
+test(V,(2,2),(3,3))
+test(V,(2,4),(9,0))
 
-A = np.random.random_sample((100, 100))
+V = np.random.random_sample((40, 60))
+test(V,(2,2),(3,3))
+test(V,(2,4),(9,0))
 
 
-patches = []
-for idx in np.arange(4):
-    print(idx)
-    
-    A_1patch_new = get_patch_ndim(A, idx, divs=(2,2), offset=(6,6))
-       
-    patches.append(A_1patch_new)
-    
-patches = np.array(patches)
+# TEST 3D
+V = np.random.random_sample((100, 100, 100))
+test(V,(2,2,2),(3,3,3))
+test(V,(2,4,3),(9,0,7))
+
+V = np.random.random_sample((40, 60, 30))
+test(V,(2,2,2),(3,3,3))
+test(V,(2,4,5),(9,0,1))
+test(V,(2,2,1),(3,3,3))
+
+# TEST 4D
+V = np.random.random_sample((100, 100, 100, 100))
+test(V,(2,2,2,2),(3,3,3,3))
+test(V,(2,4,3,2),(9,0,7,3))
+
+V = np.random.random_sample((40, 60, 30, 100))
+test(V,(2,2,2,2),(3,3,3,3))
+test(V,(2,4,5,2),(9,0,1,5))
+
+
+

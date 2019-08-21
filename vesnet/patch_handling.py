@@ -8,12 +8,24 @@ Created on Wed Aug 21 14:09:13 2019
 
 import numpy as np
 
+def get_patches(volume, divs, offset):
+    if isinstance(divs, int):
+        divs = (divs,)
+    if isinstance(offset, int):
+        offset = (offset,)
+    
+    assert len(volume.shape) == len(divs)
+    assert len(volume.shape) == len(offset)
 
+    patches = []
+    for idx in np.arange(np.prod(divs)):
+        patches.append(get_patch_ndim(volume, idx, divs, offset))
+    
+    return np.array(patches)
 
 
 def get_patch_ndim(volume, index, divs=(2,2,2), offset=(6,6,6)):
     '''
-    Generate minibatches, by Giles Tetteh
     Args:
         - volume3d (np.array)       :   The volume to cut
         - index (int)               :   in range 0 to sum(divs)-1
@@ -52,7 +64,7 @@ def get_patch_ndim(volume, index, divs=(2,2,2), offset=(6,6,6)):
         pe_ = ps_ + (e_ - s_)
         slice_idx_patch.append(slice(ps_, pe_))
 
-    print(slice_idx) 
+    # print(slice_idx) 
     slice_idx = tuple(slice_idx)
     slice_idx_patch = tuple(slice_idx_patch)
     
@@ -62,24 +74,35 @@ def get_patch_ndim(volume, index, divs=(2,2,2), offset=(6,6,6)):
 
 
 # not finished.
-def get_volume_ndim(patches4d, divs = (2,2,3), offset=(6,6,6)):
+def get_volume(patches, divs = (2,2,3), offset=(6,6,6)):
     """
     """
-    new_shape = [(ps -of*2)*int(d) for ps, of, d in zip(patches4d.shape[1:], offset, divs)]
-    volume3d = np.zeros(new_shape, dtype=patches4d.dtype)
-    shape = volume3d.shape
-    widths = [int(s/d) for s, d in zip(shape, divs)]
-    index = 0
-    for x in np.arange(0, shape[0], widths[0]):
-        for y in np.arange(0, shape[1], widths[1]):
-            for z in np.arange(0, shape[2], widths[2]):
-                patch = patches4d[index]
-                index = index + 1
-                volume3d[x:x+widths[0],y:y+widths[1],z:z+widths[2]] = \
-                        patch[offset[0]:offset[0] + widths[0], offset[1]:offset[1]+widths[1], offset[2]:offset[2]+widths[2]]
-    return volume3d
+    if isinstance(divs, int):
+        divs = (divs,)
+    if isinstance(offset, int):
+        offset = (offset,)
 
-    
+    new_shape = [(ps -of*2)*int(d) for ps, of, d in zip(patches.shape[1:], offset, divs)]
+    volume = np.zeros(new_shape, dtype=patches.dtype)
+    shape = volume.shape
+    widths = [int(s/d) for s, d in zip(shape, divs)]
+    for index in np.arange(np.prod(divs)):
+        index_ = np.unravel_index(index, divs)
+        slice_idx = []
+        slice_idx_offs = []
+        for dim in np.arange(len(index_)):
+            # print(index_)
+            s_ = (index_[dim] * widths[dim])
+            e_ = ((index_[dim] + 1) * widths[dim])
+            slice_idx.append(slice(s_, e_))
+
+            s__ = offset[dim]
+            e__ = offset[dim] + widths[dim]
+            slice_idx_offs.append(slice(s__, e__))
+            
+        patch = patches[index,...]
+        volume[tuple(slice_idx)] = patch[tuple(slice_idx_offs)]
+    return volume
 
 
 def get_single_patch(volume, index, divs=(2,2,2), offset=(6,6,6)):
@@ -193,23 +216,23 @@ def get_volume_from_patches3d(patches4d, divs = (2,2,3), offset=(6,6,6)):
 
 
 
-A = np.random.random_sample((100, 100, 100))
-patches = []
-for idx in np.arange(8):
-    print(idx)
-    A_1patch = get_single_patch(A, idx)
-    A_1patch_new = get_patch_ndim(A, idx)
-    if not np.all(A_1patch == A_1patch_new):
-        print('error')
+# A = np.random.random_sample((100, 100, 100))
+# patches = []
+# for idx in np.arange(8):
+#     print(idx)
+#     A_1patch = get_single_patch(A, idx)
+#     A_1patch_new = get_patch_ndim(A, idx)
+#     if not np.all(A_1patch == A_1patch_new):
+#         print('error')
         
-    patches.append(A_1patch_new)
+#     patches.append(A_1patch_new)
     
-patches = np.array(patches)
+# patches = np.array(patches)
 
-patches_giles = get_patch_data3d(A)
+# patches_giles = get_patch_data3d(A)
 
-if not np.all(patches == patches_giles):
-        print('error')
+# if not np.all(patches == patches_giles):
+#         print('error')
 
 #A_patched = get_patch_data3d(A)
 
