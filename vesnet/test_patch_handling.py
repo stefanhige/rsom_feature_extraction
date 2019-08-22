@@ -38,6 +38,11 @@ V = np.random.random_sample((40, 60))
 test(V,(2,2),(3,3))
 test(V,(2,4),(9,0))
 
+# TEST 2D RGB
+V = np.random.random_sample((100, 100, 3))
+test(V,(2,2),(3,3))
+test(V,(2,4),(9,0))
+
 
 # TEST 3D
 V = np.random.random_sample((100, 100, 100))
@@ -45,6 +50,17 @@ test(V,(2,2,2),(3,3,3))
 test(V,(2,4,3),(9,0,7))
 
 V = np.random.random_sample((40, 60, 30))
+test(V,(2,2,2),(3,3,3))
+test(V,(2,4,5),(9,0,1))
+test(V,(2,2,1),(3,3,3))
+
+
+# TEST 3D RGB
+V = np.random.random_sample((100, 100, 100, 3))
+test(V,(2,2,2),(3,3,3))
+test(V,(2,4,3),(9,0,7))
+
+V = np.random.random_sample((40, 60, 30, 3))
 test(V,(2,2,2),(3,3,3))
 test(V,(2,4,5),(9,0,1))
 test(V,(2,2,1),(3,3,3))

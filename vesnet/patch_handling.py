@@ -14,8 +14,8 @@ def get_patches(volume, divs, offset):
     if isinstance(offset, int):
         offset = (offset,)
     
-    assert len(volume.shape) == len(divs)
-    assert len(volume.shape) == len(offset)
+    assert len(volume.shape) == len(divs) or len(volume.shape) == len(divs) + 1
+    assert len(volume.shape) == len(offset) or len(volume.shape) == len(offset) + 1
 
     patches = []
     for idx in np.arange(np.prod(divs)):
@@ -38,10 +38,16 @@ def get_patch_ndim(volume, index, divs=(2,2,2), offset=(6,6,6)):
     if isinstance(offset, int):
         offset = (offset,)
     
-    assert len(volume.shape) == len(divs)
-    assert len(volume.shape) == len(offset)
+    assert len(volume.shape) == len(divs) or len(volume.shape) == len(divs) + 1
+    assert len(volume.shape) == len(offset) or len(volume.shape) == len(offset) + 1
     
-    shape = volume.shape
+    if len(volume.shape) == len(divs) + 1:
+        shape = volume.shape[:-1]   
+        #print('more than one channel')
+    else:
+        shape = volume.shape
+        
+    #print(shape)
     widths = [int(s/d) for s, d in zip(shape, divs)]
     patch_shape = [w+o*2 for w, o in zip(widths, offset)]
     index_ = np.unravel_index(index, divs)
@@ -49,6 +55,12 @@ def get_patch_ndim(volume, index, divs=(2,2,2), offset=(6,6,6)):
     # coords
     c = [s*d for s, d in zip(index_, widths)]
     #print(c) 
+    if len(volume.shape) == len(divs) + 1:
+        patch_shape = tuple(patch_shape + [volume.shape[-1]])
+        #print('more than one channel')
+    else:
+        patch_shape = tuple(patch_shape)
+        
     patch = np.zeros(patch_shape, dtype=volume.dtype)
     s_ = []
     e_ = []
@@ -69,7 +81,9 @@ def get_patch_ndim(volume, index, divs=(2,2,2), offset=(6,6,6)):
     slice_idx_patch = tuple(slice_idx_patch)
     
     vp = volume[slice_idx]
+    #print('vp.shape', vp.shape)
     patch[slice_idx_patch] = vp
+    #print('patch shape', patch.shape)
     return patch
 
 
@@ -81,9 +95,18 @@ def get_volume(patches, divs = (2,2,3), offset=(6,6,6)):
         divs = (divs,)
     if isinstance(offset, int):
         offset = (offset,)
-
+    #print(patches.shape)
     new_shape = [(ps -of*2)*int(d) for ps, of, d in zip(patches.shape[1:], offset, divs)]
+    
+    if len(patches.shape) == len(divs) + 2:
+        new_shape = tuple(new_shape + [patches.shape[-1]])
+        #print('more than one channel')
+    else:
+        new_shape = tuple(new_shape)
+    
+    #print(new_shape)
     volume = np.zeros(new_shape, dtype=patches.dtype)
+    #print('volume shape', volume.shape)
     shape = volume.shape
     widths = [int(s/d) for s, d in zip(shape, divs)]
     for index in np.arange(np.prod(divs)):
