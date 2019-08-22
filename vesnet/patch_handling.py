@@ -7,8 +7,25 @@ Created on Wed Aug 21 14:09:13 2019
 """
 
 import numpy as np
+import warnings
+
+#warnings.simplefilter('always')
 
 def get_patches(volume, divs, offset):
+    '''
+    Args:
+        - volume (np.array)         :   The volume to cut
+                                        N Dimensions:
+                                        single channel   : (X_1,..., X_N)
+                                        multi channel    : (X_1,..., X_N, C)
+        - divs (tuple)              :   Amount to divide each dimension
+                                        len(divs) must be equal to N 
+        - offset (tuple)            :   Offset for each div
+                                        len(offset) must be equal to N
+                                      
+    Output:
+        - patches (np.array)        :   patches stacked along first dimension
+    '''
     if isinstance(divs, int):
         divs = (divs,)
     if isinstance(offset, int):
@@ -18,20 +35,29 @@ def get_patches(volume, divs, offset):
     assert len(volume.shape) == len(offset) or len(volume.shape) == len(offset) + 1
 
     patches = []
+    # simply iterate over all indices
     for idx in np.arange(np.prod(divs)):
-        patches.append(get_patch_ndim(volume, idx, divs, offset))
+        patches.append(get_patch(volume, idx, divs, offset))
     
     return np.array(patches)
 
 
-def get_patch_ndim(volume, index, divs=(2,2,2), offset=(6,6,6)):
+def get_patch(volume, index, divs=(2,2,2), offset=(6,6,6)):
     '''
     Args:
-        - volume3d (np.array)       :   The volume to cut
-        - index (int)               :   in range 0 to sum(divs)-1
-        
-        - divs (tuple, optional)    :   Amount to divide each side
-        - offset (tuple, optional)  :   Offset for each div
+        - volume (np.array)         :   The volume to cut
+                                        N Dimensions:
+                                        single channel   : (X_1,..., X_N)
+                                        multi channel    : (X_1,..., X_N, C)
+        - index (int)               :   flattened patch iterator.
+                                        in range 0 to prod(divs)-1
+        - divs (tuple)              :   Amount to divide each dimension
+                                        len(divs) must be equal to N 
+        - offset (tuple)            :   Offset for each div
+                                        len(offset) must be equal to N
+                                        
+    Output:
+        - patch (np.array)          :   patch at index
     '''
     if isinstance(divs, int):
         divs = (divs,)
@@ -41,225 +67,120 @@ def get_patch_ndim(volume, index, divs=(2,2,2), offset=(6,6,6)):
     assert len(volume.shape) == len(divs) or len(volume.shape) == len(divs) + 1
     assert len(volume.shape) == len(offset) or len(volume.shape) == len(offset) + 1
     
+    
+    
     if len(volume.shape) == len(divs) + 1:
-        shape = volume.shape[:-1]   
-        #print('more than one channel')
+        # multi channel
+        shape = volume.shape[:-1]           
     else:
+        # single channel
         shape = volume.shape
         
-    #print(shape)
+    if np.any(np.mod(shape, divs)):
+        warnings.warn(('At least one dimension of the input volume can\'t be '
+                       'divided by divs without remainder. Your input shape '
+                       'and reconstructed shapes won\'t match.'))
+        
     widths = [int(s/d) for s, d in zip(shape, divs)]
     patch_shape = [w+o*2 for w, o in zip(widths, offset)]
+    
+    # create nd index
     index_ = np.unravel_index(index, divs)
-    #print(index_)
-    # coords
-    c = [s*d for s, d in zip(index_, widths)]
-    #print(c) 
+    
+    # coordinates
+    c = [s*d for s, d in zip(index_, widths)] 
+    
     if len(volume.shape) == len(divs) + 1:
         patch_shape = tuple(patch_shape + [volume.shape[-1]])
-        #print('more than one channel')
     else:
         patch_shape = tuple(patch_shape)
         
     patch = np.zeros(patch_shape, dtype=volume.dtype)
+    
     s_ = []
     e_ = []
     slice_idx = []
     slice_idx_patch = []
+    # for every dimension X_1 ... X_N
     for dim in np.arange(len(c)):
+        # calculate start and end index of the patch
         s_ = c[dim] - offset[dim] if c[dim] - offset[dim] >= 0 else 0
         e_ = c[dim] + widths[dim] + offset[dim] if \
             c[dim] + widths[dim] + offset[dim] <= shape[dim] else shape[dim]
         slice_idx.append(slice(s_, e_))
         
+        # start and end index considering offset
         ps_ = offset[dim] - (c[dim] - s_)
         pe_ = ps_ + (e_ - s_)
         slice_idx_patch.append(slice(ps_, pe_))
 
-    # print(slice_idx) 
     slice_idx = tuple(slice_idx)
     slice_idx_patch = tuple(slice_idx_patch)
     
+    # cut out current patch
     vp = volume[slice_idx]
-    #print('vp.shape', vp.shape)
+    
+    # for offset
     patch[slice_idx_patch] = vp
-    #print('patch shape', patch.shape)
     return patch
 
-
-# not finished.
 def get_volume(patches, divs = (2,2,3), offset=(6,6,6)):
-    """
-    """
+    '''
+    Args:
+        - patches (np.array)         :  The patches to reconstruct. N_P patches
+                                        are stacked along first dimension.
+                                        single channel : (N_P, X_1,..., X_N)
+                                        multi channel  : (N_P, X_1,..., X_N, C)
+        - divs (tuple)              :   Amount to divide each dimension
+                                        len(divs) must be equal to N 
+        - offset (tuple)            :   Offset for each div
+                                        len(offset) must be equal to N
+                                      
+    Output:
+        - volume  (np.array)        :   patches reconstructed to volume
+                                        single channel : (X_1,..., X_N)
+                                        multi channel  : (X_1,..., X_N, C)
+    '''
     if isinstance(divs, int):
         divs = (divs,)
     if isinstance(offset, int):
         offset = (offset,)
-    #print(patches.shape)
-    new_shape = [(ps -of*2)*int(d) for ps, of, d in zip(patches.shape[1:], offset, divs)]
+
+    new_shape = [(ps -of*2)*int(d) \
+                 for ps, of, d in zip(patches.shape[1:], offset, divs)]
     
     if len(patches.shape) == len(divs) + 2:
+        # multi channel
         new_shape = tuple(new_shape + [patches.shape[-1]])
-        #print('more than one channel')
     else:
+        # single channel
         new_shape = tuple(new_shape)
     
-    #print(new_shape)
     volume = np.zeros(new_shape, dtype=patches.dtype)
-    #print('volume shape', volume.shape)
     shape = volume.shape
     widths = [int(s/d) for s, d in zip(shape, divs)]
+    # iterate over patch indices
     for index in np.arange(np.prod(divs)):
         index_ = np.unravel_index(index, divs)
         slice_idx = []
         slice_idx_offs = []
+        # iterate over dimension X_1 ... X_N
         for dim in np.arange(len(index_)):
-            # print(index_)
+            # calculate start and end index inside volume
             s_ = (index_[dim] * widths[dim])
             e_ = ((index_[dim] + 1) * widths[dim])
             slice_idx.append(slice(s_, e_))
-
-            s__ = offset[dim]
-            e__ = offset[dim] + widths[dim]
-            slice_idx_offs.append(slice(s__, e__))
+            
+            # calculate start and end index inside patch,
+            # to ret rid of the offset
+            ps_ = offset[dim]
+            pe_ = offset[dim] + widths[dim]
+            slice_idx_offs.append(slice(ps_, pe_))
             
         patch = patches[index,...]
         volume[tuple(slice_idx)] = patch[tuple(slice_idx_offs)]
     return volume
 
-
-def get_single_patch(volume, index, divs=(2,2,2), offset=(6,6,6)):
-    '''
-    Generate minibatches, by Giles Tetteh
-    Args:
-        - volume3d (np.array)       :   The volume to cut
-        - index (int)               :   in range 0 to sum(divs)-1
-        
-        - divs (tuple, optional)    :   Amount to divide each side
-        - offset (tuple, optional)  :   Offset for each div
-    '''
-    assert len(volume.shape) == len(divs)
-    assert len(volume.shape) == len(offset)
-    
-    shape = volume.shape
-    widths = [int(s/d) for s, d in zip(shape, divs)]
-    patch_shape = [w+o*2 for w, o in zip(widths, offset)]
-    index_ = np.unravel_index(index, divs)
-    print(index_)
-    
-    # coords
-    x, y, z = [s*d for s, d in zip(index_, widths)]
-    
-    patch = np.zeros(patch_shape, dtype=volume.dtype)
-    x_s = x - offset[0] if x - offset[0] >= 0 else 0
-    x_e = x + widths[0] + offset[0] if x + \
-                        widths[0] + offset[0] <= shape[0] else shape[0]
-        
-    y_s = y - offset[1] if y - offset[1] >= 0 else 0
-    y_e = y + widths[1] + offset[1] if y + widths[1] + offset[1] <= shape[1] else shape[1]
-    z_s = z - offset[2] if z - offset[2] >= 0 else 0
-    z_e = z + widths[2] + offset[2] if z + widths[2] + offset[2] <= shape[2] else shape[2]
-    vp = volume[x_s:x_e,y_s:y_e,z_s:z_e]
-    print(vp.shape)
-    px_s = offset[0] - (x - x_s)
-    px_e = px_s + (x_e - x_s)
-    py_s = offset[1] - (y - y_s)
-    py_e = py_s + (y_e - y_s)
-    pz_s = offset[2] - (z - z_s)
-    pz_e = pz_s + (z_e - z_s)
-    patch[px_s:px_e, py_s:py_e, pz_s:pz_e] = vp
-    
-    return patch
-    
-    
-    
-    
-
-
-def get_patch_data3d(volume3d, divs=(2,2,2), offset=(6,6,6)):
-    """Generate minibatches, by Giles Tetteh
-    Args:
-        - volume3d (np.array)       :   The volume to cut
-        - divs (tuple, optional)    :   Amount to divide each side
-        - offset (tuple, optional)  :   Offset for each div
-    """
-    patches = []
-    shape = volume3d.shape
-    widths = [int(s/d) for s, d in zip(shape, divs)]
-    patch_shape = [w+o*2 for w, o in zip(widths, offset)]
-    #print("V3dshape {}".format(volume3d.shape))
-
-    for x in np.arange(0, shape[0], widths[0]):
-        for y in np.arange(0, shape[1], widths[1]):
-            for z in np.arange(0, shape[2], widths[2]):
-                print(x,y,z)
-                patch = np.zeros(patch_shape, dtype=volume3d.dtype)
-                x_s = x - offset[0] if x - offset[0] >= 0 else 0
-                x_e = x + widths[0] + offset[0] if x + \
-                        widths[0] + offset[0] <= shape[0] else shape[0]
-                y_s = y - offset[1] if y - offset[1] >= 0 else 0
-                y_e = y + widths[1] + offset[1] if y + \
-                        widths[1] + offset[1] <= shape[1] else shape[1]
-                z_s = z - offset[2] if z - offset[2] >= 0 else 0
-                z_e = z + widths[2] + offset[2] if z + \
-                        widths[2] + offset[2] <= shape[2] else shape[2]
-
-                vp = volume3d[x_s:x_e,y_s:y_e,z_s:z_e]
-                px_s = offset[0] - (x - x_s)
-                px_e = px_s + (x_e - x_s)
-                py_s = offset[1] - (y - y_s)
-                py_e = py_s + (y_e - y_s)
-                pz_s = offset[2] - (z - z_s)
-                pz_e = pz_s + (z_e - z_s)
-                patch[px_s:px_e, py_s:py_e, pz_s:pz_e] = vp
-                patches.append(patch)
-    
-    #return patches
-
-    return np.array(patches, dtype = volume3d.dtype)
-
-
-def get_volume_from_patches3d(patches4d, divs = (2,2,3), offset=(6,6,6)):
-    """Reconstruct the minibatches, by Giles Tetteh
-    Keep offset of (0,0,0) for fully padded volumes
-    """
-    new_shape = [(ps -of*2)*int(d) for ps, of, d in zip(patches4d.shape[-3:], offset, divs)]
-    volume3d = np.zeros(new_shape, dtype=patches4d.dtype)
-    shape = volume3d.shape
-    widths = [int(s/d) for s, d in zip(shape, divs)]
-    index = 0
-    for x in np.arange(0, shape[0], widths[0]):
-        for y in np.arange(0, shape[1], widths[1]):
-            for z in np.arange(0, shape[2], widths[2]):
-                patch = patches4d[index]
-                index = index + 1
-                volume3d[x:x+widths[0],y:y+widths[1],z:z+widths[2]] = \
-                        patch[offset[0]:offset[0] + widths[0], offset[1]:offset[1]+widths[1], offset[2]:offset[2]+widths[2]]
-    return volume3d
-
-
-
-# A = np.random.random_sample((100, 100, 100))
-# patches = []
-# for idx in np.arange(8):
-#     print(idx)
-#     A_1patch = get_single_patch(A, idx)
-#     A_1patch_new = get_patch_ndim(A, idx)
-#     if not np.all(A_1patch == A_1patch_new):
-#         print('error')
-        
-#     patches.append(A_1patch_new)
-    
-# patches = np.array(patches)
-
-# patches_giles = get_patch_data3d(A)
-
-# if not np.all(patches == patches_giles):
-#         print('error')
-
-#A_patched = get_patch_data3d(A)
-
-#A_rec = get_volume_from_patches3d(A_patched)
         
 
 

@@ -23,6 +23,23 @@ def test(A, divs, offset):
         print('Test failed.', A.shape, A_.shape, divs, offset) 
 
 
+# SPECIAL CASES
+# do nothing.
+V = np.random.random_sample((100, 100, 100))
+test(V,(1,1,1),(0,0,0))
+
+V = np.random.random_sample((1, 1, 1))
+test(V,(1,1,1),(0,0,0))
+
+V = np.random.random_sample((1, 3))
+test(V,(1),(0))
+
+V = np.random.random_sample((1))
+test(V,(1),(0))
+
+V = np.random.random_sample((1))
+test(V,(1),(5))
+
 # TEST 1D
 V = np.random.random_sample((100))
 test(V, 2, 6)
@@ -73,6 +90,9 @@ test(V,(2,4,3,2),(9,0,7,3))
 V = np.random.random_sample((40, 60, 30, 100))
 test(V,(2,2,2,2),(3,3,3,3))
 test(V,(2,4,5,2),(9,0,1,5))
+
+
+
 
 
 

@@ -401,9 +401,11 @@ class CropToEven(object):
         
         # save, how much data was cropped
         # using torch tensor, because dataloader will convert anyways
+        # dcrop = data
         meta['dcrop']['begin'] = torch.from_numpy(np.array([IsOdd[0], IsOdd[1], IsOdd[2], 0], dtype=np.int16))
         meta['dcrop']['end'] = torch.from_numpy(np.array([0, 0, 0, 0], dtype=np.int16))
-            
+        
+        # lcrop = label
         meta['lcrop']['begin'] = torch.from_numpy(np.array([IsOdd[0], IsOdd[1], IsOdd[2]], dtype=np.int16))
         meta['lcrop']['end'] = torch.from_numpy(np.array([0, 0, 0], dtype=np.int16))
 
