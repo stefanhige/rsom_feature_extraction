@@ -40,6 +40,7 @@ class LayerUNET():
         dataset_zshift     int or (int, int)   data aug. zshift
         dirs               dict of string      use these directories
         filename           string              pattern to save output
+        optimizer          string
         initial_lr         float               initial learning rate
         scheduler_patience int                 n epochs before lr reduction
         lossfn             function            custom lossfunction
