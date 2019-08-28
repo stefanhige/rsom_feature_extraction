@@ -54,7 +54,8 @@ def test_dl(result):
     # 2. generate test directory
     cwd = os.getcwd()
     testdir = os.path.join(cwd,'temp_test_dl')
-    #shutil.rmtree(testdir)
+    if os.path.exists(testdir):
+        shutil.rmtree(testdir)
     os.mkdir(testdir)
     
     # 3. save files to test directory
@@ -88,7 +89,7 @@ def test_dl(result):
     dataloader = DataLoader(set1,
                             batch_size=1, 
                             shuffle=False, 
-                            num_workers=4, 
+                            num_workers=1, 
                             pin_memory=True)
     
     

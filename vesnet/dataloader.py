@@ -191,6 +191,13 @@ class RSOMVesselDataset(Dataset):
                 + np.array(label.shape)),\
                 'Shapes and Crop do not match'
         
+        #TODO in case the data is only 1D, fake dimension should also be added
+        #need to test if get_patch can handle this! would be better if it can
+        #then do something like
+        if len(data.shape) == 3:
+            data = np.expand_dims(data, axis=-1)
+            label = np.expand_dims(label, axis=-1)
+            print(data.shape, label.shape)
     
         patch_data = get_patch(data, rem_idx, self.divs, self.offset)
         patch_label = get_patch(label, rem_idx, self.divs, self.offset)
@@ -281,7 +288,7 @@ def to_numpy(V, meta,  Vtype='label', dimorder ='numpy'):
         b = (meta['dcrop']['begin']).numpy().squeeze()
         e = (meta['dcrop']['end']).numpy().squeeze()
     else:
-        raise ValueError('Invalid arguemnt for parameter Vtype')
+        raise ValueError('Invalid argument for parameter Vtype')
         
     # TODO: raise error if b, e is not dimension 3
     

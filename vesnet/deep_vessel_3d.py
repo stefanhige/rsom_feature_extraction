@@ -18,14 +18,13 @@ class Deep_Vessel_Net_FC(nn.Module):
                  in_channels=2, 
                  print_=False): #whats with n_classes? 
         super(Deep_Vessel_Net_FC, self).__init__()
-        self.settings = settings
-        self.num_channels = int(settings["dataloader"]["num_channels"])
+        self.in_channels = in_channels
 
         # ONLY FOR TESTING PURPOSES
         self.print=print_
 
         # 1. 3x3x3-Conv, 2 -> 5
-        self.conv1 = nn.Conv3d(self.num_channels, 5, kernel_size=(3,3,3)) #nn.Conv3d
+        self.conv1 = nn.Conv3d(self.in_channels, 5, kernel_size=(3,3,3)) #nn.Conv3d
         # 2. 5x5x5-Conv, 5 -> 10
         self.conv2 = nn.Conv3d(5, 10, kernel_size=(5,5,5))
         # 3. 5x5x5-Conv, 10-> 20
@@ -41,7 +40,7 @@ class Deep_Vessel_Net_FC(nn.Module):
         self.padding = nn.ReplicationPad3d(size)
 
     def print_volume(self, x, layer):
-       """ONLY FOR TESTING PURPOSES
+        """ONLY FOR TESTING PURPOSES
         set self.c = 0 in init
         set self.c = self.c + 1 in forward
         """
@@ -57,6 +56,8 @@ class Deep_Vessel_Net_FC(nn.Module):
             print("Saved image to {}".format(img_path))
 
     def forward(self, x):
+        print('X.shape:', x.shape)
+        
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
