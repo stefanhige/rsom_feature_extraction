@@ -97,8 +97,8 @@ class RSOMVesselDataset(Dataset):
         data_idx = np.floor_divide(idx, np.prod(self.divs))
         
         # debug
-        print('rem_idx', rem_idx)
-        print('data_idx', data_idx)
+        #print('rem_idx', rem_idx)
+        #print('data_idx', data_idx)
         
         assert data_idx*np.prod(self.divs) + rem_idx == idx
         
@@ -113,6 +113,7 @@ class RSOMVesselDataset(Dataset):
         if data_idx == self.last_data_idx:
             data = self.last_data
             label = self.last_label
+            
         else:
             data_path = os.path.join(self.root_dir, 
                                 self.data[data_idx])
@@ -127,60 +128,6 @@ class RSOMVesselDataset(Dataset):
             label = self._readNII(label_path)
             label = label.astype(np.float32)
             
-            # crop data and label in order to be dividable by divs
-            
-            initial_dshape = data.shape
-            initial_lshape = label.shape
-            
-            print(data.shape)
-            print('divs', self.divs)
-            rem = np.mod(data.shape[:len(self.divs)], self.divs)
-            print(rem)
-            
-            assert len(rem) == 3, \
-            'Other cases are not implemented. In general our data is 3D.'
-            
-            if rem[0]:
-                data = data[int(np.floor(rem[0]/2)):-int(np.ceil(rem[0]/2)), ...]
-                label = label[int(np.floor(rem[0]/2)):-int(np.ceil(rem[0]/2)), ...]
-            
-            if rem[1]:
-                data = data[:, int(np.floor(rem[1]/2)):-int(np.ceil(rem[1]/2)), ...]
-                label = label[:, int(np.floor(rem[1]/2)):-int(np.ceil(rem[1]/2)), ...]
-                
-            if rem[2]:
-                data = data[:, :, int(np.floor(rem[2]/2)):-int(np.ceil(rem[2]/2)), ...]
-                label = label[:, :, int(np.floor(rem[2]/2)):-int(np.ceil(rem[2]/2)), ...]
-                
-            # add to meta information, how much has been cropped
-            meta['dcrop']['begin'] = torch.from_numpy(np.array(\
-                [np.floor(rem[0]/2), np.floor(rem[1]/2), np.floor(rem[2]/2)], dtype=np.int16))
-            meta['dcrop']['end'] = torch.from_numpy(np.array(\
-                [np.ceil(rem[0]/2), np.ceil(rem[1]/2), np.ceil(rem[2]/2)], dtype=np.int16))
-            
-            # just for correct dimensionality
-            # in case of RGB add another dimension
-            if len(data.shape) == 4:
-                print('DEBUG. adding zero to meta.')
-                meta['dcrop']['begin'] = torch.cat((meta['dcrop']['begin'], 0))
-                meta['dcrop']['end'] = torch.cat((meta['dcrop']['end'], 0))
-                
-                    
-            meta['lcrop']['begin'] = torch.from_numpy(np.array(\
-                [np.floor(rem[0]/2), np.floor(rem[1]/2), np.floor(rem[2]/2)], dtype=np.int16))
-            meta['lcrop']['end'] = torch.from_numpy(np.array(\
-                [np.ceil(rem[0]/2), np.ceil(rem[1]/2), np.ceil(rem[2]/2)], dtype=np.int16))
-    
-            assert np.all(np.array(initial_dshape) == meta['dcrop']['begin'].numpy()
-                    + meta['dcrop']['end'].numpy()
-                    + np.array(data.shape)),\
-                    'Shapes and Crop do not match'
-    
-            assert np.all(np.array(initial_lshape) == meta['lcrop']['begin'].numpy()
-                    + meta['lcrop']['end'].numpy()
-                    + np.array(label.shape)),\
-                    'Shapes and Crop do not match'
-        
         if self.keep_last_data:
             if not data_idx == self.last_data_idx:
                 # save the filename
@@ -189,6 +136,61 @@ class RSOMVesselDataset(Dataset):
                 # and data and label
                 self.last_data = data
                 self.last_label = label
+            
+        # crop data and label in order to be dividable by divs
+        
+        initial_dshape = data.shape
+        initial_lshape = label.shape
+        
+        #print(data.shape)
+        #print('divs:', self.divs)
+        rem = np.mod(data.shape[:len(self.divs)], self.divs)
+        #print('Remainder:', rem)
+        
+        assert len(rem) == 3, \
+        'Other cases are not implemented. In general our data is 3D.'
+        
+        if rem[0]:
+            data = data[int(np.floor(rem[0]/2)):-int(np.ceil(rem[0]/2)), ...]
+            label = label[int(np.floor(rem[0]/2)):-int(np.ceil(rem[0]/2)), ...]
+        
+        if rem[1]:
+            data = data[:, int(np.floor(rem[1]/2)):-int(np.ceil(rem[1]/2)), ...]
+            label = label[:, int(np.floor(rem[1]/2)):-int(np.ceil(rem[1]/2)), ...]
+            
+        if rem[2]:
+            data = data[:, :, int(np.floor(rem[2]/2)):-int(np.ceil(rem[2]/2)), ...]
+            label = label[:, :, int(np.floor(rem[2]/2)):-int(np.ceil(rem[2]/2)), ...]
+            
+        # add to meta information, how much has been cropped
+        meta['dcrop']['begin'] = torch.from_numpy(np.array(\
+            [np.floor(rem[0]/2), np.floor(rem[1]/2), np.floor(rem[2]/2)], dtype=np.int16))
+        meta['dcrop']['end'] = torch.from_numpy(np.array(\
+            [np.ceil(rem[0]/2), np.ceil(rem[1]/2), np.ceil(rem[2]/2)], dtype=np.int16))
+        
+        # just for correct dimensionality
+        # in case of RGB add another dimension
+        if len(data.shape) == 4:
+            print('DEBUG. adding zero to meta.')
+            meta['dcrop']['begin'] = torch.cat((meta['dcrop']['begin'], 0))
+            meta['dcrop']['end'] = torch.cat((meta['dcrop']['end'], 0))
+            
+                
+        meta['lcrop']['begin'] = torch.from_numpy(np.array(\
+            [np.floor(rem[0]/2), np.floor(rem[1]/2), np.floor(rem[2]/2)], dtype=np.int16))
+        meta['lcrop']['end'] = torch.from_numpy(np.array(\
+            [np.ceil(rem[0]/2), np.ceil(rem[1]/2), np.ceil(rem[2]/2)], dtype=np.int16))
+
+        assert np.all(np.array(initial_dshape) == meta['dcrop']['begin'].numpy()
+                + meta['dcrop']['end'].numpy()
+                + np.array(data.shape)),\
+                'Shapes and Crop do not match'
+
+        assert np.all(np.array(initial_lshape) == meta['lcrop']['begin'].numpy()
+                + meta['lcrop']['end'].numpy()
+                + np.array(label.shape)),\
+                'Shapes and Crop do not match'
+        
     
         patch_data = get_patch(data, rem_idx, self.divs, self.offset)
         patch_label = get_patch(label, rem_idx, self.divs, self.offset)
@@ -242,6 +244,52 @@ class ToTensor():
         return {'data': torch.from_numpy(data),
                 'label': torch.from_numpy(label),
                 'meta': meta}
+        
+        
+def to_numpy(V, meta,  Vtype='label', dimorder ='numpy'):
+    '''
+    inverse function for class ToTensor()
+    args
+        V: torch.tensor volume
+        meta: batch['meta'] information
+
+    return V as numpy.array volume
+    '''
+    
+    if dimorder=='numpy':
+        if isinstance(V, torch.Tensor):
+            V = V.numpy()
+    elif dimorder=='torch':
+        if isinstance(V, torch.Tensor):
+            V = V.numpy()
+        # only in case RGB
+        if len(V.shape) == 4:
+            V = np.moveaxis(V, 0, -1)
+    else:
+        raise ValueError('Invalid arguemnt for parameter dimorder')
+
+    # add padding, which was removed before,
+    # and saved in meta['lcrop'] and meta['dcrop']
+
+    # structure for np.pad
+    # (before0, after0), (before1, after1), ..)
+    if Vtype=='label':
+        # parse label crop
+        b = (meta['lcrop']['begin']).numpy().squeeze()
+        e = (meta['lcrop']['end']).numpy().squeeze()
+    elif Vtype=='data':
+        b = (meta['dcrop']['begin']).numpy().squeeze()
+        e = (meta['dcrop']['end']).numpy().squeeze()
+    else:
+        raise ValueError('Invalid arguemnt for parameter Vtype')
+        
+    # TODO: raise error if b, e is not dimension 3
+    
+    pad_width = ((b[0], e[0]), (b[1], e[1]), (b[2], e[2]))
+    
+    V = np.pad(V, pad_width, 'edge')
+
+    return V
         
     
 root_dir = '/home/stefan/PYTHON/synthDataset/rsom_style' 

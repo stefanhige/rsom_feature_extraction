@@ -39,6 +39,7 @@ def get_patches(volume, divs, offset):
     for idx in np.arange(np.prod(divs)):
         patches.append(get_patch(volume, idx, divs, offset))
     
+    # TODO use stack
     return np.array(patches)
 
 
