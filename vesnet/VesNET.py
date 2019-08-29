@@ -41,7 +41,7 @@ class VesNET():
     def __init__(self,
                  device=torch.device('cuda'),
                  dirs={'train':'','eval':'', 'model':'', 'pred':''},
-                 divs = (10, 10, 10),
+                 divs = (4, 4, 3),
                  offset = (6, 6, 6),
                  optimizer = 'Adam',
                  lossfn = BCEWithLogitsLoss,
@@ -138,16 +138,16 @@ class VesNET():
                     dtype=self.args.dtype, 
                     non_blocking=self.args.non_blocking)
 
-            print('data shape', data.shape)
+            #print('data shape', data.shape)
             prediction = self.model(data)
-            print('prediction shape', prediction.shape)
+            #print('prediction shape', prediction.shape)
             
 
             loss = self.lossfn(pred=prediction, target=label)
             
             # debug
-            print(loss.data.item())
-            return loss.data.item()
+            #print('loss:', loss.data.item())
+            
             # debug end
             self.optimizer.zero_grad()
             loss.backward()
@@ -183,7 +183,8 @@ class VesNET():
                     dtype=self.args.dtype, 
                     non_blocking=self.args.non_blocking)
 
-
+            prediction = self.model(data)
+            
             loss = self.lossfn(pred=prediction, target=label)
                 
             # loss running variable

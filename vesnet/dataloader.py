@@ -251,7 +251,7 @@ class ToTensor():
         if len(data.shape) == 4:
             data = np.moveaxis(data, -1, 0)
             label = np.moveaxis(label, -1, 0)
-            print(data.shape, label.shape)
+            #print(data.shape, label.shape)
         
         return {'data': torch.from_numpy(data),
                 'label': torch.from_numpy(label),

@@ -67,7 +67,6 @@ class Deep_Vessel_Net_FC(nn.Module):
             print("Saved image to {}".format(img_path))
 
     def forward(self, x):
-        print('X.shape:', x.shape)
         
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
