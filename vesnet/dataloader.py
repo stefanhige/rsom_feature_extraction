@@ -201,7 +201,10 @@ class RSOMVesselDataset(Dataset):
             
     
         patch_data = get_patch(data, rem_idx, self.divs, self.offset)
-        patch_label = get_patch(label, rem_idx, self.divs, self.offset)
+        # don't need offset for label
+        # after data passes CNN, if offset is chosen correctly, it matches
+        # the shape of label exactly.
+        patch_label = get_patch(label, rem_idx, self.divs, (0, 0, 0))
 
         sample = {'data': patch_data, 'label': patch_label, 'meta': meta}
 
