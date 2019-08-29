@@ -111,8 +111,8 @@ def test_dl(result):
                 #print('INDEX:', patch['meta']['index'])
                 #print('filename:',patch['meta']['filename'])
                 #print(patch['data'].shape)
-                Dout.append(patch['data'].squeeze(dim=0))
-                Lout.append(patch['label'].squeeze(dim=0))
+                Dout.append(patch['data'].squeeze())
+                Lout.append(patch['label'].squeeze())
             
             if isinstance(patch['data'], torch.Tensor):
                 Dout = (torch.stack(Dout)).numpy()
@@ -121,11 +121,17 @@ def test_dl(result):
                 Dout = np.array(Dout)
                 Lout = np.array(Lout)
             
-            Dvol = to_numpy(get_volume(Dout, divs, offset), 
+            print('Dout, Lout shapes:', Dout.shape, Lout.shape)
+            Dvol_ = get_volume(Dout, divs, offset)
+            Lvol_ = get_volume(Lout, divs, offset)
+                
+            print('Dvol, Lvol shapes:', Dvol_.shape, Lvol_.shape)
+            
+            Dvol = to_numpy(Dvol_, 
                             patch['meta'],
                             Vtype='data',
                             dimorder='torch')
-            Lvol = to_numpy(get_volume(Lout, divs, offset), 
+            Lvol = to_numpy(Lvol_, 
                             patch['meta'],
                             Vtype='label',
                             dimorder='torch')

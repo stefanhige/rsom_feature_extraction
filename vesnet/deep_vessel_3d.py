@@ -38,6 +38,17 @@ class Deep_Vessel_Net_FC(nn.Module):
         """ONLY FOR TESTING PURPOSES
         """
         self.padding = nn.ReplicationPad3d(size)
+        
+    def calc_shrink(self):
+        X = torch.ones([1, self.in_channels, 25, 25, 25])
+        Y = self.forward(X)
+        Xshp = torch.tensor(list(X.shape))
+        Yshp = torch.tensor(list(Y.shape))
+        print(' ',list(Xshp.numpy()),'input dimension')
+        print('-',list(Yshp.numpy()),'output dimension')
+        print('______________________')
+        print('=',list((Xshp-Yshp).numpy()))
+        
 
     def print_volume(self, x, layer):
         """ONLY FOR TESTING PURPOSES

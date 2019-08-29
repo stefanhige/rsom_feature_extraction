@@ -197,7 +197,8 @@ class RSOMVesselDataset(Dataset):
         if len(data.shape) == 3:
             data = np.expand_dims(data, axis=-1)
             label = np.expand_dims(label, axis=-1)
-            print(data.shape, label.shape)
+            #print(data.shape, label.shape, meta['filename'])
+            
     
         patch_data = get_patch(data, rem_idx, self.divs, self.offset)
         patch_label = get_patch(label, rem_idx, self.divs, self.offset)
@@ -243,10 +244,11 @@ class ToTensor():
         # [X1... XN x C]
         # torch tensor size of images
         # [C x X1 ... XN]
-        
-        # in case of RG image
-        if len(data.shape) == 4 and data.shape[-1] == 2:
+        assert len(data.shape) == 4
+        if len(data.shape) == 4:
             data = np.moveaxis(data, -1, 0)
+            label = np.moveaxis(label, -1, 0)
+            print(data.shape, label.shape)
         
         return {'data': torch.from_numpy(data),
                 'label': torch.from_numpy(label),
@@ -298,10 +300,3 @@ def to_numpy(V, meta,  Vtype='label', dimorder ='numpy'):
 
     return V
         
-    
-root_dir = '/home/stefan/PYTHON/synthDataset/rsom_style' 
-set1 = RSOMVesselDataset(root_dir, 
-                         divs=(2, 3, 5), 
-                         offset = (0, 0, 0))
-
-sample1 = set1[0]

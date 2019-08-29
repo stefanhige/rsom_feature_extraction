@@ -43,7 +43,8 @@ test(V,(1),(5))
 # TEST 1D
 V = np.random.random_sample((100))
 test(V, 2, 6)
-test(V, 3, 0)
+test(V, 100, 0)
+test(V, 50, 10)
 test(V, 2, 9)
 
 # TEST 2D
@@ -64,18 +65,27 @@ test(V,(2,4),(9,0))
 # TEST 3D
 V = np.random.random_sample((100, 100, 100))
 test(V,(2,2,2),(3,3,3))
-test(V,(2,4,3),(9,0,7))
+test(V,(2,4,10),(9,0,7))
 
 V = np.random.random_sample((40, 60, 30))
 test(V,(2,2,2),(3,3,3))
 test(V,(2,4,5),(9,0,1))
 test(V,(2,2,1),(3,3,3))
 
+# TEST 3D with fake singleton dimension
+V = np.random.random_sample((100, 100, 100, 1))
+test(V,(2,2,2),(3,3,3))
+test(V,(2,4,5),(9,0,7))
+
+V = np.random.random_sample((40, 60, 30, 1))
+test(V,(2,2,2),(3,3,3))
+test(V,(2,4,5),(9,0,1))
+test(V,(2,2,1),(3,3,3))
 
 # TEST 3D RGB
 V = np.random.random_sample((100, 100, 100, 3))
 test(V,(2,2,2),(3,3,3))
-test(V,(2,4,3),(9,0,7))
+test(V,(2,4,2),(9,0,7))
 
 V = np.random.random_sample((40, 60, 30, 3))
 test(V,(2,2,2),(3,3,3))
@@ -85,14 +95,23 @@ test(V,(2,2,1),(3,3,3))
 # TEST 4D
 V = np.random.random_sample((100, 100, 100, 100))
 test(V,(2,2,2,2),(3,3,3,3))
-test(V,(2,4,3,2),(9,0,7,3))
+test(V,(2,4,5,2),(9,3,7,3))
 
 V = np.random.random_sample((40, 60, 30, 100))
 test(V,(2,2,2,2),(3,3,3,3))
 test(V,(2,4,5,2),(9,0,1,5))
 
-
-
-
-
+print('10 random tests')
+# totally random
+for _ in np.arange(10):
+    Ndim = np.random.randint(2,7)
+    MultiChannel = np.random.randint(2)
+    divs = np.random.randint(1,4,size=Ndim-MultiChannel)
+    multipliers =  np.random.randint(1,4,size=Ndim-MultiChannel)
+    offset = tuple(np.random.randint(1,10,size=Ndim-MultiChannel))
+    dimensions = divs*multipliers
+    print('Ndim',Ndim, 'MultiChannel?', bool(MultiChannel))
+    print('divs:', divs, 'offset:', offset, 'dimensions:', dimensions)
+    V = np.random.random_sample(tuple(dimensions))
+    test(V, divs, offset)
 

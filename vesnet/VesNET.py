@@ -17,10 +17,13 @@ import copy
 import json 
 import warnings
 
+from timeit import default_timer as timer
+
 # MY MODULES
 from deep_vessel_3d import Deep_Vessel_Net_FC
 from dataloader import RSOMVesselDataset
 from dataloader import DropBlue, ToTensor, to_numpy
+from lossfunctions import BCEWithLogitsLoss
 
 
 
@@ -39,8 +42,9 @@ class VesNET():
                  device=torch.device('cuda'),
                  dirs={'train':'','eval':'', 'model':'', 'pred':''},
                  divs = (10, 10, 10),
-                 offset = (0, 0, 0),
+                 offset = (6, 6, 6),
                  optimizer = 'Adam',
+                 lossfn = BCEWithLogitsLoss,
                  initial_lr = 1e-6,
                  epochs=1,
                  ):
@@ -55,7 +59,7 @@ class VesNET():
         self.model = self.model.float()
        
         # LOSSUNCTION
-        self.lossfn = None
+        self.lossfn = lossfn
 
         # DATASET
         self.train_dataset = RSOMVesselDataset(self.dirs['train'],
@@ -134,12 +138,17 @@ class VesNET():
                     dtype=self.args.dtype, 
                     non_blocking=self.args.non_blocking)
 
-                
+            print('data shape', data.shape)
             prediction = self.model(data)
+            print('prediction shape', prediction.shape)
             
 
             loss = self.lossfn(pred=prediction, target=label)
-                
+            
+            # debug
+            print(loss.data.item())
+            return loss.data.item()
+            # debug end
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
