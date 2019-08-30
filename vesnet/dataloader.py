@@ -55,7 +55,7 @@ class RSOMVesselDataset(Dataset):
         self.offset = offset
         
         # settings
-        self.keep_last_data = True
+        self.keep_last_data = False
         self.last_data_idx = -1
         
         
@@ -110,7 +110,7 @@ class RSOMVesselDataset(Dataset):
         
         
         # load data, if neccessary
-        if data_idx == self.last_data_idx:
+        if self.keep_last_data and data_idx == self.last_data_idx:
             data = self.last_data
             label = self.last_label
             
