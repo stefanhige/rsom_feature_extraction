@@ -1,5 +1,7 @@
-# Adapted from https://discuss.pytorch.org/t/unet-implementation/426
+# adapted from
 
+# https://github.com/jvanvugt/pytorch-unet
+# Adapted from https://discuss.pytorch.org/t/unet-implementation/426
 import torch
 from torch import nn
 import torch.nn.functional as F
