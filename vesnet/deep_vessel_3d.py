@@ -48,7 +48,6 @@ class Deep_Vessel_Net_FC(nn.Module):
         print('-',list(Yshp.numpy()),'output dimension')
         print('______________________')
         print('=',list((Xshp-Yshp).numpy()))
-        
 
     def print_volume(self, x, layer):
         """ONLY FOR TESTING PURPOSES
@@ -170,4 +169,76 @@ class Deep_Vessel_Net_FC(nn.Module):
         print("T_ {}".format(t_))
         self.load_state_dict(t_)
         print("Loaded model from {0}".format(str(path)))
+
+class Deep_Vessel_Net_dyn(nn.Module):
+
+    def __init__(self, in_channels=2, depth = 5, dropout=False, batchnorm=False):
+        super(Deep_Vessel_Net_dyn, self).__init__()
+        
+        # SETTINGS
+        self.in_channels = in_channels
+        self.depth = 5
+        self.dropout = dropout
+       
+        # generate dropout list for every layer
+        if dropout:
+            self.dropouts = [0, 0.3, 0.3, 0.3, 0]
+        else:
+            self.dropouts = [0] * depth
+
+        # generate channels list for every layer
+        self.channels = [in_channels, 5, 10, 20, 50, 1]
+
+        # generate kernel size list
+        self.kernels = [3, 5, 5, 3, 1]
+        
+        self.batchnorm = batchnorm
+        self.batchnorms = [1]*4 + [0]
+
+        assert len(self.dropouts) == depth
+        assert len(self.channels) == depth + 1
+        assert len(self.kernels) == depth
+        assert len(self.batchnorms) == depth
+
+        layers = nn.ModuleList()
+
+        for i in range(depth):
+            layers.append(DVN_Block(
+                self.channels[i],
+                self.channels[i+1],
+                self.kernels[i],
+                self.batchnorms[i],
+                self.dropouts[i]))
+        
+        self.layers = nn.Sequential(*layers)
+
+class DVN_Block(nn.Module):
+
+    def __init__(self, in_size, out_size, kernel_size, batchnorm, dropout):
+        super(DVN_Block, self).__init__()
+        
+        block = nn.ModuleList()
+        
+        block.append(nn.Conv3d(in_size, out_size, kernel_size))
+        block.append(nn.ReLU())
+        if batchnorm:
+            block.append(nn.BatchNorm3d(out_size))
+        if dropout:
+            block.append(nn.Dropout3d(dropout))
+        
+        self.block = nn.Sequential(*block)
+
+    def forward(self, x):
+
+        return self.block(x)
+
+
+
+
+
+
+
+
+
+
 
