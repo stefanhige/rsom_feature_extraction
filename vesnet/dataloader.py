@@ -257,7 +257,28 @@ class ToTensor():
                 'label': torch.from_numpy(label),
                 'meta': meta}
         
+
+class AddDuplicateDim():
+    '''
+    copy the single channel data, to get two equal channels
+    '''
+    def __call__(self, sample):
+        data, label, meta = sample['data'], sample['label'], sample['meta']
+
+        assert isinstance(data, np.ndarray)
+        assert isinstance(label, np.ndarray)
         
+        if len(data.shape) == 4:
+            data = np.concatenate((data, data), axis=-1)
+            assert data.shape[3] == 2
+        else:
+            raise NotImplementedError
+
+        return {'data': data,
+                'label': label,
+                'meta': meta}
+
+
 def to_numpy(V, meta,  Vtype='label', dimorder ='numpy'):
     '''
     inverse function for class ToTensor()

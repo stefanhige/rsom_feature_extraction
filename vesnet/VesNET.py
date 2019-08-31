@@ -26,7 +26,7 @@ from datetime import date
 # MY MODULES
 from deep_vessel_3d import Deep_Vessel_Net_FC
 from dataloader import RSOMVesselDataset
-from dataloader import DropBlue, ToTensor, to_numpy
+from dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
 from lossfunctions import BCEWithLogitsLoss
 from patch_handling import get_volume
 
@@ -97,7 +97,7 @@ class VesNET():
         self.printandlog('DESCRIPTION:', desc)
 
         # MODEL
-        self.model = Deep_Vessel_Net_FC(in_channels=1)
+        self.model = Deep_Vessel_Net_FC(in_channels=2)
         
         if self.dirs['model']:
             self.printandlog('Loading model from:', self.dirs['model'])
@@ -122,7 +122,9 @@ class VesNET():
             self.train_dataset = RSOMVesselDataset(self.dirs['train'],
                                                    divs=divs, 
                                                    offset=offset,
-                                                   transform=transforms.Compose([ToTensor()]))
+                                                   transform=transforms.Compose([
+                                                       AddDuplicateDim(),
+                                                       ToTensor()]))
 
             self.train_dataloader = DataLoader(self.train_dataset,
                                                batch_size=1, 
@@ -133,7 +135,9 @@ class VesNET():
             self.eval_dataset = RSOMVesselDataset(self.dirs['eval'],
                                                divs=divs,
                                                offset=offset,
-                                               transform=transforms.Compose([ToTensor()]))
+                                               transform=transforms.Compose([
+                                                   AddDuplicateDim(),
+                                                   ToTensor()]))
 
             self.eval_dataloader = DataLoader(self.eval_dataset,
                                               batch_size=1, 
@@ -144,7 +148,9 @@ class VesNET():
             self.pred_dataset = RSOMVesselDataset(self.dirs['pred'],
                                               divs=divs,
                                               offset=offset,
-                                              transform=transforms.Compose([ToTensor()]))
+                                              transform=transforms.Compose([
+                                                  AddDuplicateDim(),
+                                                  ToTensor()]))
 
 
             self.pred_dataloader = DataLoader(self.pred_dataset,
@@ -541,8 +547,8 @@ global DEBUG
 root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style'
 
 
-desc = 'still debugging'
-sdesc = 'test'
+desc = 'First test. train on 3 synthetic samples, validate on the other2'
+sdesc = 'syn2ch'
 
 
 model_dir = ''
@@ -551,8 +557,8 @@ os.environ["CUDA_VISIBLE_DEVICES"]='7'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-train_dir = os.path.join(root_dir, '')
-eval_dir = os.path.join(root_dir, '')
+train_dir = os.path.join(root_dir, 'train')
+eval_dir = os.path.join(root_dir, 'eval')
 out_dir = '/home/gerlstefan/data/vesnet/out'
 
 dirs={'train': train_dir,
@@ -568,7 +574,7 @@ net1 = VesNET(device=device,
                      divs=(2,2,2),
                      optimizer='Adam',
                      initial_lr=1e-4,
-                     epochs=1
+                     epochs=25
                      )
 # output structure
 # ~/data/vesnet/out/
