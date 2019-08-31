@@ -10,7 +10,9 @@ import torch
 
 def BCEWithLogitsLoss(pred, target, weight=None):
 
-    fn = torch.nn.BCEWithLogitsLoss()
+    fn = torch.nn.BCEWithLogitsLoss(weight=None,
+                                    reduction='mean',
+                                    pos_weight=None)
 
     loss = fn(pred, target)
     

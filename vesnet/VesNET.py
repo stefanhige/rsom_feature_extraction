@@ -16,9 +16,13 @@ import sys
 import copy 
 import json 
 import warnings
+import nibabel as nib
+
+import matplotlib
+import matplotlib.pyplot as plt
 
 from timeit import default_timer as timer
-
+from datetime import date
 # MY MODULES
 from deep_vessel_3d import Deep_Vessel_Net_FC
 from dataloader import RSOMVesselDataset
@@ -39,6 +43,8 @@ class VesNET():
         to be determined
     '''
     def __init__(self,
+                 desc,
+                 sdesc,
                  device=torch.device('cuda'),
                  dirs={'train':'','eval':'', 'model':'', 'pred':''},
                  divs = (4, 4, 3),
@@ -49,8 +55,46 @@ class VesNET():
                  epochs=1,
                  ):
 
-        self.dirs = dirs
+        if 'DEBUG' in globals():
+            if DEBUG:
+                self.DEBUG = True
+            else:
+                self.DEBUG = False
+        else:
+            self.DEBUG = False
+
+
         
+        # DESCRIPTION
+        self.desc = desc
+        self.sdesc = sdesc
+
+        # OUTPUT DIRECTORIES
+        self.dirs = dirs
+        out_root_list = os.listdir(dirs['out'])
+
+        today = date.today().strftime('%y%m%d')
+        today_existing = [el for el in out_root_list if today in el]
+        if today_existing:
+            nr = max([int(el[7:9]) for el in today_existing]) + 1
+        else:
+            nr = 0
+        
+        self.today_id = today + '-{:02d}'.format(nr)
+        self.dirs['out'] = os.path.join(self.dirs['out'], self.today_id)
+        if self.sdesc:
+            self.dirs['out'] += '-' + self.sdesc
+        debug('Output directory string:', self.dirs['out'])
+
+        if not self.DEBUG: 
+            os.mkdir(self.dirs['out'])
+            try:
+                self.logfile = open(os.path.join(self.dirs['out'], 
+                    'log' + self.today_id), 'x')
+            except:
+                print('Couldn\'n open logfile')
+        
+        self.printandlog('DESCRIPTION:', desc)
 
         # MODEL
         self.model = Deep_Vessel_Net_FC(in_channels=1)
@@ -66,28 +110,29 @@ class VesNET():
         self.offset = offset
 
         # DATASET
-        self.train_dataset = RSOMVesselDataset(self.dirs['train'],
-                                               divs=divs, 
+        if self.dirs['train']:
+            self.train_dataset = RSOMVesselDataset(self.dirs['train'],
+                                                   divs=divs, 
+                                                   offset=offset,
+                                                   transform=transforms.Compose([ToTensor()]))
+
+            self.train_dataloader = DataLoader(self.train_dataset,
+                                               batch_size=1, 
+                                               shuffle=True, 
+                                               num_workers=4, 
+                                               pin_memory=True)
+        if self.dirs['eval']:
+            self.eval_dataset = RSOMVesselDataset(self.dirs['eval'],
+                                               divs=divs,
                                                offset=offset,
                                                transform=transforms.Compose([ToTensor()]))
 
-        self.train_dataloader = DataLoader(self.train_dataset,
-                                           batch_size=1, 
-                                           shuffle=True, 
-                                           num_workers=4, 
-                                           pin_memory=True)
-
-        self.eval_dataset = RSOMVesselDataset(self.dirs['eval'],
-                                              divs=divs,
-                                              offset=offset,
-                                              transform=transforms.Compose([ToTensor()]))
-
-        self.eval_dataloader = DataLoader(self.eval_dataset,
-                                           batch_size=1, 
-                                           shuffle=False, 
-                                           num_workers=4,
-                                           pin_memory=True)
-        if dirs['pred'] is not '':
+            self.eval_dataloader = DataLoader(self.eval_dataset,
+                                              batch_size=1, 
+                                              shuffle=False, 
+                                              num_workers=4,
+                                              pin_memory=True)
+        if self.dirs['pred']:
             self.pred_dataset = RSOMVesselDataset(self.dirs['pred'],
                                               divs=divs,
                                               offset=offset,
@@ -95,10 +140,10 @@ class VesNET():
 
 
             self.pred_dataloader = DataLoader(self.pred_dataset,
-                                           batch_size=1, 
-                                           shuffle=False, 
-                                           num_workers=4,
-                                           pin_memory=True)
+                                              batch_size=1, 
+                                              shuffle=False, 
+                                              num_workers=4,
+                                              pin_memory=True)
  
 
         # OPTIMIZER
@@ -106,20 +151,16 @@ class VesNET():
         self.initial_lr = initial_lr
         if optimizer == 'Adam':
             print('Adam with LayerUnet settings just for test')
-            self.optimizer = torch.optim.Adam(
-                    self.model.parameters(),
-                    lr=self.initial_lr,
-                    weight_decay = 0
-                    )
+            self.optimizer = torch.optim.Adam(self.model.parameters(),
+                                              lr=self.initial_lr,
+                                              weight_decay = 0)
 
         # SCHEDULER
         self.scheduler = None
 
         # HISTORY
-        self.history = {
-                'train':{'epoch': [], 'loss': []},
-                'eval':{'epoch': [], 'loss': []}
-                  }
+        self.history = {'train':{'epoch': [], 'loss': []},
+                        'eval':{'epoch': [], 'loss': []}}
         
         # CURRENT EPOCH
         self.curr_epoch = None
@@ -129,7 +170,7 @@ class VesNET():
         
         self.args.size_train = len(self.train_dataset)
         self.args.size_eval = len(self.eval_dataset)
-        if dirs['pred'] is not '':
+        if self.dirs['pred'] is not '':
             self.args.size_pred = len(self.pred_dataset)
         self.args.non_blocking = True
         self.args.device = device
@@ -281,7 +322,7 @@ class VesNET():
             else:
                 found_nb = ''
         
-            print('Epoch {:d} of {:d}: lr={:.0e}, Lt={:.2e}, Le={:.2e}'.format(
+            self.printandlog('Epoch {:d} of {:d}: lr={:.0e}, Lt={:.2e}, Le={:.2e}'.format(
                 curr_epoch+1, self.args.n_epochs, curr_lr, train_loss, curr_loss), found_nb)
 #            print('Epoch {:d} of {:d}: lr={:.0e}, Lt={:.2e}, Le={:.2e}'.format(
 #                curr_epoch+1, self.args.n_epochs, curr_lr, train_loss, curr_loss), found_nb, file=self.logfile)
@@ -291,9 +332,15 @@ class VesNET():
         self.last_model = copy.deepcopy(self.model.state_dict())
         for k, v in self.last_model.items():
             self.last_model[k] = v.to('cpu')
-        
-        #self.logfile.close()
-
+       
+        if not self.DEBUG:
+            print('Closing logfile..')
+            self.logfile.close()
+            print('Saving loss history to .json file..')
+            f = open(os.path.join(self.dirs['out'],'loss' + self.today_id + '.json'),'w')
+            f.write(json.dumps(self.history))
+            f.close()
+                        
     def predict(self, use_best=True):
         '''
         doc string missing
@@ -326,6 +373,9 @@ class VesNET():
             prediction = self.model(data)
             prediction = prediction.detach()
             
+            # convert to probabilities
+            prediction = torch.nn.functional.sigmoid(prediction)
+            
             # otherwise can't reconstruct.
             if i==0:
                 assert batch['meta']['index'].item() == 0
@@ -355,8 +405,88 @@ class VesNET():
                 V = to_numpy(V, batch['meta'], Vtype='label', dimorder='torch')
                 debug('reconstructed volume shape:', V.shape)
 
+                # TODO: binary cutoff??
+                debug('vessel probability min/max:', np.amin(V),'/', np.amax(V))
+                
+                
+                V[V<0.5] = 0
+                Vbool = V.astype(np.bool)
+
                 # save to file
+                if os.path.exists(self.dirs['out']):
+                    fstr = batch['meta']['filename'][0].replace('.nii.gz','')  + '_pred'
+                    self.saveNII(Vbool, self.dirs['out'], fstr)
+                else:
+                    print('Couldn\'t save prediction in dir:', self.dirs['out'])
+
+
+    @staticmethod
+    def saveNII(V, path, fstr):
+        V = V.astype(np.uint8)
+        img = nib.Nifti1Image(V, np.eye(4))
+    
+        fstr = fstr + '.nii.gz'
+        nib.save(img, os.path.join(path, fstr))
+
+    def plot_loss(self):
+        fig, ax = plt.subplots()
+        ax.plot(np.array(self.history['train']['epoch']),
+                np.array(self.history['train']['loss']),
+                np.array(self.history['eval']['epoch'])+0.5,
+                np.array(self.history['eval']['loss']))
+
+        ax.set_yscale('log')
+        ax.set(xlabel='Epoch', ylabel='loss')
+        ax.grid()
+
+        plt.legend(('train','eval'),loc='upper right')
         
+        if not self.DEBUG:
+            fig.savefig(os.path.join(self.dirs['out'],
+                'loss' + self.today_id + '.png'))
+    
+    def printandlog(self, *msg):
+        print(*msg)
+        try:
+            print(*msg, file=self.logfile)
+        except:
+            pass
+
+
+    def printConfiguration(self, destination='both'):
+        if destination == 'stdout':
+            where_ = sys.stdout
+        elif destination == 'logfile':
+            where_ = self.logfile
+        elif destination =='both':
+            where_ = [sys.stdout, self.logfile]
+
+        for where in where_:
+            print('MANY CONFIG THINGS MISSING')
+
+            print('VesNet configuration:',file=where)
+            print('EPOCHS:', self.args.n_epochs, file=where)
+            print('OPTIMIZER:', self.optimizer, file=where)
+            print('initial lr:', self.initial_lr, file=where)
+            print('LOSS: fn', self.lossfn, file=where)
+            # print('      class_weight', self.class_weight, file=where)
+            # print('      smoothnes param', self.lossfn_smoothness, file=where)
+            print('CNN:  ', self.model, file=where)
+            # if self.model gets too long, eg unet
+            #print('CNN:  ', self.model.__class__.__name__, file=where) 
+            
+            #print('      depth', self.model_depth, file=where)
+            #print('      dropout?', self.model_dropout, file=where)
+            print('OUT:  model:', self.dirs['model'], file=where)
+            print('      pred:', self.dirs['pred'], file=where)
+
+    def save_code_status(self):
+
+        path = os.path.join(self.dirs['out'],'git')
+        os.system('git log -1 | head -n 1 > {:s}.diff'.format(path))
+        os.system('echo /"\n/" >> {:s}.diff'.format(path))
+        os.system('git diff >> {:s}.diff'.format(path))
+
 def debug(*msg):
     ''' debug print helper function'''
     if 'DEBUG' in globals():
@@ -364,9 +494,13 @@ def debug(*msg):
             print(*msg)
 
 global DEBUG
-DEBUG = True
+# DEBUG = True
 
 root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style'
+
+
+desc = 'still debugging'
+sdesc = 'debug'
 
 
 model_dir = ''
@@ -377,24 +511,46 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 train_dir = os.path.join(root_dir, '')
 eval_dir = os.path.join(root_dir, '')
+out_dir = '/home/gerlstefan/data/vesnet/out'
 
-dirs={'train':train_dir,'eval':eval_dir, 'model':model_dir, 'pred':eval_dir}
+dirs={'train': train_dir,
+      'eval': eval_dir, 
+      'model': model_dir, 
+      'pred': eval_dir,
+      'out': out_dir}
 
 net1 = VesNET(device=device,
+                     desc=desc,
+                     sdesc=sdesc,
                      dirs=dirs,
                      divs=(2,2,2),
                      optimizer='Adam',
                      initial_lr=1e-4,
                      epochs=1
                      )
+# output structure
+# ~/data/vesnet/out/
 
-#net1.printConfiguration()
+# 190831-01-str/model_190831-01.pt
+# 190831-01-str/history_190831-01.json
+# 190831-01-str/log_190831-01
+# 190831-01-str/loss_190831-01.png
+# 190831-01-str/prediction/... .nii.gz
+
+# save current code status
+# get comment id
+
+
+net1.printConfiguration()
+net1.save_code_status()
 #net1.printConfiguration('logfile')
 #print(net1.model, file=net1.logfile)
 
 net1.train_all_epochs()
-net1.predict()
 
+#net1.predict()
+
+net1.plot_loss()
 #net1.save()
 
 
