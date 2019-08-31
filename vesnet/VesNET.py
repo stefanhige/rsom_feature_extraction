@@ -98,6 +98,14 @@ class VesNET():
 
         # MODEL
         self.model = Deep_Vessel_Net_FC(in_channels=1)
+        
+        if self.dirs['model']:
+            self.printandlog('Loading model from:', self.dirs['model'])
+            try:
+                self.model.load_state_dict(torch.load(self.dirs['model']))
+            except:
+                self.printandlog('Could not load model!') 
+
 
         self.model = self.model.to(device)
         self.model = self.model.float()
@@ -144,6 +152,9 @@ class VesNET():
                                               shuffle=False, 
                                               num_workers=4,
                                               pin_memory=True)
+
+            if not self.DEBUG:
+                os.mkdir(os.path.join(self.dirs['out'],'prediction'))
  
 
         # OPTIMIZER
@@ -170,7 +181,7 @@ class VesNET():
         
         self.args.size_train = len(self.train_dataset)
         self.args.size_eval = len(self.eval_dataset)
-        if self.dirs['pred'] is not '':
+        if self.dirs['pred']:
             self.args.size_pred = len(self.pred_dataset)
         self.args.non_blocking = True
         self.args.device = device
@@ -374,7 +385,8 @@ class VesNET():
             prediction = prediction.detach()
             
             # convert to probabilities
-            prediction = torch.nn.functional.sigmoid(prediction)
+            sigmoid = torch.nn.Sigmoid()
+            prediction = sigmoid(prediction)
             
             # otherwise can't reconstruct.
             if i==0:
@@ -413,12 +425,15 @@ class VesNET():
                 Vbool = V.astype(np.bool)
 
                 # save to file
-                if os.path.exists(self.dirs['out']):
-                    fstr = batch['meta']['filename'][0].replace('.nii.gz','')  + '_pred'
-                    self.saveNII(Vbool, self.dirs['out'], fstr)
-                else:
-                    print('Couldn\'t save prediction in dir:', self.dirs['out'])
-
+                if not self.DEBUG:
+                    if os.path.exists(self.dirs['out']):
+                        # create ../prediction directory
+                        dest_dir = os.path.join(self.dirs['out'],'prediction')
+                    
+                        fstr = batch['meta']['filename'][0].replace('.nii.gz','')  + '_pred'
+                        self.saveNII(Vbool, dest_dir, fstr)
+                    else:
+                        print('Couldn\'t save prediction in.')
 
     @staticmethod
     def saveNII(V, path, fstr):
@@ -452,19 +467,29 @@ class VesNET():
         except:
             pass
 
-
     def printConfiguration(self, destination='both'):
-        if destination == 'stdout':
-            where_ = sys.stdout
-        elif destination == 'logfile':
-            where_ = self.logfile
-        elif destination =='both':
-            where_ = [sys.stdout, self.logfile]
+        if not self.DEBUG:
+            if destination == 'stdout':
+                where_ = [sys.stdout]
+            elif destination == 'logfile':
+                where_ = [self.logfile]
+            elif destination =='both':
+                where_ = [sys.stdout, self.logfile]
+        else:
+            where_ = [sys.stdout]
 
         for where in where_:
-            print('MANY CONFIG THINGS MISSING')
-
             print('VesNet configuration:',file=where)
+            print(self.desc, file=where)
+            print('DATA: train dataset:', self.dirs['train'], file=where)
+            print('             length:', self.args.size_train, file=where)
+            print('       eval dataset:', self.dirs['eval'], file=where)
+            print('             length:', self.args.size_eval, file=where)
+            print('       sample shape:', self.args.data_shape, file=where)
+            print('               divs:', self.divs, file=where)
+            print('             offset:', self.offset, file=where)
+
+
             print('EPOCHS:', self.args.n_epochs, file=where)
             print('OPTIMIZER:', self.optimizer, file=where)
             print('initial lr:', self.initial_lr, file=where)
@@ -473,19 +498,36 @@ class VesNET():
             # print('      smoothnes param', self.lossfn_smoothness, file=where)
             print('CNN:  ', self.model, file=where)
             # if self.model gets too long, eg unet
-            #print('CNN:  ', self.model.__class__.__name__, file=where) 
-            
+            #print('CNN:  ', self.model.__class__.__name__, file=where)
+            if self.dirs['pred']:
+                print('PRED:  pred dataset:', self.dirs['pred'], file=where)
+                print('             length:', self.args.size_pred, file=where)
             #print('      depth', self.model_depth, file=where)
             #print('      dropout?', self.model_dropout, file=where)
-            print('OUT:  model:', self.dirs['model'], file=where)
-            print('      pred:', self.dirs['pred'], file=where)
+            if self.dirs['model']:
+                print('LOADING MODEL  :', self.dirs['model'], file=where)
+            print('OUT:               :', self.dirs['out'], file=where)
 
     def save_code_status(self):
+        if not self.DEBUG:
+            try:
+                path = os.path.join(self.dirs['out'],'git')
+                os.system('git log -1 | head -n 1 > {:s}.diff'.format(path))
+                os.system('echo /"\n/" >> {:s}.diff'.format(path))
+                os.system('git diff >> {:s}.diff'.format(path))
+            except:
+                self.printandlog('Saving git diff FAILED!')
 
-        path = os.path.join(self.dirs['out'],'git')
-        os.system('git log -1 | head -n 1 > {:s}.diff'.format(path))
-        os.system('echo /"\n/" >> {:s}.diff'.format(path))
-        os.system('git diff >> {:s}.diff'.format(path))
+
+    def save_model(self,model='best'):
+        if not self.DEBUG:
+            if model=='best':
+                save_this = self.best_model
+            elif model=='last':
+                save_this = self.last_model
+            
+            torch.save(save_this, os.path.join(self.dirs['out'],'mod' + self.today_id +'.pt'))
+
 
 def debug(*msg):
     ''' debug print helper function'''
@@ -500,7 +542,7 @@ root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style'
 
 
 desc = 'still debugging'
-sdesc = 'debug'
+sdesc = 'test'
 
 
 model_dir = ''
@@ -543,15 +585,13 @@ net1 = VesNET(device=device,
 
 net1.printConfiguration()
 net1.save_code_status()
-#net1.printConfiguration('logfile')
-#print(net1.model, file=net1.logfile)
 
 net1.train_all_epochs()
-
-#net1.predict()
-
 net1.plot_loss()
-#net1.save()
+net1.save_model()
+
+net1.predict()
+
 
 
 
