@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 from timeit import default_timer as timer
 from datetime import date
 # MY MODULES
-from deep_vessel_3d import Deep_Vessel_Net_FC
+from deep_vessel_3d import Deep_Vessel_Net_FC, Deep_Vessel_Net_dyn
 from dataloader import RSOMVesselDataset
 from dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
 from lossfunctions import BCEWithLogitsLoss
@@ -97,7 +97,7 @@ class VesNET():
         self.printandlog('DESCRIPTION:', desc)
 
         # MODEL
-        self.model = Deep_Vessel_Net_FC(in_channels=2)
+        self.model = Deep_Vessel_Net_dyn(in_channels=2)
         
         if self.dirs['model']:
             self.printandlog('Loading model from:', self.dirs['model'])
@@ -542,7 +542,7 @@ def debug(*msg):
             print(*msg)
 
 global DEBUG
-# DEBUG = True
+DEBUG = True
 
 root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style'
 
@@ -574,7 +574,7 @@ net1 = VesNET(device=device,
                      divs=(2,2,2),
                      optimizer='Adam',
                      initial_lr=1e-4,
-                     epochs=25
+                     epochs=1
                      )
 # output structure
 # ~/data/vesnet/out/

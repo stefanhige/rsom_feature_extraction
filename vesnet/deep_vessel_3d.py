@@ -174,7 +174,8 @@ class Deep_Vessel_Net_dyn(nn.Module):
 
     def __init__(self, in_channels=2, depth = 5, dropout=False, batchnorm=False):
         super(Deep_Vessel_Net_dyn, self).__init__()
-        
+       
+        print('Calling Deep_Vessel_Net_dyn init')
         # SETTINGS
         self.in_channels = in_channels
         self.depth = 5
@@ -193,13 +194,17 @@ class Deep_Vessel_Net_dyn(nn.Module):
         self.kernels = [3, 5, 5, 3, 1]
         
         self.batchnorm = batchnorm
-        self.batchnorms = [1]*4 + [0]
+        if batchnorm:
+            self.batchnorms = [1]*4 + [0]
+        else:
+            self.batchnorms = [0]*5
 
         assert len(self.dropouts) == depth
         assert len(self.channels) == depth + 1
         assert len(self.kernels) == depth
         assert len(self.batchnorms) == depth
 
+        # layers = []
         layers = nn.ModuleList()
 
         for i in range(depth):
@@ -211,6 +216,10 @@ class Deep_Vessel_Net_dyn(nn.Module):
                 self.dropouts[i]))
         
         self.layers = nn.Sequential(*layers)
+
+    def forward(self, x):
+
+        return self.layers(x)
 
 class DVN_Block(nn.Module):
 
@@ -229,7 +238,7 @@ class DVN_Block(nn.Module):
         self.block = nn.Sequential(*block)
 
     def forward(self, x):
-
+        
         return self.block(x)
 
 
