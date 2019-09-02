@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 from timeit import default_timer as timer
 from datetime import date
 # MY MODULES
-from deep_vessel_3d import Deep_Vessel_Net_FC, Deep_Vessel_Net_dyn
+from deep_vessel_3d import DeepVesselNet
 from dataloader import RSOMVesselDataset
 from dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
 from lossfunctions import BCEWithLogitsLoss
@@ -97,7 +97,9 @@ class VesNET():
         self.printandlog('DESCRIPTION:', desc)
 
         # MODEL
-        self.model = Deep_Vessel_Net_dyn(in_channels=2)
+        self.model = DeepVesselNet(in_channels=2,
+                                   dropout=False,
+                                   batchnorm=False)
         
         if self.dirs['model']:
             self.printandlog('Loading model from:', self.dirs['model'])
@@ -173,7 +175,17 @@ class VesNET():
                                               weight_decay = 0)
 
         # SCHEDULER
-        self.scheduler = None
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                self.optimizer, 
+                mode='min', 
+                factor=0.1,
+                patience=0,
+                verbose=True,
+                threshold=1e-4,
+                threshold_mode='rel',
+                cooldown=0,
+                min_lr=0,
+                eps=1e-8)
 
         # HISTORY
         self.history = {'train':{'epoch': [], 'loss': []},
@@ -328,7 +340,7 @@ class VesNET():
             curr_loss = self.history['eval']['loss'][-1]
             
             # use ReduceLROnPlateau scheduler
-            # self.scheduler.step(curr_loss)
+            self.scheduler.step(curr_loss)
             
             if curr_loss < self.best_loss:
                 self.best_loss = copy.deepcopy(curr_loss)
@@ -547,8 +559,8 @@ DEBUG = True
 root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style'
 
 
-desc = 'First test. train on 3 synthetic samples, validate on the other2'
-sdesc = 'syn2ch'
+desc = ('First test. train on 3 synthetic samples, validate on the other2, lr=5e-3')
+sdesc = 'lrsch'
 
 
 model_dir = ''
@@ -573,21 +585,11 @@ net1 = VesNET(device=device,
                      dirs=dirs,
                      divs=(2,2,2),
                      optimizer='Adam',
-                     initial_lr=1e-4,
-                     epochs=1
+                     initial_lr=5e-3,
+                     epochs=25
                      )
-# output structure
-# ~/data/vesnet/out/
 
-# 190831-01-str/model_190831-01.pt
-# 190831-01-str/history_190831-01.json
-# 190831-01-str/log_190831-01
-# 190831-01-str/loss_190831-01.png
-# 190831-01-str/prediction/... .nii.gz
-
-# save current code status
-# get comment id
-
+# CURRENT STATE
 
 net1.printConfiguration()
 net1.save_code_status()

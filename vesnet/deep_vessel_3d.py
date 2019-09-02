@@ -170,15 +170,15 @@ class Deep_Vessel_Net_FC(nn.Module):
         self.load_state_dict(t_)
         print("Loaded model from {0}".format(str(path)))
 
-class Deep_Vessel_Net_dyn(nn.Module):
+class DeepVesselNet(nn.Module):
 
     def __init__(self, in_channels=2, depth = 5, dropout=False, batchnorm=False):
-        super(Deep_Vessel_Net_dyn, self).__init__()
+        super(DeepVesselNet, self).__init__()
        
-        print('Calling Deep_Vessel_Net_dyn init')
+        print('Calling DeepVesselNet init')
         # SETTINGS
         self.in_channels = in_channels
-        self.depth = 5
+        self.depth = 4
         self.dropout = dropout
        
         # generate dropout list for every layer
@@ -204,17 +204,22 @@ class Deep_Vessel_Net_dyn(nn.Module):
         assert len(self.kernels) == depth
         assert len(self.batchnorms) == depth
 
-        # layers = []
-        layers = nn.ModuleList()
+        layers = []
+        # layers = nn.ModuleList()
 
-        for i in range(depth):
+        # TODO fix notation depth layers?
+        
+        # deep layers
+        for i in range(depth-1):
             layers.append(DVN_Block(
                 self.channels[i],
                 self.channels[i+1],
                 self.kernels[i],
                 self.batchnorms[i],
                 self.dropouts[i]))
-        
+        # last layer
+        layers.append(nn.Conv3d(self.channels[-2], self.channels[-1], self.kernels[-1])) 
+
         self.layers = nn.Sequential(*layers)
 
     def forward(self, x):
@@ -225,8 +230,9 @@ class DVN_Block(nn.Module):
 
     def __init__(self, in_size, out_size, kernel_size, batchnorm, dropout):
         super(DVN_Block, self).__init__()
-        
-        block = nn.ModuleList()
+        block = []
+
+        # block = nn.ModuleList()
         
         block.append(nn.Conv3d(in_size, out_size, kernel_size))
         block.append(nn.ReLU())
