@@ -144,7 +144,7 @@ class RSOMLayerDatasetUnlabeled(RSOMLayerDataset):
         # read label
         # label = self._readNII(label_path)
         # label = label.astype(np.float32)
-        label = np.zeros((data.shape[0], data.shape[1], data.shape[2], 1), dtype=np.float32)
+        label = np.zeros((data.shape[0], data.shape[1], data.shape[2]), dtype=np.float32)
         
         # add meta information
         meta = {'filename': self.data[idx],

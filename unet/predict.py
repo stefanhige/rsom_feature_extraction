@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import numpy as np
 
 from scipy import ndimage
-from scipy.misc import imsave 
+# from scipy.misc import imsave 
 import os
 import copy
 
@@ -18,7 +18,7 @@ from unet import UNet
 import lossfunctions as lfs
 import nibabel as nib
 
-from dataloader_dev import RSOMLayerDataset 
+from dataloader_dev import RSOMLayerDataset, RSOMLayerDatasetUnlabeled 
 from dataloader_dev import RandomZShift, ZeroCenter, CropToEven, DropBlue, ToTensor
 
 def pred(model=None, iterator=None, history=None, lossfn=None, args=None):
@@ -100,7 +100,7 @@ def pred(model=None, iterator=None, history=None, lossfn=None, args=None):
         label = smooth(label, filename)
 
         print('Saving', filename)
-        saveNII(label, args.destination_dir, filename + 'pred_unif_med_unif')
+        saveNII(label, args.destination_dir, filename + 'pred')
         if 0:
             # compare to ground truth
             label_gt = batch['label']
@@ -239,19 +239,20 @@ class arg_class():
 
 args = arg_class()
 
-os.environ["CUDA_VISIBLE_DEVICES"]='7'
+os.environ["CUDA_VISIBLE_DEVICES"]='4'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-origin = '/home/gerlstefan/data/fullDataset/labeled/val'
+# origin = '/home/gerlstefan/data/fullDataset/labeled/val'
 # origin = '/home/gerlstefan/data/dataloader_dev'
-destination ='/home/gerlstefan/data/prediction/190814_test_smooth'
+origin = '/home/gerlstefan/data/layerunet/for_vesnet/input_for_layerseg'
+destination ='/home/gerlstefan/data/layerunet/for_vesnet/prediction'
 model_path = '/home/gerlstefan/models/layerseg/test/mod_190731_depth4.pt'
 
 # TODO: new dataset without labels
 # or optional labels to use also with evaluation set?
 
 # create Dataset of prediction data
-dataset_pred = RSOMLayerDataset(origin,
+dataset_pred = RSOMLayerDatasetUnlabeled(origin,
         transform=transforms.Compose([
             ZeroCenter(), 
             CropToEven(network_depth=4),
