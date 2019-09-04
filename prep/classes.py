@@ -44,16 +44,28 @@ class RSOM():
         create empty instance of RSOM
         """
         
-        # extract the 3 digit id + measurement string eg PAT001_RL01
-        idx_1 = filepathLF.name.find('PAT')
-        if idx_1 == -1:
-            idx_1 = filepathLF.name.find('VOL')
-        ID = filepathLF.name[idx_1:idx_1+11]
-        
         # extact datetime number
+        print(filepathLF.name)
         idx_1 = filepathLF.name.find('_')
         idx_2 = filepathLF.name.find('_', idx_1+1)
         DATETIME = filepathLF.name[idx_1:idx_2+1]
+        
+        # extract the 3 digit id + measurement string eg PAT001_RL01
+        idxID = filepathLF.name.find('PAT')
+
+        if idxID == -1:
+            idxID = filepathLF.name.find('VOL')
+
+            
+        if idxID is not -1:
+            ID = filepathLF.name[idxID:idxID+11]
+        else:
+            # ID is different, extract string between Second "_" and third "_"
+            # usually its 6 characters long
+            idx_3 = filepathLF.name.find('_', idx_2+1)
+            ID = filepathLF.name[idx_2+1:idx_3]
+
+
         
         self.layer_end = ''
         
@@ -77,7 +89,12 @@ class RSOM():
         self.Vl = self.matfileLF['R']
         
         # load surface data
-        self.matfileSURF = sio.loadmat(self.file.SURF)
+        try:
+            self.matfileSURF = sio.loadmat(self.file.SURF)
+        except:
+            print(('WARNING: Could not load surface data, placing None type in'
+                   'surface file. Method flatSURFACE is not going to be applied!!'))
+            self.matfileSURF = None
         
     def flatSURFACE(self, override = True):
         '''
@@ -86,62 +103,64 @@ class RSOM():
             override = True. If False, Volumetric data of the unflattened
             Skin will be saved.
         '''
-        # parse surface data and dx and dy
-        S = self.matfileSURF['surfSmooth']
-        dx = self.matfileSURF['dx']
-        dy = self.matfileSURF['dy']
+        if self.matfileSURF is not None:
+            
+            # parse surface data and dx and dy
+            S = self.matfileSURF['surfSmooth']
+            dx = self.matfileSURF['dx']
+            dy = self.matfileSURF['dy']
+            
+            # create meshgrid for surface data
+            xSurf = np.arange(0, np.size(S, 0)) * dx
+            ySurf = np.arange(0, np.size(S, 1)) * dy
+            xSurf -= np.mean(xSurf)
+            ySurf -= np.mean(ySurf)
+            xxSurf, yySurf = np.meshgrid(xSurf, ySurf)
         
-        # create meshgrid for surface data
-        xSurf = np.arange(0, np.size(S, 0)) * dx
-        ySurf = np.arange(0, np.size(S, 1)) * dy
-        xSurf -= np.mean(xSurf)
-        ySurf -= np.mean(ySurf)
-        xxSurf, yySurf = np.meshgrid(xSurf, ySurf)
-    
-        # create meshgrid for volume data
-        # use grid step dv
-        # TODO: extract from reconParams
-        # TODO: solve problem: python crashes when accessing reconParams
-        dv = 0.012
-        xVol = np.arange(0, np.size(self.Vl, 2)) * dv
-        yVol = np.arange(0, np.size(self.Vl, 1)) * dv
-        xVol -= np.mean(xVol)
-        yVol -= np.mean(yVol)
-        xxVol, yyVol = np.meshgrid(xVol, yVol)
-    
-        # generate interpolation function
-        fn = interpolate.RectBivariateSpline(xSurf, ySurf, S)
-        Sip = fn(xVol, yVol)
+            # create meshgrid for volume data
+            # use grid step dv
+            # TODO: extract from reconParams
+            # TODO: solve problem: python crashes when accessing reconParams
+            dv = 0.012
+            xVol = np.arange(0, np.size(self.Vl, 2)) * dv
+            yVol = np.arange(0, np.size(self.Vl, 1)) * dv
+            xVol -= np.mean(xVol)
+            yVol -= np.mean(yVol)
+            xxVol, yyVol = np.meshgrid(xVol, yVol)
         
-        # subtract mean
-        Sip -= np.mean(Sip)
+            # generate interpolation function
+            fn = interpolate.RectBivariateSpline(xSurf, ySurf, S)
+            Sip = fn(xVol, yVol)
+            
+            # subtract mean
+            Sip -= np.mean(Sip)
+            
+            # flip, to fit the grid
+            Sip = Sip.transpose()
+            
+            # save to Obj
+            self.Sip = Sip
+            
+            if not override:
+                # create copy 
+                self.Vl_notflat = self.Vl.copy()
+                self.Vh_notflat = self.Vh.copy()
         
-        # flip, to fit the grid
-        Sip = Sip.transpose()
-        
-        # save to Obj
-        self.Sip = Sip
-        
-        if not override:
-            # create copy 
-            self.Vl_notflat = self.Vl.copy()
-            self.Vh_notflat = self.Vh.copy()
-
-        # for every surface element, calculate the offset
-        # and shift volume elements perpendicular to surface
-        for i in np.arange(np.size(self.Vl, 1)):
-            for j in np.arange(np.size(self.Vl, 2)):
-                
-                offs = int(-np.around(Sip[i, j]/2))
-                
-                # TODO: why not replace with zeros?
-                self.Vl[:, i, j] = np.roll(self.Vl[:, i, j], offs);
-                self.Vh[:, i, j] = np.roll(self.Vh[:, i, j], offs);
-                
-                # replace values rolled inside epidermis with zero
-                if offs < 0:
-                    self.Vl[offs:, i, j] = 0
-                    self.Vh[offs:, i, j] = 0
+            # for every surface element, calculate the offset
+            # and shift volume elements perpendicular to surface
+            for i in np.arange(np.size(self.Vl, 1)):
+                for j in np.arange(np.size(self.Vl, 2)):
+                    
+                    offs = int(-np.around(Sip[i, j]/2))
+                    
+                    # TODO: why not replace with zeros?
+                    self.Vl[:, i, j] = np.roll(self.Vl[:, i, j], offs);
+                    self.Vh[:, i, j] = np.roll(self.Vh[:, i, j], offs);
+                    
+                    # replace values rolled inside epidermis with zero
+                    if offs < 0:
+                        self.Vl[offs:, i, j] = 0
+                        self.Vh[offs:, i, j] = 0
         
     def plotSURFACE(self):
         '''
@@ -293,8 +312,8 @@ class RSOM():
 #            self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0.05, 1))
 #            self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0.02, 1))
             
-            self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0, 0.25))
-            self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0, 0.125))
+            self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0, 0.2))
+            self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0, 0.1))
             
             self.Vl_1 = self.Vl_1**2
             self.Vh_1 = self.Vh_1**2
@@ -698,8 +717,6 @@ class RSOM():
         nii_file = (destination / ('R' + 
                                    self.file.DATETIME + 
                                    self.file.ID +
-                                   '_z'+
-                                   str(self.layer_end) +
                                    '_' +                                   
                                    fstr +
                                    '.nii.gz')).resolve()
