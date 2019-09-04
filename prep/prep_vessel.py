@@ -16,8 +16,8 @@ from classes import RSOM_vessel
 # define folder
 
 
-origin = '/home/sgerl/Documents/PYTHON/TestDatasetVesselGood/mat'
-origin_layer = '/home/sgerl/Documents/PYTHON/TestDatasetVesselGood/layer_pred'
+origin = '/home/stefan/PYTHON/HQDatasetVesselAnnot/mat'
+origin_layer = '/home/stefan/PYTHON/HQDatasetVesselAnnot/input_for_layerseg/manual_z_values'
 
 # origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/allmat'
 # origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
@@ -25,7 +25,7 @@ origin_layer = '/home/sgerl/Documents/PYTHON/TestDatasetVesselGood/layer_pred'
 
 # destination = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
 # destination = '/home/sgerl/Documents/PYTHON/TestDataset20190411/selection/other_preproccessing_tests/sliding_mip_6'
-destination = '/home/sgerl/Documents/PYTHON/TestDatasetVesselGood/output'
+destination = '/home/stefan/PYTHON/HQDatasetVesselAnnot/vessels_high_contrast'
 
 
 cwd = os.getcwd()
@@ -77,16 +77,18 @@ for idx, filenameLF in enumerate(filenameLF_LIST):
     #Obj.saveMIP3D(destination, fstr = 'mip3d')
     
     # cut epidermis
-    Obj.cutLAYER(origin_layer, fstr='layer_pred.nii.gz')
+    Obj.cutLAYER(origin_layer, mode='manual', fstr='manual')
     
     # VOLUME
     Obj.normINTENSITY()
     Obj.rescaleINTENSITY()
     
     debug = Obj.thresholdSEGMENTATION()
+    Obj.mathMORPH()
+    
     Obj.saveSEGMENTATION(destination, fstr='th')
     
     Obj.mergeVOLUME_RGB()
-    Obj.saveVOLUME(destination, fstr = 'v_p15_rgb')
+    Obj.saveVOLUME(destination, fstr = 'v_rgb')
     
     print('Processing file', idx+1, 'of', len(filenameLF_LIST))

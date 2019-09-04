@@ -67,7 +67,7 @@ class RSOM():
 
 
         
-        self.layer_end = ''
+        self.layer_end = None
         
         
         self.file = self.FileStruct(filepathLF, filepathHF, filepathSURF, ID, DATETIME)
@@ -713,10 +713,18 @@ class RSOM():
         # generate Path object
         destination = Path(destination)
         
+        # if this is a cut file, need to construct the cut z-value
+        # this is only for vesnet preparation
+        if self.layer_end is not None:
+            z_cut = '_' + 'z' + str(self.layer_end)
+        else:
+            z_cut = ''
+        
         # generate filename
         nii_file = (destination / ('R' + 
                                    self.file.DATETIME + 
                                    self.file.ID +
+                                   z_cut +
                                    '_' +                                   
                                    fstr +
                                    '.nii.gz')).resolve()
@@ -743,52 +751,65 @@ class RSOM_vessel(RSOM):
     e.g. cut away epidermis
     '''
     
-    def cutLAYER(self, path, fstr='layer_pred.nii.gz'):
+    def cutLAYER(self, path, mode='pred', fstr='layer_pred.nii.gz'):
         '''
         cut off the epidermis with loading corresponding segmentation mask.
         '''
         print('cutLayer method')
         
-        
-         # load PATXXX_RLXX_layer_pred.nii.gz
+        # generate path
         filename = 'R' + self.file.DATETIME + self.file.ID + '_' + fstr
         file = os.path.join(path, filename)
         
-        img = nib.load(file)
-        self.S = img.get_fdata()
-        self.S = self.S.astype(np.uint8)
+        print('Loading', file)
         
-        assert self.Vl.shape == self.S.shape, 'Shapes of raw and segmentation do not match'
+        # two modes supported, extract from prediction volume
+        # or manual input through file   
+        if mode == 'pred':
+            
+            img = nib.load(file)
+            self.S = img.get_fdata()
+            self.S = self.S.astype(np.uint8)
+            
+            assert self.Vl.shape == self.S.shape, 'Shapes of raw and segmentation do not match'
+            
+            print(self.Vl.shape)
+            print(self.S.shape)
+            
+            
+            # for every slice in x-y plane, calculate label sum
+            label_sum = np.sum(self.S, axis=(1, 2))
+            
+            max_occupation = np.amax(label_sum) / (self.S.shape[1] * self.S.shape[2])
+            max_occupation_idx = np.argmax(label_sum)
+            
+            print('Max occ', max_occupation)
+            print('idx max occ', max_occupation_idx)
+            
+            # normalize
+            label_sum = label_sum.astype(np.double) / np.amax(label_sum)
+            
+            # define cutoff parameter
+            cutoff = 0.05
+            
+            label_sum_bin = label_sum > cutoff
+                 
+            label_sum_idx = np.squeeze(np.nonzero(label_sum_bin))
         
-        print(self.Vl.shape)
-        print(self.S.shape)
-        
-        
-        # for every slice in x-y plane, calculate label sum
-        label_sum = np.sum(self.S, axis=(1, 2))
-        
-        max_occupation = np.amax(label_sum) / (self.S.shape[1] * self.S.shape[2])
-        max_occupation_idx = np.argmax(label_sum)
-        
-        print('Max occ', max_occupation)
-        print('idx max occ', max_occupation_idx)
-        
-        # normalize
-        label_sum = label_sum.astype(np.double) / np.amax(label_sum)
-        
-        # define cutoff parameter
-        cutoff = 0.05
-        
-        label_sum_bin = label_sum > cutoff
-             
-        label_sum_idx = np.squeeze(np.nonzero(label_sum_bin))
+            layer_end = label_sum_idx[-1]
+            
+            # additional fixed pixel offset
+            offs = 5
+            layer_end += offs
     
-        layer_end = label_sum_idx[-1]
+        elif mode == 'manual':
+            f = open(file)
+            layer_end = int(str(f.read()))
+        else:
+            raise NotImplementedError
+            
         
-        # additional fixed pixel offset
-        offs = 5
-        layer_end += offs
-        
+        print('Cutting at', layer_end)
         # replace with zeros
         #self.Vl[:layer_end,:,:] = 0
         #self.Vh[:layer_end,:,:] = 0
@@ -798,7 +819,7 @@ class RSOM_vessel(RSOM):
         self.Vh = self.Vh[layer_end:, :, :]
         
         self.layer_end = layer_end
-        print(layer_end)
+
         
         
         # keep meta information?
@@ -818,7 +839,7 @@ class RSOM_vessel(RSOM):
         self.Vl_1 = self.Vl_1**2
         self.Vh_1 = self.Vh_1**2
             
-        self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0.05, 1))
+        #self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0.05, 1))
         self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0.05, 1))
         
         
@@ -828,6 +849,28 @@ class RSOM_vessel(RSOM):
                                                 self.Vl_1 > 0.3),
                                     self.Vh_1 > 0.7)
         return self.Vseg
+        
+    def mathMORPH(self):
+        
+        
+
+        
+        filter = ndimage.morphology.generate_binary_structure(3,1).astype(np.int64)
+        print(filter)
+        M = ndimage.convolve(self.Vseg.astype(np.int64), filter, mode='constant',cval=0)
+        
+        # fill holes custom function
+        holesMask = np.logical_or(M == 6, M == 5)
+        self.Vseg = np.logical_or(self.Vseg, holesMask)
+        
+        # remove single pixels or only 2 pixels
+        singleMask = M >= 2
+        self.Vseg = np.logical_and(singleMask, self.Vseg)
+
+        # closing
+        self.Vseg = ndimage.morphology.binary_closing(self.Vseg)
+        
+        
         
         
         
@@ -850,6 +893,59 @@ class RSOM_vessel(RSOM):
                             
         
         nib.save(img, path)
+        
+        
+    def saveVOLUME_float(self, destination, fstr = ''):
+        '''
+        override method from RSOM class
+        save rgb volume
+        '''
+        
+        #self.Vm = exposure.rescale_intensity(self.Vm, out_range = np.uint8)
+        
+        # Vm is a 4-d numpy array, with the last dim holding RGB
+        #dtype_ = 'u1'
+        #dtype_ = 'f4'  # np.float32
+        
+        #shape_3d = self.Vm.shape[0:3]
+        #rgb_dtype = np.dtype([('R','f4'), ('G', 'f4'), ('B', 'f4')])
+        self.Vm = self.Vm.astype(np.float32)
+        
+        #self.Vm = self.Vm.copy().view(rgb_dtype).reshape(shape_3d)
+        
+        V_R = self.Vm[...,0]
+        V_G = self.Vm[...,1]
+        
+        
+        for V, c in [(V_R, 'R'), (V_G, 'G')]:
+        
+            img = nib.Nifti1Image(V, np.eye(4))
+            
+            
+            # generate Path object
+            destination = Path(destination)
+            
+            # if this is a cut file, need to construct the cut z-value
+            # this is only for vesnet preparation
+            if self.layer_end is not None:
+                z_cut = '_' + 'z' + str(self.layer_end)
+            else:
+                z_cut = ''
+            
+            # generate filename
+            nii_file = (destination / ('R' + 
+                                       self.file.DATETIME + 
+                                       self.file.ID +
+                                       z_cut +
+                                       '_' +                                   
+                                       fstr +
+                                       '_' +
+                                       c +
+                                       '.nii.gz')).resolve()
+            print(str(nii_file))
+        
+            
+            nib.save(img, str(nii_file))
         
             
 class RSOM_mip_interp():
