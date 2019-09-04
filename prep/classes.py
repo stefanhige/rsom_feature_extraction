@@ -839,7 +839,7 @@ class RSOM_vessel(RSOM):
         self.Vl_1 = self.Vl_1**2
         self.Vh_1 = self.Vh_1**2
             
-        #self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0.05, 1))
+        self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0.05, 1))
         self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0.05, 1))
         
         
@@ -852,7 +852,8 @@ class RSOM_vessel(RSOM):
         
     def mathMORPH(self):
         
-        
+        # TODO PADDING AND REMOVE 
+        # probably the problem is in binary_closing??
 
         
         filter = ndimage.morphology.generate_binary_structure(3,1).astype(np.int64)
