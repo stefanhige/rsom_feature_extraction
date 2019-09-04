@@ -98,7 +98,7 @@ class VesNET():
 
         # MODEL
         self.model = DeepVesselNet(in_channels=2,
-                                   dropout=False,
+                                   dropout=True,
                                    batchnorm=False)
         
         if self.dirs['model']:
@@ -179,7 +179,7 @@ class VesNET():
                 self.optimizer, 
                 mode='min', 
                 factor=0.1,
-                patience=0,
+                patience=2,
                 verbose=True,
                 threshold=1e-4,
                 threshold_mode='rel',
@@ -554,18 +554,18 @@ def debug(*msg):
             print(*msg)
 
 global DEBUG
-DEBUG = True
+# DEBUG = True
 
 root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style'
 
 
-desc = ('First test. train on 3 synthetic samples, validate on the other2, lr=5e-3')
-sdesc = 'lrsch'
+desc = ('First test. train on 3 synthetic samples, validate on the other2, lr=1e-4, dropout=True!')
+sdesc = 'dr'
 
 
 model_dir = ''
         
-os.environ["CUDA_VISIBLE_DEVICES"]='7'
+os.environ["CUDA_VISIBLE_DEVICES"]='6'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -585,8 +585,8 @@ net1 = VesNET(device=device,
                      dirs=dirs,
                      divs=(2,2,2),
                      optimizer='Adam',
-                     initial_lr=5e-3,
-                     epochs=25
+                     initial_lr=1e-4,
+                     epochs=50
                      )
 
 # CURRENT STATE
