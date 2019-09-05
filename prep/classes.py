@@ -869,7 +869,8 @@ class RSOM_vessel(RSOM):
         self.Vseg = np.logical_and(singleMask, self.Vseg)
 
         # closing
-        self.Vseg = ndimage.morphology.binary_closing(self.Vseg)
+        self.Vseg = (ndimage.morphology.binary_closing(
+                np.pad(self.Vseg, 1, mode='edge')))[1:-1, 1:-1, 1:-1]
         
         
         

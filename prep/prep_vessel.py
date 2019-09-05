@@ -25,7 +25,7 @@ origin_layer = '/home/stefan/PYTHON/HQDatasetVesselAnnot/input_for_layerseg/manu
 
 # destination = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
 # destination = '/home/sgerl/Documents/PYTHON/TestDataset20190411/selection/other_preproccessing_tests/sliding_mip_6'
-destination = '/home/stefan/PYTHON/HQDatasetVesselAnnot/vessels_high_contrast'
+destination = '/home/stefan/PYTHON/HQDatasetVesselAnnot/vessels'
 
 
 cwd = os.getcwd()
