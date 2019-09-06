@@ -86,9 +86,9 @@ for idx, filenameLF in enumerate(filenameLF_LIST):
     debug = Obj.thresholdSEGMENTATION()
     Obj.mathMORPH()
     
-    Obj.saveSEGMENTATION(destination, fstr='th')
+    Obj.saveSEGMENTATION(destination, fstr='th_rso')
     
-    Obj.mergeVOLUME_RGB()
-    Obj.saveVOLUME(destination, fstr = 'v_rgb')
+    #Obj.mergeVOLUME_RGB()
+    #Obj.saveVOLUME(destination, fstr = 'v_rgb')
     
     print('Processing file', idx+1, 'of', len(filenameLF_LIST))

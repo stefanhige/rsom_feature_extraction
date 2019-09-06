@@ -31,6 +31,7 @@ import nibabel as nib
 
 #from skimage import data
 from skimage import exposure
+from skimage import morphology
 
 
 
@@ -872,6 +873,10 @@ class RSOM_vessel(RSOM):
         self.Vseg = (ndimage.morphology.binary_closing(
                 np.pad(self.Vseg, 1, mode='edge')))[1:-1, 1:-1, 1:-1]
         
+        # remove small objects
+        # 30 seems a good value, tested from 10 to 40
+        self.Vseg = morphology.remove_small_objects(self.Vseg, 30)
+        
         
         
         
@@ -884,7 +889,6 @@ class RSOM_vessel(RSOM):
         Vseg = self.Vseg.astype(np.uint8)
         img = nib.Nifti1Image(Vseg, np.eye(4))
         
-        fstr = fstr + '.nii.gz'
         path = os.path.join(destination,
                             'R' + 
                             self.file.DATETIME + 
