@@ -30,8 +30,6 @@ from dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
 from lossfunctions import BCEWithLogitsLoss
 from patch_handling import get_volume
 
-
-
 class VesNET():
     '''
     class for setting up, training of vessel segmentation with deep vessel net 3d on RSOM dataset
@@ -98,7 +96,7 @@ class VesNET():
 
         # MODEL
         self.model = DeepVesselNet(in_channels=2,
-                                   dropout=True,
+                                   dropout=False,
                                    batchnorm=False)
         
         if self.dirs['model']:
@@ -273,6 +271,9 @@ class VesNET():
             prediction = self.model(data)
             
             loss = self.lossfn(pred=prediction, target=label)
+
+            # calculate metrics
+            # metrics = self.calc_metrics(pred=prediction, target=label)
                 
             # loss running variable
             running_loss += loss.data.item()
@@ -536,6 +537,51 @@ class VesNET():
             except:
                 self.printandlog('Saving git diff FAILED!')
 
+    def calc_metrics(pred, target):
+        """
+        calculate metrics e.g. dice, centerline score
+        """
+
+        # what happens if batchsize is not 1?
+        # better calculate skeleton in dataloader
+        S = meta['label_skeleton']
+
+        print(S.dtype)
+
+        S = S.to(torch.uint8)
+
+        # byte tensor supports logical and
+        # need to shrink shape of S and label make fit to pred
+        # only looking ad valid predictions
+
+        pred = pred.detach()
+        
+        print(pred.dtype)
+        print(target.dtype)
+        # calculate centerline score
+        # number of pixels of sceleton inside pred / number of pixels in sceleton
+        cl_score = torch.sum(S & pred) / torch.sum(S)
+        cl_score = cl_score.to(device='cpu')
+
+        # dilate label massive
+        # to generate hull
+
+        element = morphology.ball(5) # good value seems in between 3 and 5
+        element = torch.from_numpy(element).to(dtype=torch.uint8)
+
+        # use torch conv3d
+        label = label.to(dtype=torch.uint8)
+        H = torch.nn.conv3d(label, element, padding=4)
+
+        H = ndimage.morphology.binary_dilation(label, iterations=1, structure=element)
+
+        # 1 - number of pixels of prediction outside hull / number of pixels of prediction inside hull ? 
+        # or just total number of pixels of prediction
+        out_score = 1 - np.count_nonzero(np.logical_and(np.logical_not(H), pred)) / np.count_nonzero(pred)
+
+
+
+
 
     def save_model(self,model='best'):
         if not self.DEBUG:
@@ -554,9 +600,9 @@ def debug(*msg):
             print(*msg)
 
 global DEBUG
-# DEBUG = True
+DEBUG = True
 
-root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style'
+root_dir = '/home/gerlstefan/data/vesnet/synthDataset/1channel'
 
 
 desc = ('First test. train on 3 synthetic samples, validate on the other2, lr=1e-4, dropout=True!')
@@ -565,7 +611,7 @@ sdesc = 'dr'
 
 model_dir = ''
         
-os.environ["CUDA_VISIBLE_DEVICES"]='6'
+os.environ["CUDA_VISIBLE_DEVICES"]='5'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -583,7 +629,7 @@ net1 = VesNET(device=device,
                      desc=desc,
                      sdesc=sdesc,
                      dirs=dirs,
-                     divs=(2,2,2),
+                     divs=(4,4,4),
                      optimizer='Adam',
                      initial_lr=1e-4,
                      epochs=50
