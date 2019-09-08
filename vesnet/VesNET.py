@@ -118,6 +118,7 @@ class VesNET():
         self.offset = offset
 
         # DATASET
+        self.batch_size = 3
         if self.dirs['train']:
             self.train_dataset = RSOMVesselDataset(self.dirs['train'],
                                                    divs=divs, 
@@ -127,7 +128,7 @@ class VesNET():
                                                        ToTensor()]))
 
             self.train_dataloader = DataLoader(self.train_dataset,
-                                               batch_size=1, 
+                                               batch_size=self.batch_size, 
                                                shuffle=True, 
                                                num_workers=4, 
                                                pin_memory=True)
@@ -140,7 +141,7 @@ class VesNET():
                                                    ToTensor()]))
 
             self.eval_dataloader = DataLoader(self.eval_dataset,
-                                              batch_size=1, 
+                                              batch_size=self.batch_size, 
                                               shuffle=False, 
                                               num_workers=4,
                                               pin_memory=True)
@@ -154,7 +155,7 @@ class VesNET():
 
 
             self.pred_dataloader = DataLoader(self.pred_dataset,
-                                              batch_size=1, 
+                                              batch_size=self.batch_size, 
                                               shuffle=False, 
                                               num_workers=4,
                                               pin_memory=True)
@@ -212,8 +213,9 @@ class VesNET():
                 epoch
         '''     
         self.model.train()
-        
-        for i in range(self.args.size_train):
+
+        n_iter = int(np.ceil(self.args.size_train/self.batch_size))
+        for i in range(n_iter):
             
             # get the next batch of training data
             batch = next(iterator)
@@ -227,7 +229,8 @@ class VesNET():
                     dtype=self.args.dtype, 
                     non_blocking=self.args.non_blocking)
 
-            #print('data shape', data.shape)
+            # debug('data shape', data.shape)
+            
             prediction = self.model(data)
             #print('prediction shape', prediction.shape)
 
@@ -237,9 +240,9 @@ class VesNET():
             loss.backward()
             self.optimizer.step()
         
-            frac_epoch = epoch + i/self.args.size_train
+            frac_epoch = epoch + i/n_iter
                 
-            debug('Ep:', epoch, 'fracEp:',i/self.args.size_train)
+            debug('Ep:', epoch, 'fracEp:', (i+1)/n_iter)
             self.history['train']['epoch'].append(frac_epoch)
             self.history['train']['loss'].append(loss.data.item())
             
@@ -252,8 +255,10 @@ class VesNET():
        
         self.model.eval()
         running_loss = 0.0
+
+        n_iter = int(np.ceil(self.args.size_eval/self.batch_size))
         
-        for i in range(self.args.size_eval):
+        for i in range(n_iter):
            
             # get the next batch of the evaluation set
             batch = next(iterator)
@@ -273,12 +278,14 @@ class VesNET():
             loss = self.lossfn(pred=prediction, target=label)
 
             # calculate metrics
-            # metrics = self.calc_metrics(pred=prediction, target=label)
+            # meta = batch['meta']
+            # metrics = self.calc_metrics(prediction, label, meta)
                 
             # loss running variable
             running_loss += loss.data.item()
+            del loss
             
-            debug('Ep:', epoch, 'fracEp:',i/self.args.size_eval)
+            debug('Ep:', epoch, 'fracEp:', (i+1)/n_iter)
         # running_loss adds up loss for every batch,
         # divide by size of testset
         epoch_loss = running_loss / (self.args.size_eval)
@@ -305,11 +312,11 @@ class VesNET():
             if curr_epoch == 1:
                 tic = timer()
             
-            debug(torch.cuda.memory_cached()*1e-6,'MB memory used')
             debug('calling train method')
             self.train(iterator=train_iterator, epoch=curr_epoch)
             
-            debug(torch.cuda.memory_cached()*1e-6,'MB memory used')
+            torch.cuda.empty_cache()
+            
             if curr_epoch == 1:
                 toc = timer()
                 print('Training took:', toc - tic)
@@ -323,14 +330,10 @@ class VesNET():
             else:
                 torch.cuda.empty_cache()
             
-            debug(torch.cuda.memory_cached()*1e-6,'MB memory used')
-            
             if curr_epoch == 1:
                 toc = timer()
                 print('Evaluation took:', toc - tic)
                 
-            debug(torch.cuda.memory_cached()*1e-6,'MB memory used')
-            
             # extract the average training loss of the epoch
             le_idx = self.history['train']['epoch'].index(curr_epoch)
             le_losses = self.history['train']['loss'][le_idx:]
@@ -507,6 +510,7 @@ class VesNET():
             print('       sample shape:', self.args.data_shape, file=where)
             print('               divs:', self.divs, file=where)
             print('             offset:', self.offset, file=where)
+            print('         batch size:', self.batch_size, file=where)
 
 
             print('EPOCHS:', self.args.n_epochs, file=where)
@@ -536,52 +540,6 @@ class VesNET():
                 os.system('git diff >> {:s}.diff'.format(path))
             except:
                 self.printandlog('Saving git diff FAILED!')
-
-    def calc_metrics(pred, target):
-        """
-        calculate metrics e.g. dice, centerline score
-        """
-
-        # what happens if batchsize is not 1?
-        # better calculate skeleton in dataloader
-        S = meta['label_skeleton']
-
-        print(S.dtype)
-
-        S = S.to(torch.uint8)
-
-        # byte tensor supports logical and
-        # need to shrink shape of S and label make fit to pred
-        # only looking ad valid predictions
-
-        pred = pred.detach()
-        
-        print(pred.dtype)
-        print(target.dtype)
-        # calculate centerline score
-        # number of pixels of sceleton inside pred / number of pixels in sceleton
-        cl_score = torch.sum(S & pred) / torch.sum(S)
-        cl_score = cl_score.to(device='cpu')
-
-        # dilate label massive
-        # to generate hull
-
-        element = morphology.ball(5) # good value seems in between 3 and 5
-        element = torch.from_numpy(element).to(dtype=torch.uint8)
-
-        # use torch conv3d
-        label = label.to(dtype=torch.uint8)
-        H = torch.nn.conv3d(label, element, padding=4)
-
-        H = ndimage.morphology.binary_dilation(label, iterations=1, structure=element)
-
-        # 1 - number of pixels of prediction outside hull / number of pixels of prediction inside hull ? 
-        # or just total number of pixels of prediction
-        out_score = 1 - np.count_nonzero(np.logical_and(np.logical_not(H), pred)) / np.count_nonzero(pred)
-
-
-
-
 
     def save_model(self,model='best'):
         if not self.DEBUG:
@@ -629,7 +587,7 @@ net1 = VesNET(device=device,
                      desc=desc,
                      sdesc=sdesc,
                      dirs=dirs,
-                     divs=(4,4,4),
+                     divs=(3,3,3),
                      optimizer='Adam',
                      initial_lr=1e-4,
                      epochs=50
