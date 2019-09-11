@@ -8,6 +8,7 @@ Created on Thu Aug 22 11:21:21 2019
 
 import torch
 import numpy as np
+from skimage.morphology import skeletonize_3d
 
 import os
 import copy
@@ -252,6 +253,9 @@ class ToTensor():
             data = np.moveaxis(data, -1, 0)
             label = np.moveaxis(label, -1, 0)
             #print(data.shape, label.shape)
+
+        if 'label_skeleton' in meta:
+            meta['label_skeleton'] = torch.from_numpy(np.moveaxis(meta['label_skeleton'], -1, 0))
         
         return {'data': torch.from_numpy(data),
                 'label': torch.from_numpy(label),
@@ -279,6 +283,24 @@ class AddDuplicateDim():
                 'meta': meta}
 
 
+class PrecalcSkeleton():
+    '''
+    for use in calc_metrics
+    '''
+    def __call__(self, sample):
+        data, label, meta = sample['data'], sample['label'], sample['meta']
+
+        assert isinstance(data, np.ndarray)
+        assert isinstance(label, np.ndarray)
+        
+        meta['label_skeleton'] = (np.expand_dims(skeletonize_3d(label.astype(np.uint8).squeeze()),axis=-1))
+
+        return {'data': data,
+                'label': label,
+                'meta': meta}
+
+
+
 def to_numpy(V, meta,  Vtype='label', dimorder ='numpy'):
     '''
     inverse function for class ToTensor()
@@ -299,7 +321,7 @@ def to_numpy(V, meta,  Vtype='label', dimorder ='numpy'):
         if len(V.shape) == 4:
             V = np.moveaxis(V, 0, -1)
     else:
-        raise ValueError('Invalid arguemnt for parameter dimorder')
+        raise ValueError('Invalid argument for parameter dimorder')
 
     # add padding, which was removed before,
     # and saved in meta['lcrop'] and meta['dcrop']

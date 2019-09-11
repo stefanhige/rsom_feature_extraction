@@ -27,7 +27,8 @@ from datetime import date
 from deep_vessel_3d import DeepVesselNet
 from dataloader import RSOMVesselDataset
 from dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
-from lossfunctions import BCEWithLogitsLoss
+from dataloader import PrecalcSkeleton
+from lossfunctions import BCEWithLogitsLoss, calc_metrics
 from patch_handling import get_volume
 
 class VesNET():
@@ -47,6 +48,7 @@ class VesNET():
                  dirs={'train':'','eval':'', 'model':'', 'pred':''},
                  divs = (4, 4, 3),
                  offset = (6, 6, 6),
+                 batch_size = 1,
                  optimizer = 'Adam',
                  lossfn = BCEWithLogitsLoss,
                  initial_lr = 1e-6,
@@ -118,13 +120,14 @@ class VesNET():
         self.offset = offset
 
         # DATASET
-        self.batch_size = 3
+        self.batch_size = batch_size
         if self.dirs['train']:
             self.train_dataset = RSOMVesselDataset(self.dirs['train'],
                                                    divs=divs, 
                                                    offset=offset,
                                                    transform=transforms.Compose([
                                                        AddDuplicateDim(),
+                                                       PrecalcSkeleton(),
                                                        ToTensor()]))
 
             self.train_dataloader = DataLoader(self.train_dataset,
@@ -137,6 +140,7 @@ class VesNET():
                                                divs=divs,
                                                offset=offset,
                                                transform=transforms.Compose([
+                                                   PrecalcSkeleton(),
                                                    AddDuplicateDim(),
                                                    ToTensor()]))
 
@@ -188,7 +192,8 @@ class VesNET():
 
         # HISTORY
         self.history = {'train':{'epoch': [], 'loss': []},
-                        'eval':{'epoch': [], 'loss': []}}
+                'eval':{'epoch': [], 'loss': [], 'cl_score': [],
+                    'out_score': [], 'dice': []}}
         
         # CURRENT EPOCH
         self.curr_epoch = None
@@ -235,11 +240,13 @@ class VesNET():
             #print('prediction shape', prediction.shape)
 
             loss = self.lossfn(pred=prediction, target=label)
-            
+             # convert to probabilities
+
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
         
+           
             frac_epoch = epoch + i/n_iter
                 
             debug('Ep:', epoch, 'fracEp:', (i+1)/n_iter)
@@ -255,6 +262,9 @@ class VesNET():
        
         self.model.eval()
         running_loss = 0.0
+        running_metrics = {'cl_score': 0.0,
+                           'out_score': 0.0,
+                           'dice': 0.0}
 
         n_iter = int(np.ceil(self.args.size_eval/self.batch_size))
         
@@ -277,15 +287,25 @@ class VesNET():
             
             loss = self.lossfn(pred=prediction, target=label)
 
-            # calculate metrics
-            # meta = batch['meta']
-            # metrics = self.calc_metrics(prediction, label, meta)
-                
-            # loss running variable
             running_loss += loss.data.item()
             del loss
             
+            sigmoid = torch.nn.Sigmoid()
+            bool_prediction = sigmoid(prediction) >= 0.5
+            metrics = calc_metrics(bool_prediction, label, batch['meta'])
+            running_metrics['cl_score'] += metrics['cl_score']
+            running_metrics['out_score'] += metrics['out_score']
+            running_metrics['dice'] += metrics['dice']
+            
             debug('Ep:', epoch, 'fracEp:', (i+1)/n_iter)
+
+        epoch_cl_score = running_metrics['cl_score'] / self.args.size_eval
+        epoch_out_score = running_metrics['out_score'] / self.args.size_eval
+        epoch_dice = running_metrics['dice'] / self.args.size_eval
+        self.history['eval']['cl_score'].append(epoch_cl_score)
+        self.history['eval']['out_score'].append(epoch_out_score)
+        self.history['eval']['dice'].append(epoch_dice)
+
         # running_loss adds up loss for every batch,
         # divide by size of testset
         epoch_loss = running_loss / (self.args.size_eval)
@@ -314,7 +334,7 @@ class VesNET():
             
             debug('calling train method')
             self.train(iterator=train_iterator, epoch=curr_epoch)
-            
+
             torch.cuda.empty_cache()
             
             if curr_epoch == 1:
@@ -342,6 +362,10 @@ class VesNET():
             
             # extract most recent eval loss
             curr_loss = self.history['eval']['loss'][-1]
+            curr_out_score = self.history['eval']['out_score'][-1]
+            curr_cl_score = self.history['eval']['cl_score'][-1]
+            curr_dice = self.history['eval']['dice'][-1]
+
             
             # use ReduceLROnPlateau scheduler
             self.scheduler.step(curr_loss)
@@ -355,8 +379,10 @@ class VesNET():
             else:
                 found_nb = ''
         
-            self.printandlog('Epoch {:d} of {:d}: lr={:.0e}, Lt={:.2e}, Le={:.2e}'.format(
+            self.printandlog('Epoch {:3d} of {:3d}: lr={:.0e}, Lt={:.2e}, Le={:.2e}'.format(
                 curr_epoch+1, self.args.n_epochs, curr_lr, train_loss, curr_loss), found_nb)
+            self.printandlog('                : cl={:.3f}, os={:.3f}, di={:.3f}'.format(
+                curr_cl_score, curr_out_score, curr_dice))
 #            print('Epoch {:d} of {:d}: lr={:.0e}, Lt={:.2e}, Le={:.2e}'.format(
 #                curr_epoch+1, self.args.n_epochs, curr_lr, train_loss, curr_loss), found_nb, file=self.logfile)
     
@@ -569,7 +595,7 @@ sdesc = 'dr'
 
 model_dir = ''
         
-os.environ["CUDA_VISIBLE_DEVICES"]='5'
+os.environ["CUDA_VISIBLE_DEVICES"]='4'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -588,8 +614,9 @@ net1 = VesNET(device=device,
                      sdesc=sdesc,
                      dirs=dirs,
                      divs=(3,3,3),
+                     batch_size=4,
                      optimizer='Adam',
-                     initial_lr=1e-4,
+                     initial_lr=1e-6,
                      epochs=50
                      )
 
@@ -599,10 +626,11 @@ net1.printConfiguration()
 net1.save_code_status()
 
 net1.train_all_epochs()
-net1.plot_loss()
-net1.save_model()
 
-net1.predict()
+# net1.plot_loss()
+# net1.save_model()
+
+# net1.predict()
 
 
 
