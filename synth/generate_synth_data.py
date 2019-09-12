@@ -283,8 +283,14 @@ def rsom_style(label):
     # all_noise = noise1 + noise2 + gauss_background + 3*gauss_red + 3*gauss_green
     # all_noise[all_noise<0] = 0
     
+    # just in case, remove negative values, which could come from the noise
+    A[A<0] = 0
+    B_wnoise[B_wnoise<0] = 0
+    
+    
     # generate RGB volume
     Vm = np.stack((A, B_wnoise, np.zeros(A.shape)), axis=-1)
+
     Vm = exposure.rescale_intensity(Vm, out_range = np.uint8)
     
     return Vm, SEG 
@@ -327,7 +333,7 @@ for filename in filenames:
 
     # save segmentation
     seg = nib.Nifti1Image(SEG.astype(np.uint8), np.eye(4))
-    nib.save(seg, dest.replace('.nii.gz','_l_.nii.gz'))
+    nib.save(seg, dest.replace('.nii.gz','_v_l.nii.gz'))
     
     
     
