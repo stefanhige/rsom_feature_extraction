@@ -31,6 +31,7 @@ from dataloader import PrecalcSkeleton
 from lossfunctions import BCEWithLogitsLoss, calc_metrics
 from patch_handling import get_volume
 
+
 class VesNET():
     '''
     class for setting up, training of vessel segmentation with deep vessel net 3d on RSOM dataset
@@ -53,17 +54,15 @@ class VesNET():
                  lossfn = BCEWithLogitsLoss,
                  initial_lr = 1e-6,
                  epochs=1,
+                 DEBUG=False
                  ):
 
-        if 'DEBUG' in globals():
-            if DEBUG:
-                self.DEBUG = True
-            else:
-                self.DEBUG = False
+        if DEBUG:
+            self.DEBUG = True
+            print('DEBUG MODE')
         else:
             self.DEBUG = False
-
-
+        
         
         # DESCRIPTION
         self.desc = desc
@@ -159,7 +158,7 @@ class VesNET():
 
 
             self.pred_dataloader = DataLoader(self.pred_dataset,
-                                              batch_size=self.batch_size, 
+                                              batch_size=1, # easier for reconstruction 
                                               shuffle=False, 
                                               num_workers=4,
                                               pin_memory=True)
@@ -200,17 +199,19 @@ class VesNET():
         
         # ADDITIONAL ARGS
         self.args = type('args', (object,), dict())
-        
-        self.args.size_train = len(self.train_dataset)
-        self.args.size_eval = len(self.eval_dataset)
+        if self.dirs['train']: 
+            self.args.size_train = len(self.train_dataset)
+            self.args.size_eval = len(self.eval_dataset)
         if self.dirs['pred']:
             self.args.size_pred = len(self.pred_dataset)
         self.args.non_blocking = True
         self.args.device = device
         self.args.dtype = torch.float32
         self.args.n_epochs = epochs
-        self.args.data_shape = self.train_dataset[0]['data'].shape
-        
+        if self.dirs['train']:
+            self.args.data_shape = self.train_dataset[0]['data'].shape
+        else:
+            self.args.data_shape = self.pred_dataset[0]['data'].shape
     def train(self, iterator, epoch):
         '''
         train one epoch
@@ -405,7 +406,7 @@ class VesNET():
         doc string missing
         '''
         print('Predicting..')
- 
+        # TODO: better solution needed?
         if use_best:
             print('Using best model.')
             self.model.load_state_dict(self.best_model)
@@ -583,54 +584,56 @@ def debug(*msg):
         if DEBUG:
             print(*msg)
 
-global DEBUG
-DEBUG = True
+if __name__ == '__main__': 
 
-root_dir = '/home/gerlstefan/data/vesnet/synthDataset/1channel'
+    DEBUG = None
+    DEBUG = True
 
-
-desc = ('First test. train on 3 synthetic samples, validate on the other2, lr=1e-4, dropout=True!')
-sdesc = 'dr'
+    root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style'
 
 
-model_dir = ''
-        
-os.environ["CUDA_VISIBLE_DEVICES"]='4'
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    desc = ('First test. train on 3 synthetic samples, validate on the other2, lr=1e-4, first test on calc_metrics')
+    sdesc = 'metrics'
 
 
-train_dir = os.path.join(root_dir, 'train')
-eval_dir = os.path.join(root_dir, 'eval')
-out_dir = '/home/gerlstefan/data/vesnet/out'
+    model_dir = ''
+            
+    os.environ["CUDA_VISIBLE_DEVICES"]='4'
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-dirs={'train': train_dir,
-      'eval': eval_dir, 
-      'model': model_dir, 
-      'pred': eval_dir,
-      'out': out_dir}
 
-net1 = VesNET(device=device,
-                     desc=desc,
-                     sdesc=sdesc,
-                     dirs=dirs,
-                     divs=(3,3,3),
-                     batch_size=4,
-                     optimizer='Adam',
-                     initial_lr=1e-6,
-                     epochs=50
-                     )
+    train_dir = os.path.join(root_dir, 'train')
+    eval_dir = os.path.join(root_dir, 'eval')
+    out_dir = '/home/gerlstefan/data/vesnet/out'
 
-# CURRENT STATE
+    dirs={'train': train_dir,
+          'eval': eval_dir, 
+          'model': model_dir, 
+          'pred': eval_dir,
+          'out': out_dir}
 
-net1.printConfiguration()
-net1.save_code_status()
+    net1 = VesNET(device=device,
+                         desc=desc,
+                         sdesc=sdesc,
+                         dirs=dirs,
+                         divs=(3,3,3),
+                         batch_size=5,
+                         optimizer='Adam',
+                         initial_lr=1e-4,
+                         epochs=50
+                         )
 
-net1.train_all_epochs()
+    # CURRENT STATE
 
-# net1.plot_loss()
-# net1.save_model()
+    net1.printConfiguration()
+    net1.save_code_status()
 
-# net1.predict()
+    net1.train_all_epochs()
+
+    net1.plot_loss()
+    net1.save_model()
+
+    net1.predict()
 
 
 

@@ -33,7 +33,7 @@ def calc_metrics(pred, target, meta):
     #debug
     # pred = copy.deepcopy(target)
     # end debug!!!!!
-    print('minmax pred', torch.min(pred).item(), torch.max(pred).item())
+    # print('minmax pred', torch.min(pred).item(), torch.max(pred).item())
     
     pred = pred.detach()
     pred = pred.to(torch.bool)
@@ -45,7 +45,7 @@ def calc_metrics(pred, target, meta):
         nom =  torch.sum(S & pred, dtype=torch.float32)
         denom = torch.sum(S, dtype=torch.float32)
 
-        print('cl_score', nom, '/', denom)
+        # print('cl_score', nom, '/', denom)
         cl_score = nom / denom
     except ZeroDivisionError:
         # if the sceleton is zero, the score is automatically 1??
@@ -70,12 +70,12 @@ def calc_metrics(pred, target, meta):
     denom = torch.sum(pred, dtype=torch.float32)
     out_score = 1 - nom/denom
     out_score = out_score.to('cpu')
-    print('out_score', nom, '/', denom)
-    print('cl_score', cl_score.item(), 'out_score', out_score.item())
+    # print('out_score', nom, '/', denom)
+    # print('cl_score', cl_score.item(), 'out_score', out_score.item())
     
     # multiply with batch size!
     batch_size = pred.shape[0]
-    print('Batch size:', batch_size)
+    # print('Batch size:', batch_size)
     cl_score = batch_size * cl_score.item()
     out_score = batch_size * out_score.item()
 
@@ -83,7 +83,7 @@ def calc_metrics(pred, target, meta):
 
     intersection = torch.sum(pred & target, dtype=torch.float32)
     dice = (2 * intersection + smooth) / (pred.float().sum() + target.float().sum() + smooth)
-    print('dice', dice)
+    # print('dice', dice)
     dice = dice.to('cpu').item()
 
 
