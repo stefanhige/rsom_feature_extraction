@@ -17,7 +17,7 @@ from torchvision import transforms, utils
 from patch_handling import get_patch
 
 import nibabel as nib
-
+import warnings
 
 class RSOMVesselDataset(Dataset):
     """
@@ -122,12 +122,20 @@ class RSOMVesselDataset(Dataset):
                                        self.data[data_idx].replace(self.data_str, self.label_str))
             # read data
             data = self._readNII(data_path)
-            #data = np.stack([data['R'], data['G'], data['B']], axis=-1)
-            data = data.astype(np.float32)
             
+            if isinstance(data.item(0), tuple):
+                data = np.stack([data['R'], data['G'], data['B']], axis=-1)
+            data = data.astype(np.float32)
             # read label
             label = self._readNII(label_path)
             label = label.astype(np.float32)
+
+            # debug output, mean values
+            # TODO: there's a mistake in the synthetic data generation
+            # 0 is 13 somehow..
+            # print(data.shape)
+            # print('min max and mean values of Red/Green/Blue:', np.amin(data, axis=(0,1,2)),
+                    # np.amax(data, axis=(0,1,2)), np.mean(data, axis=(0,1,2)))
             
         if self.keep_last_data:
             if not data_idx == self.last_data_idx:
@@ -172,11 +180,12 @@ class RSOMVesselDataset(Dataset):
         # just for correct dimensionality
         # in case of RGB add another dimension
         if len(data.shape) == 4:
-            print('DEBUG. adding zero to meta.')
-            meta['dcrop']['begin'] = torch.cat((meta['dcrop']['begin'], 0))
-            meta['dcrop']['end'] = torch.cat((meta['dcrop']['end'], 0))
+            # print('DEBUG. adding zero to meta.')
+            meta['dcrop']['begin'] = torch.cat((meta['dcrop']['begin'], 
+                torch.tensor([0], dtype=torch.int16)))
+            meta['dcrop']['end'] = torch.cat((meta['dcrop']['end'], 
+                torch.tensor([0], dtype=torch.int16)))
             
-                
         meta['lcrop']['begin'] = torch.from_numpy(np.array(\
             [np.floor(rem[0]/2), np.floor(rem[1]/2), np.floor(rem[2]/2)], dtype=np.int16))
         meta['lcrop']['end'] = torch.from_numpy(np.array(\
@@ -197,7 +206,9 @@ class RSOMVesselDataset(Dataset):
         #then do something like
         if len(data.shape) == 3:
             data = np.expand_dims(data, axis=-1)
-            label = np.expand_dims(label, axis=-1)
+       
+        # label always need expansion
+        label = np.expand_dims(label, axis=-1)
             #print(data.shape, label.shape, meta['filename'])
             
     
@@ -224,9 +235,10 @@ class DropBlue():
         assert isinstance(data, np.ndarray)
         assert isinstance(label, np.ndarray)
         # data still is RGB
-        assert data.shape[-1] == 3
-
-        data = data[...,:2]
+        if data.shape[-1] == 3:
+            data = data[...,:2]
+        else:
+            warnings.warn('Calling DropBlue, even tho data is not RGB', UserWarning)
 
         assert data.shape[-1] == 2
 
@@ -273,8 +285,12 @@ class AddDuplicateDim():
         assert isinstance(label, np.ndarray)
         
         if len(data.shape) == 4:
-            data = np.concatenate((data, data), axis=-1)
-            assert data.shape[3] == 2
+            if data.shape[3] == 1:
+                data = np.concatenate((data, data), axis=-1)
+                assert data.shape[3] == 2
+            elif data.shape[3] == 3:
+                warnings.warn(('You are still calling AddDuplicateDim(), '
+                    'even if your data is already RGB'), UserWarning) 
         else:
             raise NotImplementedError
 

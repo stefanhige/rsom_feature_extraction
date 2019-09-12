@@ -126,6 +126,7 @@ class VesNET():
                                                    offset=offset,
                                                    transform=transforms.Compose([
                                                        AddDuplicateDim(),
+                                                       DropBlue(),
                                                        PrecalcSkeleton(),
                                                        ToTensor()]))
 
@@ -141,6 +142,7 @@ class VesNET():
                                                transform=transforms.Compose([
                                                    PrecalcSkeleton(),
                                                    AddDuplicateDim(),
+                                                   DropBlue(),
                                                    ToTensor()]))
 
             self.eval_dataloader = DataLoader(self.eval_dataset,
@@ -154,6 +156,7 @@ class VesNET():
                                               offset=offset,
                                               transform=transforms.Compose([
                                                   AddDuplicateDim(),
+                                                  DropBlue(),
                                                   ToTensor()]))
 
 
@@ -190,7 +193,7 @@ class VesNET():
                 eps=1e-8)
 
         # HISTORY
-        self.history = {'train':{'epoch': [], 'loss': []},
+        self.history = {'train':{'epoch': [], 'loss': [], 'unred_loss': []},
                 'eval':{'epoch': [], 'loss': [], 'cl_score': [],
                     'out_score': [], 'dice': []}}
         
@@ -212,6 +215,7 @@ class VesNET():
             self.args.data_shape = self.train_dataset[0]['data'].shape
         else:
             self.args.data_shape = self.pred_dataset[0]['data'].shape
+
     def train(self, iterator, epoch):
         '''
         train one epoch
@@ -246,13 +250,15 @@ class VesNET():
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-        
            
             frac_epoch = epoch + i/n_iter
                 
-            debug('Ep:', epoch, 'fracEp:', (i+1)/n_iter)
+            curr_batch_size = data.shape[0]
+
+            debug('Ep:', epoch, 'fracEp:', (i+1)/n_iter, 'batch:', curr_batch_size)
             self.history['train']['epoch'].append(frac_epoch)
             self.history['train']['loss'].append(loss.data.item())
+            self.history['train']['unred_loss'].append(curr_batch_size * loss.data.item())
             
     def eval(self, iterator, epoch):
         '''
@@ -288,7 +294,9 @@ class VesNET():
             
             loss = self.lossfn(pred=prediction, target=label)
 
-            running_loss += loss.data.item()
+            curr_batch_size = data.shape[0]
+            
+            running_loss += curr_batch_size * loss.data.item()
             del loss
             
             sigmoid = torch.nn.Sigmoid()
@@ -298,7 +306,7 @@ class VesNET():
             running_metrics['out_score'] += metrics['out_score']
             running_metrics['dice'] += metrics['dice']
             
-            debug('Ep:', epoch, 'fracEp:', (i+1)/n_iter)
+            debug('Ep:', epoch, 'fracEp:', (i+1)/n_iter, 'batch', curr_batch_size)
 
         epoch_cl_score = running_metrics['cl_score'] / self.args.size_eval
         epoch_out_score = running_metrics['out_score'] / self.args.size_eval
@@ -307,9 +315,9 @@ class VesNET():
         self.history['eval']['out_score'].append(epoch_out_score)
         self.history['eval']['dice'].append(epoch_dice)
 
-        # running_loss adds up loss for every batch,
-        # divide by size of testset
-        epoch_loss = running_loss / (self.args.size_eval)
+        # running_loss adds up loss for every batch, but batch is mean value
+        # divide by exact n_iter
+        epoch_loss = running_loss / self.args.size_eval
         self.history['eval']['epoch'].append(epoch)
         self.history['eval']['loss'].append(epoch_loss)
 
@@ -357,9 +365,10 @@ class VesNET():
                 
             # extract the average training loss of the epoch
             le_idx = self.history['train']['epoch'].index(curr_epoch)
-            le_losses = self.history['train']['loss'][le_idx:]
+            le_losses = self.history['train']['unred_loss'][le_idx:]
             # divide by dataset size
-            train_loss = sum(le_losses) / (self.args.size_train)
+
+            train_loss = sum(le_losses) / self.args.size_train
             
             # extract most recent eval loss
             curr_loss = self.history['eval']['loss'][-1]
@@ -587,13 +596,14 @@ def debug(*msg):
 if __name__ == '__main__': 
 
     DEBUG = None
-    DEBUG = True
+    # DEBUG = True
 
     root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style'
 
 
-    desc = ('First test. train on 3 synthetic samples, validate on the other2, lr=1e-4, first test on calc_metrics')
-    sdesc = 'metrics'
+    desc = ('rsom style test. train on 4 synthetic samples, validate on 1, lr=1e-4, '
+             'still missing class_imbalance')
+    sdesc = 'rsomt_loss_sum'
 
 
     model_dir = ''
@@ -620,7 +630,8 @@ if __name__ == '__main__':
                          batch_size=5,
                          optimizer='Adam',
                          initial_lr=1e-4,
-                         epochs=50
+                         epochs=3,
+                         DEBUG=DEBUG
                          )
 
     # CURRENT STATE
