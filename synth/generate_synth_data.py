@@ -71,13 +71,18 @@ def noise_type_inbetween(inputVolume):
     V = mask * V
     
     # dilate the remaining noise
+    
+    # more noise, was not there.
+    V = ndimage.binary_dilation(V)
+    
     V_mid = ndimage.binary_dilation(V)
     V_out = ndimage.binary_dilation(V_mid)
     V = V.astype(np.uint8) + V_mid.astype(np.uint8) + V_out.astype(np.uint8)
     
     # add another random mask on top
     mask2 = np.random.random_sample(V.shape)
-    mask2 = mask2 >= 0.5
+    mask2 = mask2 >= 0.25
+    # was 0.5
     
     V = mask2 * V
 
@@ -96,7 +101,8 @@ def noise_type_sticks(shape):
     lmax = 40
 
     # how many sticks to generate
-    n_sticks = 400
+    # was 400
+    n_sticks = 1000
 
     for _ in np.arange(n_sticks):
         
@@ -297,8 +303,8 @@ def rsom_style(label):
 
 
 
-root_dir = '/home/stefan/PYTHON/synthDataset/seg'
-dest_dir = '/home/stefan/PYTHON/synthDataset/rsom_style'
+root_dir = '/home/stefan/PYTHON/synthDataset/file1'
+dest_dir = '/home/stefan/PYTHON/synthDataset/file1'
 # change directory to origin, and get a list of all files
 all_files = os.listdir(root_dir)
 all_files.sort()
