@@ -302,10 +302,10 @@ class VesNET():
             
             sigmoid = torch.nn.Sigmoid()
             bool_prediction = sigmoid(prediction) >= 0.5
-            metrics = calc_metrics(bool_prediction, label, batch['meta'])
-            running_metrics['cl_score'] += metrics['cl_score']
-            running_metrics['out_score'] += metrics['out_score']
-            running_metrics['dice'] += metrics['dice']
+            metrics = calc_metrics(bool_prediction, label, batch['meta']['label_skeleton'])
+            running_metrics['cl_score'] += curr_batch_size * metrics['cl_score']
+            running_metrics['out_score'] += curr_batch_size * metrics['out_score']
+            running_metrics['dice'] += curr_batch_size * metrics['dice']
             
             debug('Ep:', epoch, 'fracEp:', (i+1)/n_iter, 'batch', curr_batch_size)
 
@@ -602,9 +602,8 @@ if __name__ == '__main__':
     root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style'
 
 
-    desc = ('rsom style test. train on 4 synthetic samples, validate on 1, lr=1e-5, '
-             'class_imbalance=72')
-    sdesc = 'rsom_cl_imb'
+    desc = ('train on one file and see if it overfits')
+    sdesc = 'rsom_1file'
 
 
     model_dir = ''
@@ -613,7 +612,7 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-    train_dir = os.path.join(root_dir, 'train')
+    train_dir = os.path.join(root_dir, 'train1file')
     eval_dir = os.path.join(root_dir, 'eval')
     out_dir = '/home/gerlstefan/data/vesnet/out'
 
@@ -631,8 +630,8 @@ if __name__ == '__main__':
                          batch_size=4,
                          optimizer='Adam',
                          class_weight=72,
-                         initial_lr=1e-5,
-                         epochs=50,
+                         initial_lr=1e-4,
+                         epochs=100,
                          DEBUG=DEBUG
                          )
 

@@ -9,14 +9,14 @@ from VesNET import VesNET
 DEBUG = None
 # DEBUG = True
 
-pred_dir = '/home/gerlstefan/data/vesnet/synthDataset/1channel/eval'
+pred_dir = '/home/gerlstefan/data/vesnet/annotatedDataset/eval'
 
 desc = ('predict only test')
-sdesc = 'predtest'
+sdesc = 'predrsom'
 
-model_dir = '/home/gerlstefan/data/vesnet/out/190911-00-metrics/mod190911-00.pt'
+model_dir = '/home/gerlstefan/data/vesnet/out/190912-04-rsom_100ep/mod190912-04.pt'
         
-os.environ["CUDA_VISIBLE_DEVICES"]='4'
+os.environ["CUDA_VISIBLE_DEVICES"]='7'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
