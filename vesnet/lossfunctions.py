@@ -14,20 +14,19 @@ def BCEWithLogitsLoss(pred, target, weight=None):
 
     fn = torch.nn.BCEWithLogitsLoss(weight=None,
                                     reduction='mean',
-                                    pos_weight=None)
-
+                                    pos_weight=torch.Tensor([weight]).cuda())
     loss = fn(pred, target)
     
     return loss
 
 
 
-def calc_metrics(pred, target, meta):
+def calc_metrics(pred, target, skel):
     """
     calculate metrics e.g. dice, centerline score
     """
 
-    S = meta['label_skeleton']
+    S = skel
     S = S.to('cuda', dtype=torch.bool)
     
     #debug
@@ -64,6 +63,7 @@ def calc_metrics(pred, target, meta):
     # dilation: use torch conv3d
     H = torch.nn.functional.conv3d(target.to(dtype=torch.float32), element, padding=ball_r)
     H = H >= 1
+
     # 1 - number of pixels of prediction outside hull / number of pixels of prediction inside hull ? 
     # or just total number of pixels of prediction
     nom = torch.sum(~H & pred, dtype=torch.float32)
@@ -74,19 +74,23 @@ def calc_metrics(pred, target, meta):
     # print('cl_score', cl_score.item(), 'out_score', out_score.item())
     
     # multiply with batch size!
+    # this was a bad idea! wrong!
     batch_size = pred.shape[0]
     # print('Batch size:', batch_size)
-    cl_score = batch_size * cl_score.item()
-    out_score = batch_size * out_score.item()
+    # cl_score = batch_size * cl_score.item()
+    # out_score = batch_size * out_score.item()
 
-    smooth = 1.
+    tensor_sum = pred.float().sum() + target.float().sum()
+    if tensor_sum == 0:
+        print('Warning, tensor_sum is zero, dice will be 1')
+        return 1.
 
     intersection = torch.sum(pred & target, dtype=torch.float32)
-    dice = (2 * intersection + smooth) / (pred.float().sum() + target.float().sum() + smooth)
+    dice = (2 * intersection) / tensor_sum
     # print('dice', dice)
     dice = dice.to('cpu').item()
 
 
-    return {'cl_score': cl_score,
-            'out_score': out_score,
+    return {'cl_score': cl_score.item(),
+            'out_score': out_score.item(),
             'dice': dice }

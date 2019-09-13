@@ -52,6 +52,7 @@ class VesNET():
                  batch_size = 1,
                  optimizer = 'Adam',
                  lossfn = BCEWithLogitsLoss,
+                 class_weight = None,
                  initial_lr = 1e-6,
                  epochs=1,
                  DEBUG=False
@@ -113,6 +114,7 @@ class VesNET():
        
         # LOSSUNCTION
         self.lossfn = lossfn
+        self.class_weight = class_weight
 
         # DIVS, OFFSET
         self.divs = divs
@@ -244,8 +246,7 @@ class VesNET():
             prediction = self.model(data)
             #print('prediction shape', prediction.shape)
 
-            loss = self.lossfn(pred=prediction, target=label)
-             # convert to probabilities
+            loss = self.lossfn(pred=prediction, target=label, weight=self.class_weight)
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -292,7 +293,7 @@ class VesNET():
             debug('eval, data shape:', data.shape)
             prediction = self.model(data)
             
-            loss = self.lossfn(pred=prediction, target=label)
+            loss = self.lossfn(pred=prediction, target=label, weight=self.class_weight)
 
             curr_batch_size = data.shape[0]
             
@@ -601,9 +602,9 @@ if __name__ == '__main__':
     root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style'
 
 
-    desc = ('rsom style test. train on 4 synthetic samples, validate on 1, lr=1e-4, '
-             'still missing class_imbalance')
-    sdesc = 'rsomt_loss_sum'
+    desc = ('rsom style test. train on 4 synthetic samples, validate on 1, lr=1e-5, '
+             'class_imbalance=72')
+    sdesc = 'rsom_cl_imb'
 
 
     model_dir = ''
@@ -627,10 +628,11 @@ if __name__ == '__main__':
                          sdesc=sdesc,
                          dirs=dirs,
                          divs=(3,3,3),
-                         batch_size=5,
+                         batch_size=4,
                          optimizer='Adam',
-                         initial_lr=1e-4,
-                         epochs=3,
+                         class_weight=72,
+                         initial_lr=1e-5,
+                         epochs=50,
                          DEBUG=DEBUG
                          )
 
