@@ -315,6 +315,60 @@ class PrecalcSkeleton():
                 'label': label,
                 'meta': meta}
 
+class DataAugmentation():
+    def __init__(self, mode='rsom'):
+        if mode == 'rsom':
+            self.mode = 'rsom'
+        elif mode == 'all':
+            self.mode = 'all'
+        else:
+            warnings.warn('Invalid mode. Setting to default')
+            self.mode = 'rsom'
+
+    def __call__(self, sample):
+        data, label, meta = sample['data'], sample['label'], sample['meta']
+
+        assert isinstance(data, np.ndarray)
+        assert isinstance(label, np.ndarray)
+      
+        # check if current file is a rsom file
+        # synthetic files are n_v_rgb.nii.gz
+        # rsom files are R_20190605163439 ..
+        f = sample['meta']['filename']
+        is_rsom = f[0:2] == 'R_' and f[2:16].isdigit() 
+        
+        if is_rsom or self.mode=='all':
+            # INTENSITY TRANSFORM
+            # retuns mostly close to slope 1
+            # m=0.1 ... 4
+            r = 2 * torch.rand(1).item() - 1
+            # print('')
+            # print(r)
+            if r<0:
+                m = (abs(r)**3)*3 + 1
+            elif r>=0:
+                m = 1-0.9*r**3
+
+            # print('m =', m)
+            x0 = 50
+            data = np.piecewise(data, 
+                    [data < x0, data>=x0], 
+                    [lambda x: m*x, lambda x: (255-m*x0)/(255-x0)*(x-x0) + m*x0])
+
+            # DIMENSION PERMUTATION
+            # swap the first 3 dimensions only
+            ax = list(torch.randperm(3).numpy()) 
+            
+            ax.append(3) # Channels dimension
+            ax = tuple(ax)
+
+            data = np.transpose(data, ax)
+            label = np.transpose(label, ax)
+
+        return {'data': data,
+                'label': label,
+                'meta': meta}
+
 
 
 def to_numpy(V, meta,  Vtype='label', dimorder ='numpy'):

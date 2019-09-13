@@ -40,18 +40,15 @@ def calc_metrics(pred, target, skel):
 
     # calculate centerline score
     # number of pixels of sceleton inside pred / number of pixels in sceleton
-    try:
-        nom =  torch.sum(S & pred, dtype=torch.float32)
-        denom = torch.sum(S, dtype=torch.float32)
-
-        # print('cl_score', nom, '/', denom)
+    
+    nom =  torch.sum(S & pred, dtype=torch.float32)
+    denom = torch.sum(S, dtype=torch.float32)
+    if denom == 0:
+        print('Skeleton empty, cl_score=nan')
+        cl_score = float('nan')
+    else:
         cl_score = nom / denom
-    except ZeroDivisionError:
-        # if the sceleton is zero, the score is automatically 1??
-        print('ZeroDivisionError in cl_score')
-        cl_score = torch.tensor([1], dtype=torch.float32)
-
-    cl_score = cl_score.to(device='cpu')
+        cl_score = cl_score.to(device='cpu').item()
 
     # dilate target/label massive
     # to generate hull
@@ -82,15 +79,15 @@ def calc_metrics(pred, target, skel):
 
     tensor_sum = pred.float().sum() + target.float().sum()
     if tensor_sum == 0:
-        print('Warning, tensor_sum is zero, dice will be 1')
-        return 1.
+        print('Warning, tensor_sum is zero, dice will be nan')
+        dice = float('nan')
+    else:
+        intersection = torch.sum(pred & target, dtype=torch.float32)
+        dice = (2 * intersection) / tensor_sum
+        # print('dice', dice)
+        dice = dice.to('cpu').item()
 
-    intersection = torch.sum(pred & target, dtype=torch.float32)
-    dice = (2 * intersection) / tensor_sum
-    # print('dice', dice)
-    dice = dice.to('cpu').item()
 
-
-    return {'cl_score': cl_score.item(),
+    return {'cl_score': cl_score,
             'out_score': out_score.item(),
             'dice': dice }

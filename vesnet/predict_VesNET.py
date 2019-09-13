@@ -7,7 +7,7 @@ from VesNET import debug
 from VesNET import VesNET
 
 DEBUG = None
-# DEBUG = True
+DEBUG = True
 
 pred_dir = '/home/gerlstefan/data/vesnet/annotatedDataset/eval'
 
@@ -16,7 +16,7 @@ sdesc = 'predrsom'
 
 model_dir = '/home/gerlstefan/data/vesnet/out/190912-04-rsom_100ep/mod190912-04.pt'
         
-os.environ["CUDA_VISIBLE_DEVICES"]='7'
+os.environ["CUDA_VISIBLE_DEVICES"]='5'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -38,7 +38,7 @@ net1 = VesNET(device=device,
 
 net1.save_code_status()
 
-net1.predict(use_best=False)
+net1.predict(use_best=False, metrics=True)
 
 
 

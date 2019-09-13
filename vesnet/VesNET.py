@@ -157,6 +157,7 @@ class VesNET():
                                               divs=divs,
                                               offset=offset,
                                               transform=transforms.Compose([
+                                                  PrecalcSkeleton(),
                                                   AddDuplicateDim(),
                                                   DropBlue(),
                                                   ToTensor()]))
@@ -411,7 +412,7 @@ class VesNET():
             f.write(json.dumps(self.history))
             f.close()
                         
-    def predict(self, use_best=True):
+    def predict(self, use_best=True, metrics=True):
         '''
         doc string missing
         '''
@@ -428,6 +429,12 @@ class VesNET():
 
         prediction_stack = []
         index_stack = []
+
+        if metrics:
+            cl_score_stack = []
+            out_score_stack = []
+            dice_stack = []
+
         
         for i in range(self.args.size_pred):
            
@@ -438,6 +445,13 @@ class VesNET():
                     self.args.device,
                     self.args.dtype,
                     non_blocking=self.args.non_blocking)
+            
+            if metrics:
+                label = batch['label'].to(
+                         self.args.device,
+                         self.args.dtype,
+                         non_blocking=self.args.non_blocking)
+            
 
             debug('prediction, data shape:', data.shape)
             prediction = self.model(data)
@@ -446,14 +460,30 @@ class VesNET():
             # convert to probabilities
             sigmoid = torch.nn.Sigmoid()
             prediction = sigmoid(prediction)
+
+            # calculate metrics
+            if metrics:
+                metrics_ = calc_metrics(prediction >= 0.5, 
+                                        label, 
+                                        batch['meta']['label_skeleton'])
+                cl_score = metrics_['cl_score']
+                out_score = metrics_['out_score']
+                dice = metrics_['dice']
+ 
+
             
             # otherwise can't reconstruct.
             if i==0:
                 assert batch['meta']['index'].item() == 0
              
             prediction_stack.append(prediction)
-            
             index_stack.append(batch['meta']['index'].item())
+
+            if metrics:
+                cl_score_stack.append(cl_score)
+                out_score_stack.append(out_score)
+                dice_stack.append(dice)
+
 
             # if we got all patches
             if batch['meta']['index'] == np.prod(self.divs) - 1:
@@ -467,7 +497,21 @@ class VesNET():
                 patches = (torch.stack(prediction_stack)).to('cpu').numpy()
                 prediction_stack = []
                 index_stack = []
-                
+
+                if metrics:
+                    self.printandlog('Metrics of', batch['meta']['filename'][0])
+                    self.printandlog('  cl={:.3f}, os={:.3f}, di={:.3f}'.format(
+                        np.nanmean(cl_score_stack), 
+                        np.nanmean(out_score_stack), 
+                        np.nanmean(dice_stack)))
+                    print(cl_score_stack)
+                    print(out_score_stack)
+                    print(dice_stack)
+                    
+                    out_score_stack = []
+                    cl_score_stack = []
+                    dice_stack = []
+
                 debug('patches shape:', patches.shape)
                 patches = patches.squeeze()
                 debug('patches shape:', patches.shape)
@@ -479,9 +523,9 @@ class VesNET():
                 # TODO: binary cutoff??
                 debug('vessel probability min/max:', np.amin(V),'/', np.amax(V))
                 
-                
-                V[V<0.5] = 0
-                Vbool = V.astype(np.bool)
+                Vbool = V.copy() 
+                Vbool[Vbool<0.5] = 0
+                Vbool = Vbool.astype(np.bool)
 
                 # save to file
                 if not self.DEBUG:
@@ -490,13 +534,14 @@ class VesNET():
                         dest_dir = os.path.join(self.dirs['out'],'prediction')
                     
                         fstr = batch['meta']['filename'][0].replace('.nii.gz','')  + '_pred'
-                        self.saveNII(Vbool, dest_dir, fstr)
+                        self.saveNII(Vbool.astype(np.uint8), dest_dir, fstr)
+                        fstr = fstr.replace('_pred', '_ppred')
+                        self.saveNII(V, dest_dir, fstr)
                     else:
                         print('Couldn\'t save prediction in.')
 
     @staticmethod
     def saveNII(V, path, fstr):
-        V = V.astype(np.uint8)
         img = nib.Nifti1Image(V, np.eye(4))
     
         fstr = fstr + '.nii.gz'
@@ -554,7 +599,7 @@ class VesNET():
             print('OPTIMIZER:', self.optimizer, file=where)
             print('initial lr:', self.initial_lr, file=where)
             print('LOSS: fn', self.lossfn, file=where)
-            # print('      class_weight', self.class_weight, file=where)
+            print('class_weight', self.class_weight, file=where)
             # print('      smoothnes param', self.lossfn_smoothness, file=where)
             print('CNN:  ', self.model, file=where)
             # if self.model gets too long, eg unet
@@ -599,20 +644,20 @@ if __name__ == '__main__':
     DEBUG = None
     # DEBUG = True
 
-    root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style'
+    root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_small'
 
 
-    desc = ('train on one file and see if it overfits')
-    sdesc = 'rsom_1file'
+    desc = ('rsom_style. try smaller class weight')
+    sdesc = 'rsom_50ep_clw_10'
 
 
     model_dir = ''
             
-    os.environ["CUDA_VISIBLE_DEVICES"]='4'
+    os.environ["CUDA_VISIBLE_DEVICES"]='0'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-    train_dir = os.path.join(root_dir, 'train1file')
+    train_dir = os.path.join(root_dir, 'train')
     eval_dir = os.path.join(root_dir, 'eval')
     out_dir = '/home/gerlstefan/data/vesnet/out'
 
@@ -627,11 +672,11 @@ if __name__ == '__main__':
                          sdesc=sdesc,
                          dirs=dirs,
                          divs=(3,3,3),
-                         batch_size=4,
+                         batch_size=5,
                          optimizer='Adam',
-                         class_weight=72,
+                         class_weight=10,
                          initial_lr=1e-4,
-                         epochs=100,
+                         epochs=50,
                          DEBUG=DEBUG
                          )
 
