@@ -12,11 +12,11 @@ DEBUG = None
 pred_dir = '/home/gerlstefan/data/vesnet/annotatedDataset/eval'
 
 desc = ('predict only test')
-sdesc = 'predrsom_clw_10'
+sdesc = 'predrsom_clw_1'
 
-model_dir = '/home/gerlstefan/data/vesnet/out/190913-05-rsom_50ep_clw_10/mod190913-05.pt'
+model_dir = '/home/gerlstefan/data/vesnet/out/190914-01-rsom_50ep_clw_1/mod190914-01.pt'
         
-os.environ["CUDA_VISIBLE_DEVICES"]='0'
+os.environ["CUDA_VISIBLE_DEVICES"]='7'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -34,7 +34,8 @@ net1 = VesNET(device=device,
                      dirs=dirs,
                      divs=(3,3,3),
                      batch_size=1,
-                     DEBUG=DEBUG)
+                     ves_probability=0.95,
+                     _DEBUG=DEBUG)
 
 net1.save_code_status()
 

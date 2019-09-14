@@ -2,13 +2,11 @@
 # Stefan Gerl
 #
 
-
 # TORCH
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 import torch.nn.functional as F
-
 
 import numpy as np
 import os 
@@ -23,6 +21,7 @@ import matplotlib.pyplot as plt
 
 from timeit import default_timer as timer
 from datetime import date
+
 # MY MODULES
 from deep_vessel_3d import DeepVesselNet
 from dataloader import RSOMVesselDataset
@@ -36,8 +35,7 @@ class VesNET():
     '''
     class for setting up, training of vessel segmentation with deep vessel net 3d on RSOM dataset
     Args:
-        device             torch.device()      'cuda' 'cpu'
-
+        device             torch.device()      'cuda' 'cpu', obsolete, as sometimes .cuda() is used
         initial_lr         float               initial learning rate
         epochs             int                 number of epochs 
         to be determined
@@ -55,12 +53,15 @@ class VesNET():
                  class_weight = None,
                  initial_lr = 1e-6,
                  epochs=1,
-                 DEBUG=False
+                 ves_probability=0.5,
+                 _DEBUG=False
                  ):
 
-        if DEBUG:
+        if _DEBUG:
             self.DEBUG = True
             print('DEBUG MODE')
+            global DEBUG
+            DEBUG = True
         else:
             self.DEBUG = False
         
@@ -111,6 +112,9 @@ class VesNET():
 
         self.model = self.model.to(device)
         self.model = self.model.float()
+
+        # VESSEL prediction probability boundary
+        self.ves_probability = ves_probability
        
         # LOSSUNCTION
         self.lossfn = lossfn
@@ -172,16 +176,12 @@ class VesNET():
             if not self.DEBUG:
                 os.mkdir(os.path.join(self.dirs['out'],'prediction'))
  
-
         # OPTIMIZER
-  
         self.initial_lr = initial_lr
         if optimizer == 'Adam':
-            print('Adam with LayerUnet settings just for test')
             self.optimizer = torch.optim.Adam(self.model.parameters(),
                                               lr=self.initial_lr,
                                               weight_decay = 0)
-
         # SCHEDULER
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 self.optimizer, 
@@ -226,10 +226,9 @@ class VesNET():
                 epoch
         '''     
         self.model.train()
-
+        # number of iterations needed
         n_iter = int(np.ceil(self.args.size_train/self.batch_size))
         for i in range(n_iter):
-            
             # get the next batch of training data
             batch = next(iterator)
             
@@ -242,10 +241,7 @@ class VesNET():
                     dtype=self.args.dtype, 
                     non_blocking=self.args.non_blocking)
 
-            # debug('data shape', data.shape)
-            
             prediction = self.model(data)
-            #print('prediction shape', prediction.shape)
 
             loss = self.lossfn(pred=prediction, target=label, weight=self.class_weight)
 
@@ -299,10 +295,11 @@ class VesNET():
             curr_batch_size = data.shape[0]
             
             running_loss += curr_batch_size * loss.data.item()
+            # maybe this helps for memory leak?
             del loss
             
             sigmoid = torch.nn.Sigmoid()
-            bool_prediction = sigmoid(prediction) >= 0.5
+            bool_prediction = sigmoid(prediction) >= self.ves_probability
             metrics = calc_metrics(bool_prediction, label, batch['meta']['label_skeleton'])
             running_metrics['cl_score'] += curr_batch_size * metrics['cl_score']
             running_metrics['out_score'] += curr_batch_size * metrics['out_score']
@@ -317,8 +314,6 @@ class VesNET():
         self.history['eval']['out_score'].append(epoch_out_score)
         self.history['eval']['dice'].append(epoch_dice)
 
-        # running_loss adds up loss for every batch, but batch is mean value
-        # divide by exact n_iter
         epoch_loss = running_loss / self.args.size_eval
         self.history['eval']['epoch'].append(epoch)
         self.history['eval']['loss'].append(epoch_loss)
@@ -352,9 +347,9 @@ class VesNET():
                 toc = timer()
                 print('Training took:', toc - tic)
                 tic = timer()
+
             debug('calling eval method') 
             self.eval(iterator=eval_iterator, epoch=curr_epoch)
-           
 
             if curr_epoch == self.args.n_epochs-1:
                 print('Keeping memory cached to occupy GPU... ;)')
@@ -377,7 +372,6 @@ class VesNET():
             curr_out_score = self.history['eval']['out_score'][-1]
             curr_cl_score = self.history['eval']['cl_score'][-1]
             curr_dice = self.history['eval']['dice'][-1]
-
             
             # use ReduceLROnPlateau scheduler
             self.scheduler.step(curr_loss)
@@ -395,8 +389,6 @@ class VesNET():
                 curr_epoch+1, self.args.n_epochs, curr_lr, train_loss, curr_loss), found_nb)
             self.printandlog('                : cl={:.3f}, os={:.3f}, di={:.3f}'.format(
                 curr_cl_score, curr_out_score, curr_dice))
-#            print('Epoch {:d} of {:d}: lr={:.0e}, Lt={:.2e}, Le={:.2e}'.format(
-#                curr_epoch+1, self.args.n_epochs, curr_lr, train_loss, curr_loss), found_nb, file=self.logfile)
     
         print('Training finished...')
         print('Copying last model...')
@@ -463,7 +455,7 @@ class VesNET():
 
             # calculate metrics
             if metrics:
-                metrics_ = calc_metrics(prediction >= 0.5, 
+                metrics_ = calc_metrics(prediction >= self.ves_probability, 
                                         label, 
                                         batch['meta']['label_skeleton'])
                 cl_score = metrics_['cl_score']
@@ -522,9 +514,8 @@ class VesNET():
 
                 # TODO: binary cutoff??
                 debug('vessel probability min/max:', np.amin(V),'/', np.amax(V))
-                Vbool = V.copy() 
-                Vbool[Vbool<0.5] = 0
-                Vbool = Vbool.astype(np.bool)
+  
+                Vbool = V >= self.ves_probability
 
                 # save to file
                 if not self.DEBUG:
@@ -606,8 +597,6 @@ class VesNET():
             if self.dirs['pred']:
                 print('PRED:  pred dataset:', self.dirs['pred'], file=where)
                 print('             length:', self.args.size_pred, file=where)
-            #print('      depth', self.model_depth, file=where)
-            #print('      dropout?', self.model_dropout, file=where)
             if self.dirs['model']:
                 print('LOADING MODEL  :', self.dirs['model'], file=where)
             print('OUT:               :', self.dirs['out'], file=where)
@@ -643,16 +632,16 @@ if __name__ == '__main__':
     DEBUG = None
     # DEBUG = True
 
-    root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_small'
+    root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy_small'
 
 
     desc = ('rsom_style. try smaller class weight')
-    sdesc = 'rsom_50ep_clw_10'
+    sdesc = 'nrsom_50ep_clw_1'
 
 
     model_dir = ''
             
-    os.environ["CUDA_VISIBLE_DEVICES"]='0'
+    os.environ["CUDA_VISIBLE_DEVICES"]='4'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -673,10 +662,10 @@ if __name__ == '__main__':
                          divs=(3,3,3),
                          batch_size=5,
                          optimizer='Adam',
-                         class_weight=10,
+                         class_weight=1,
                          initial_lr=1e-4,
                          epochs=50,
-                         DEBUG=DEBUG
+                         _DEBUG=DEBUG
                          )
 
     # CURRENT STATE
