@@ -26,7 +26,7 @@ from datetime import date
 from deep_vessel_3d import DeepVesselNet
 from dataloader import RSOMVesselDataset
 from dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
-from dataloader import PrecalcSkeleton
+from dataloader import PrecalcSkeleton, DataAugmentation
 from lossfunctions import BCEWithLogitsLoss, calc_metrics
 from patch_handling import get_volume
 
@@ -131,8 +131,8 @@ class VesNET():
                                                    divs=divs, 
                                                    offset=offset,
                                                    transform=transforms.Compose([
-                                                       AddDuplicateDim(),
                                                        DropBlue(),
+                                                       DataAugmentation(mode='rsom'),
                                                        PrecalcSkeleton(),
                                                        ToTensor()]))
 
@@ -141,14 +141,14 @@ class VesNET():
                                                shuffle=True, 
                                                num_workers=4, 
                                                pin_memory=True)
+
         if self.dirs['eval']:
             self.eval_dataset = RSOMVesselDataset(self.dirs['eval'],
                                                divs=divs,
                                                offset=offset,
                                                transform=transforms.Compose([
-                                                   PrecalcSkeleton(),
-                                                   AddDuplicateDim(),
                                                    DropBlue(),
+                                                   PrecalcSkeleton(),
                                                    ToTensor()]))
 
             self.eval_dataloader = DataLoader(self.eval_dataset,
@@ -156,14 +156,14 @@ class VesNET():
                                               shuffle=False, 
                                               num_workers=4,
                                               pin_memory=True)
+
         if self.dirs['pred']:
             self.pred_dataset = RSOMVesselDataset(self.dirs['pred'],
                                               divs=divs,
                                               offset=offset,
                                               transform=transforms.Compose([
-                                                  PrecalcSkeleton(),
-                                                  AddDuplicateDim(),
                                                   DropBlue(),
+                                                  PrecalcSkeleton(),
                                                   ToTensor()]))
 
 
@@ -240,11 +240,13 @@ class VesNET():
                     self.args.device, 
                     dtype=self.args.dtype, 
                     non_blocking=self.args.non_blocking)
-
+            # debug('data shape:', data.shape)
+            # debug('label shape:', label.shape)
             prediction = self.model(data)
+            # debug('prediction shape:', prediction.shape)
 
             loss = self.lossfn(pred=prediction, target=label, weight=self.class_weight)
-
+            
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
@@ -397,7 +399,7 @@ class VesNET():
             self.last_model[k] = v.to('cpu')
        
         if not self.DEBUG:
-            if not self.args.dirs['pred']:
+            if not self.dirs['pred']:
                 print('Closing logfile..')
                 self.logfile.close()
             print('Saving loss history to .json file..')
@@ -618,7 +620,7 @@ class VesNET():
             except:
                 self.printandlog('Saving git diff FAILED!')
 
-    def save_model(self,model='best'):
+    def save_model(self, model='best'):
         if not self.DEBUG:
             if model=='best':
                 save_this = self.best_model
@@ -639,27 +641,28 @@ if __name__ == '__main__':
     DEBUG = None
     # DEBUG = True
 
-    root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy_small'
+    root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy'
 
 
-    desc = ('rsom_style. try smaller class weight')
-    sdesc = 'nrsom_50ep_clw_1'
+    desc = ('Rsom noisy dataset. 27 samples, 50 epochs')
+    sdesc = 'nrsomfull_50ep'
 
 
     model_dir = ''
             
-    os.environ["CUDA_VISIBLE_DEVICES"]='4'
+    os.environ["CUDA_VISIBLE_DEVICES"]='7'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
     train_dir = os.path.join(root_dir, 'train')
     eval_dir = os.path.join(root_dir, 'eval')
     out_dir = '/home/gerlstefan/data/vesnet/out'
+    pred_dir = '/home/gerlstefan/data/vesnet/annotatedDataset/eval'
 
     dirs={'train': train_dir,
           'eval': eval_dir, 
           'model': model_dir, 
-          'pred': eval_dir,
+          'pred': pred_dir,
           'out': out_dir}
 
     net1 = VesNET(device=device,
@@ -672,6 +675,7 @@ if __name__ == '__main__':
                          class_weight=1,
                          initial_lr=1e-4,
                          epochs=50,
+                         ves_probability=0.95,
                          _DEBUG=DEBUG
                          )
 

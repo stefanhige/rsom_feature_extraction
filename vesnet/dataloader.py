@@ -345,7 +345,7 @@ class DataAugmentation():
             # print('')
             # print(r)
             if r<0:
-                m = (abs(r)**3)*3 + 1
+                m = (abs(r)**2)*3 + 1
             elif r>=0:
                 m = 1-0.9*r**3
 
@@ -361,9 +361,12 @@ class DataAugmentation():
             
             ax.append(3) # Channels dimension
             ax = tuple(ax)
+            # print(ax)
 
             data = np.transpose(data, ax)
             label = np.transpose(label, ax)
+            data = np.ascontiguousarray(data)
+            label = np.ascontiguousarray(label)
 
         return {'data': data,
                 'label': label,

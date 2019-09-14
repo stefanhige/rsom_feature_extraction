@@ -12,11 +12,11 @@ DEBUG = None
 pred_dir = '/home/gerlstefan/data/vesnet/annotatedDataset/eval'
 
 desc = ('predict only test')
-sdesc = 'predrsom_clw_1'
+sdesc = 'pred_1ch_clw_1'
 
-model_dir = '/home/gerlstefan/data/vesnet/out/190914-01-rsom_50ep_clw_1/mod190914-01.pt'
+model_dir = '/home/gerlstefan/data/vesnet/out/190914-06-1ch_50ep/...'
         
-os.environ["CUDA_VISIBLE_DEVICES"]='7'
+os.environ["CUDA_VISIBLE_DEVICES"]='4'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
