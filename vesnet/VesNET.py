@@ -522,7 +522,6 @@ class VesNET():
 
                 # TODO: binary cutoff??
                 debug('vessel probability min/max:', np.amin(V),'/', np.amax(V))
-                
                 Vbool = V.copy() 
                 Vbool[Vbool<0.5] = 0
                 Vbool = Vbool.astype(np.bool)

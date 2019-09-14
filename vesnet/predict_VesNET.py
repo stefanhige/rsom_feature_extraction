@@ -7,16 +7,16 @@ from VesNET import debug
 from VesNET import VesNET
 
 DEBUG = None
-DEBUG = True
+# DEBUG = True
 
 pred_dir = '/home/gerlstefan/data/vesnet/annotatedDataset/eval'
 
 desc = ('predict only test')
-sdesc = 'predrsom'
+sdesc = 'predrsom_clw_10'
 
-model_dir = '/home/gerlstefan/data/vesnet/out/190912-04-rsom_100ep/mod190912-04.pt'
+model_dir = '/home/gerlstefan/data/vesnet/out/190913-05-rsom_50ep_clw_10/mod190913-05.pt'
         
-os.environ["CUDA_VISIBLE_DEVICES"]='5'
+os.environ["CUDA_VISIBLE_DEVICES"]='0'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
