@@ -397,8 +397,9 @@ class VesNET():
             self.last_model[k] = v.to('cpu')
        
         if not self.DEBUG:
-            print('Closing logfile..')
-            self.logfile.close()
+            if not self.args.dirs['pred']:
+                print('Closing logfile..')
+                self.logfile.close()
             print('Saving loss history to .json file..')
             f = open(os.path.join(self.dirs['out'],'loss' + self.today_id + '.json'),'w')
             f.write(json.dumps(self.history))
@@ -529,6 +530,12 @@ class VesNET():
                         self.saveNII(V, dest_dir, fstr)
                     else:
                         print('Couldn\'t save prediction in.')
+        if not self.DEBUG:
+            try:
+                print('Closing logfile..')
+                self.logfile.close()
+            except:
+                pass
 
     @staticmethod
     def saveNII(V, path, fstr):
