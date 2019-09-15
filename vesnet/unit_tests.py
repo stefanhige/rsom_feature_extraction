@@ -22,7 +22,7 @@ from dataloader import DataAugmentation
 
 from dataloader import RSOMVesselDataset
 from dataloader import DropBlue, ToTensor, to_numpy
-from patch_handling import get_volume
+from patch_handling import get_patches, get_volume
 
 
 os.environ["CUDA_VISIBLE_DEVICES"]='7'
@@ -54,10 +54,7 @@ def saveNII(V, path):
         img = nib.Nifti1Image(V, np.eye(4))
         nib.save(img, str(path))
 
-
-
 # lossfunctions.calc_metrics
-
 class TestCalcMetrics(unittest.TestCase):
 
     def test_dice_batch_size_1(self):
@@ -229,8 +226,7 @@ class TestCalcMetrics(unittest.TestCase):
         metrics = calc_metrics(pred, target, skel)
         self.assertEqual(0.5, metrics['out_score'])
 
-# dataloader.DataAugmentation
-
+# dataloader
 class TestDataloaderDataAugmentation(unittest.TestCase):
     def test_rescale_and_dims(self):
         data = np.random.randint(0, 255, size=(10, 9, 8, 1))
@@ -251,7 +247,7 @@ class TestDataloaderDataAugmentation(unittest.TestCase):
         self.assertTrue(out['data'].shape[-1] == 1)
         self.assertTrue(out['label'].shape[-1] == 1)
 
-    def test_not_rom(self):
+    def test_not_rsom(self):
         data = np.random.randint(0, 255, size=(10, 9, 8, 1))
         label = np.random.randint(0, 255, size=(10, 9, 8, 1))
         meta = {'filename': '25.nii.gz'}
@@ -261,8 +257,6 @@ class TestDataloaderDataAugmentation(unittest.TestCase):
         out = tf(sample)
         self.assertTrue(np.all(data == out['data']))
         self.assertTrue(np.all(label == out['label']))
-
-
 
 class TestDataloaderPatches(unittest.TestCase):
 
@@ -414,11 +408,125 @@ class TestDataloaderPatches(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.testdir)
 
- 
+# patch_handling
+class TestPatchHandling(unittest.TestCase):
+    def _testit(self, A, divs, offset):
+        A_p = get_patches(A, divs, offset)
+        A_ = get_volume(A_p, divs, offset)
+
+        if A_.shape == A.shape:
+            if np.all(A_ == A):
+                return True
+            else:
+                return False
+        else:
+            return False
+
+
+    def test_trivial(self):
+        V = np.random.random_sample((100, 100, 100))
+        self.assertTrue(self._testit(V,(1,1,1),(0,0,0)))
+
+        V = np.random.random_sample((1, 1, 1))
+        self.assertTrue(self._testit(V,(1,1,1),(0,0,0)))
+
+        V = np.random.random_sample((1, 3))
+        self.assertTrue(self._testit(V,(1),(0)))
+
+        V = np.random.random_sample((1))
+        self.assertTrue(self._testit(V,(1),(0)))
+
+        V = np.random.random_sample((1))
+        self.assertTrue(self._testit(V,(1),(5)))
+
+    def test_1d(self):
+        # TEST 1D
+        V = np.random.random_sample((100))
+        self.assertTrue(self._testit(V, 2, 6))
+        self.assertTrue(self._testit(V, 100, 0))
+        self.assertTrue(self._testit(V, 50, 10))
+        self.assertTrue(self._testit(V, 2, 9))
+
+    def test_2d(self):
+
+        # TEST 2D
+        V = np.random.random_sample((100, 100))
+        self.assertTrue(self._testit(V,(2,2),(3,3)))
+        self.assertTrue(self._testit(V,(2,4),(9,0)))
+
+        V = np.random.random_sample((40, 60))
+        self.assertTrue(self._testit(V,(2,2),(3,3)))
+        self.assertTrue(self._testit(V,(2,4),(9,0)))
+
+        # TEST 2D RGB
+        V = np.random.random_sample((100, 100, 3))
+        self.assertTrue(self._testit(V,(2,2),(3,3)))
+        self.assertTrue(self._testit(V,(2,4),(9,0)))
+
+    def test_3d(self):
+        # TEST 3D
+        V = np.random.random_sample((100, 100, 100))
+        self.assertTrue(self._testit(V,(2,2,2),(3,3,3)))
+        self.assertTrue(self._testit(V,(2,4,10),(9,0,7)))
+
+        V = np.random.random_sample((40, 60, 30))
+        self.assertTrue(self._testit(V,(2,2,2),(3,3,3)))
+        self.assertTrue(self._testit(V,(2,4,5),(9,0,1)))
+        self.assertTrue(self._testit(V,(2,2,1),(3,3,3)))
+
+        # TEST 3D with fake singleton dimension
+        V = np.random.random_sample((100, 100, 100, 1))
+        self.assertTrue(self._testit(V,(2,2,2),(3,3,3)))
+        self.assertTrue(self._testit(V,(2,4,5),(9,0,7)))
+
+        V = np.random.random_sample((40, 60, 30, 1))
+        self.assertTrue(self._testit(V,(2,2,2),(3,3,3)))
+        self.assertTrue(self._testit(V,(2,4,5),(9,0,1)))
+        self.assertTrue(self._testit(V,(2,2,1),(3,3,3)))
+
+        # TEST 3D RGB
+        V = np.random.random_sample((100, 100, 100, 3))
+        self.assertTrue(self._testit(V,(2,2,2),(3,3,3)))
+        self.assertTrue(self._testit(V,(2,4,2),(9,0,7)))
+
+        V = np.random.random_sample((40, 60, 30, 3))
+        self.assertTrue(self._testit(V,(2,2,2),(3,3,3)))
+        self.assertTrue(self._testit(V,(2,4,5),(9,0,1)))
+        self.assertTrue(self._testit(V,(2,2,1),(3,3,3)))
+
+    def test_4d(self):
+        # TEST 4D
+        V = np.random.random_sample((100, 100, 100, 100))
+        self.assertTrue(self._testit(V,(2,2,2,2),(3,3,3,3)))
+        self.assertTrue(self._testit(V,(2,4,5,2),(9,3,7,3)))
+
+        V = np.random.random_sample((40, 60, 30, 100))
+        self.assertTrue(self._testit(V,(2,2,2,2),(3,3,3,3)))
+        self.assertTrue(self._testit(V,(2,4,5,2),(9,0,1,5)))
+
+    def test_random(self):
+        # totally random
+        for _ in np.arange(10):
+            Ndim = np.random.randint(2,7)
+            MultiChannel = np.random.randint(2)
+            divs = np.random.randint(1,4,size=Ndim-MultiChannel)
+            multipliers =  np.random.randint(1,4,size=Ndim-MultiChannel)
+            offset = tuple(np.random.randint(1,10,size=Ndim-MultiChannel))
+            dimensions = divs*multipliers
+            # print('Ndim',Ndim, 'MultiChannel?', bool(MultiChannel))
+            # print('divs:', divs, 'offset:', offset, 'dimensions:', dimensions)
+            V = np.random.random_sample(tuple(dimensions))
+            self.assertTrue(self._testit(V, divs, offset))
+
+
+
+
+
 suiteList = []
 suiteList.append(unittest.TestLoader().loadTestsFromTestCase(TestCalcMetrics))
 suiteList.append(unittest.TestLoader().loadTestsFromTestCase(TestDataloaderDataAugmentation))
 suiteList.append(unittest.TestLoader().loadTestsFromTestCase(TestDataloaderPatches))
+suiteList.append(unittest.TestLoader().loadTestsFromTestCase(TestPatchHandling))
 
 suite = unittest.TestSuite(suiteList)
 unittest.TextTestRunner(verbosity=2).run(suite)
