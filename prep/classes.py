@@ -44,7 +44,11 @@ class RSOM():
         """
         create empty instance of RSOM
         """
-        
+        # if the filepaths are strings, generate PosixPath objects
+        filepathLF = Path(filepathLF)
+        filepathHF = Path(filepathHF)
+        filepathSURF = Path(filepathSURF)
+
         # extact datetime number
         print(filepathLF.name)
         idx_1 = filepathLF.name.find('_')
@@ -267,7 +271,6 @@ class RSOM():
             # scale to unity
             self.Vl_1 = self.Vl_1 / 2
             self.Vh_1 = self.Vh_1 / 2
-            
         
     def rescaleINTENSITY(self, dynamic_rescale = False):
         '''
@@ -326,36 +329,14 @@ class RSOM():
         #print('min:', np.amin(self.Vl_1))
         #print('max:', np.amax(self.Vl_1))
         
-            
-#
-#     @staticmethod
-#     def projINTENSITY(V, percentile_rsc):
-#         '''
-#         rescale intensity of input Volume
-#         options:
-#             percentile_rsc = (0, 99): where to crop the intensity values,
-#             depending on their distribution / frequency:
-#                 map intensity values of CDF(0%, 99%) -> (min max)
-# 
-#         '''
-#         if percentile_rsc[0] < 0:
-#             percentile_rsc[0] = 0
-#         
-#         if percentile_rsc[1] > 100:
-#             percentile_rsc[1] = 100
-#         
-#         pl, ph = np.percentile(V, percentile_rsc)
-#         
-#         return exposure.rescale_intensity(V, in_range=(pl, ph))
-#
-        
-
-    def calcMIP(self, axis = 1, do_plot = True):
+    def calcMIP(self, axis = 1, do_plot = True, cut_z=0):
         '''
         plot maximum intensity projection along specified axis
         options:
             axis = 0,1,2. Axis along which to project
             do_plot = True. Plot into figure
+            cut     = cut from volume in z direction
+                      needed for on top view without epidermis
             
         '''
         
@@ -366,8 +347,8 @@ class RSOM():
             axis = 0
             
         # maximum intensity projection
-        self.Pl = np.amax(self.Vl, axis = axis)
-        self.Ph = np.amax(self.Vh, axis = axis)
+        self.Pl = np.amax(self.Vl[cut_z:,...], axis = axis)
+        self.Ph = np.amax(self.Vh[cut_z:,...], axis = axis)
         
         # calculate alpha
         res = minimize_scalar(self.calc_alpha, bounds=(0, 100), method='bounded')
@@ -461,7 +442,6 @@ class RSOM():
         self.Vh_1 = Ph
         # print('shape after', self.Vl_1.shape, self.Vh_1.shape)
         
-            
     def slidingMIP_old(self, axis=1):
         '''
         generate volume of mip's in a sliding fashion
@@ -523,8 +503,6 @@ class RSOM():
         
         return P
         
-        
-        
     def calc_alpha(self, alpha):
         '''
         MIP helper function
@@ -585,7 +563,6 @@ class RSOM():
             plt.title(str(self.file.ID))
             plt.show()
         
-        
     def mergeVOLUME_RGB(self):
         '''
         merge low frequency and high frequency data feeding into different
@@ -615,7 +592,6 @@ class RSOM():
             
             print('New shape:', self.Vl.shape)
 
-    
     def saveMIP(self, destination, fstr = ''):
         '''
         save MIP as 2d image
@@ -670,8 +646,6 @@ class RSOM():
     
         
         #imageio.imwrite(img_file, self.Sip)
-
-        
         
     def saveMIP3D(self, destination, fstr = ''):
         ''' save rgb maximum intensity projection volume'''
@@ -744,7 +718,12 @@ class RSOM():
             self.SURF = filepathSURF
             self.ID = ID
             self.DATETIME = DATETIME
-            
+    
+    @staticmethod
+    def loadNII(path):
+        img = nib.load(path)
+        return img.get_fdata()
+ 
 
 class RSOM_vessel(RSOM):
     '''
