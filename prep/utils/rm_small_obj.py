@@ -13,7 +13,7 @@ from skimage import morphology
 # remove small objects on one dataset which I segmented before adding
 # it to thresholding method
 
-file = '/home/stefan/PYTHON/HQDatasetVesselAnnot/HQ0002_more_signal/R_20190329182252_HQ0002_th_edit.nii.gz'
+file = '/home/stefan/PYTHON/HQDatasetVesselAnnot/vessels/R_20180117142908_VOL013_RL01_th_rso_edit_merge.nii.gz'
 
 
 file_handle = nib.load(file)

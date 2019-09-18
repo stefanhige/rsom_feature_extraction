@@ -9,7 +9,7 @@ import nibabel as nib
 import numpy as np
 
 
-file = '/home/stefan/PYTHON/HQDatasetVesselAnnot/vessels/R_20190605163439_HQ0003_th_edit.nii.gz'
+file = '/home/stefan/PYTHON/HQDatasetVesselAnnot/vessels/R_20180117142908_VOL013_RL01_th_rso_edit.nii.gz'
 
 
 file_handle = nib.load(file)
