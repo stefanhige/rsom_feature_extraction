@@ -88,6 +88,4 @@ def calc_metrics(pred, target, skel):
         dice = dice.to('cpu').item()
 
 
-    return {'cl_score': cl_score,
-            'out_score': out_score.item(),
-            'dice': dice }
+    return cl_score, out_score.item(), dice

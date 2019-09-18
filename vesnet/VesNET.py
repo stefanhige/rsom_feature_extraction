@@ -269,9 +269,13 @@ class VesNET():
        
         self.model.eval()
         running_loss = 0.0
-        running_metrics = {'cl_score': 0.0,
-                           'out_score': 0.0,
-                           'dice': 0.0}
+        # running_metrics = {'cl_score': 0.0,
+        #                    'out_score': 0.0,
+        #                    'dice': 0.0}
+
+        cl_score_stack = []
+        out_score_stack = []
+        dice_stack = []
 
         n_iter = int(np.ceil(self.args.size_eval/self.batch_size))
         
@@ -302,16 +306,31 @@ class VesNET():
             
             sigmoid = torch.nn.Sigmoid()
             bool_prediction = sigmoid(prediction) >= self.ves_probability
-            metrics = calc_metrics(bool_prediction, label, batch['meta']['label_skeleton'])
-            running_metrics['cl_score'] += curr_batch_size * metrics['cl_score']
-            running_metrics['out_score'] += curr_batch_size * metrics['out_score']
-            running_metrics['dice'] += curr_batch_size * metrics['dice']
+            # metrics = calc_metrics(bool_prediction, label, batch['meta']['label_skeleton'])
+
+            cl_score, out_score, dice = calc_metrics(bool_prediction, 
+                                                     label, 
+                                                     batch['meta']['label_skeleton'])
+
+            
+            cl_score_stack.append(curr_batch_size * cl_score)
+            out_score_stack.append(curr_batch_size * out_score) 
+            dice_stack.append(curr_batch_size * dice)
+                            
+            # running_metrics['cl_score'] += curr_batch_size * metrics['cl_score']
+            # running_metrics['out_score'] += curr_batch_size * metrics['out_score']
+            # running_metrics['dice'] += curr_batch_size * metrics['dice']
             
             debug('Ep:', epoch, 'fracEp:', (i+1)/n_iter, 'batch', curr_batch_size)
+        debug('cl_score_stack:', cl_score_stack)
+        epoch_cl_score = np.nansum(cl_score_stack) / self.args.size_eval
+        epoch_out_score = np.nansum(out_score_stack) / self.args.size_eval
+        epoch_dice = np.nansum(dice_stack) / self.args.size_eval
+        
+        # epoch_cl_score = running_metrics['cl_score'] / self.args.size_eval
+        # epoch_out_score = running_metrics['out_score'] / self.args.size_eval
+        # epoch_dice = running_metrics['dice'] / self.args.size_eval
 
-        epoch_cl_score = running_metrics['cl_score'] / self.args.size_eval
-        epoch_out_score = running_metrics['out_score'] / self.args.size_eval
-        epoch_dice = running_metrics['dice'] / self.args.size_eval
         self.history['eval']['cl_score'].append(epoch_cl_score)
         self.history['eval']['out_score'].append(epoch_out_score)
         self.history['eval']['dice'].append(epoch_dice)
@@ -458,12 +477,12 @@ class VesNET():
 
             # calculate metrics
             if metrics:
-                metrics_ = calc_metrics(prediction >= self.ves_probability, 
-                                        label, 
-                                        batch['meta']['label_skeleton'])
-                cl_score = metrics_['cl_score']
-                out_score = metrics_['out_score']
-                dice = metrics_['dice']
+                cl_score, out_score, dice = calc_metrics(prediction >= self.ves_probability, 
+                                                         label, 
+                                                         batch['meta']['label_skeleton'])
+                # cl_score = metrics_['cl_score']
+                # out_score = metrics_['out_score']
+                # dice = metrics_['dice']
  
 
             

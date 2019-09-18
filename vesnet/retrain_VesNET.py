@@ -13,8 +13,9 @@ root_dir = '/home/gerlstefan/data/vesnet/annotatedDataset'
 # root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy_small'
 
 
-desc = ('retrain model trained 50 epochs on noisy rsom data on one eval dataset')
-sdesc = 'rt_test'
+desc = ('retrain model trained 50 epochs on noisy rsom data on 2 train datasets and 1 eval, '
+        'use newest model trained on full nrsom dataset ')
+sdesc = 'rt_test2_clw10'
 
 
         
@@ -26,7 +27,7 @@ train_dir = os.path.join(root_dir, 'train')
 eval_dir = os.path.join(root_dir, 'eval')
 out_dir = '/home/gerlstefan/data/vesnet/out'
 
-model_dir = '/home/gerlstefan/data/vesnet/out/190914-03-nrsom_50ep_clw_1/mod190914-03.pt'
+model_dir = '/home/gerlstefan/data/vesnet/out/190914-10-nrsomfull_50ep/mod190914-10.pt'
 # model_dir = ''
 pred_dir = '/home/gerlstefan/data/vesnet/annotatedDataset/eval'
 
@@ -40,12 +41,12 @@ net1 = VesNET(device=device,
                      desc=desc,
                      sdesc=sdesc,
                      dirs=dirs,
-                     divs=(1,1,2),
+                     divs=(2,1,2),
                      batch_size=1,
                      optimizer='Adam',
-                     class_weight=1,
+                     class_weight=10,
                      initial_lr=1e-4,
-                     epochs=20,
+                     epochs=25,
                      ves_probability=0.95,
                      _DEBUG=DEBUG
                      )
