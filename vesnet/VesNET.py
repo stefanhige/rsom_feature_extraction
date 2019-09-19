@@ -27,7 +27,7 @@ from deep_vessel_3d import DeepVesselNet
 from dataloader import RSOMVesselDataset
 from dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
 from dataloader import PrecalcSkeleton, DataAugmentation
-from lossfunctions import BCEWithLogitsLoss, calc_metrics
+from lossfunctions import BCEWithLogitsLoss, calc_metrics, find_cutoff
 from patch_handling import get_volume
 
 
@@ -426,7 +426,7 @@ class VesNET():
             f.write(json.dumps(self.history))
             f.close()
                         
-    def predict(self, use_best=True, metrics=True):
+    def predict(self, use_best=True, metrics=True, adj_cutoff=True):
         '''
         doc string missing
         '''
@@ -448,6 +448,9 @@ class VesNET():
             cl_score_stack = []
             out_score_stack = []
             dice_stack = []
+
+        if adj_cutoff:
+            label_stack = []
 
         
         for i in range(self.args.size_pred):
@@ -480,11 +483,6 @@ class VesNET():
                 cl_score, out_score, dice = calc_metrics(prediction >= self.ves_probability, 
                                                          label, 
                                                          batch['meta']['label_skeleton'])
-                # cl_score = metrics_['cl_score']
-                # out_score = metrics_['out_score']
-                # dice = metrics_['dice']
- 
-
             
             # otherwise can't reconstruct.
             if i==0:
@@ -492,7 +490,11 @@ class VesNET():
              
             prediction_stack.append(prediction)
             index_stack.append(batch['meta']['index'].item())
-
+            if metrics:
+                del label
+            if adj_cutoff:
+                label_stack.append(batch['label'].to(self.args.dtype))
+            
             if metrics:
                 cl_score_stack.append(cl_score)
                 out_score_stack.append(out_score)
@@ -536,8 +538,19 @@ class VesNET():
 
                 # TODO: binary cutoff??
                 debug('vessel probability min/max:', np.amin(V),'/', np.amax(V))
-  
-                Vbool = V >= self.ves_probability
+
+                if adj_cutoff:
+                    label_patches = (torch.stack(label_stack)).numpy().squeeze()
+                    label_stack = []
+                    L = get_volume(label_patches, self.divs, (0, 0, 0))
+                    L = to_numpy(L, batch['meta'], Vtype='label', dimorder='torch')
+                    id_cutoff, id_dice = find_cutoff(pred=V, label=L)
+                    self.printandlog('Finding ideal p of ', batch['meta']['filename'][0])
+                    self.printandlog('Result. at p={:.5f} : dice={:.5f}'.format(
+                        id_cutoff, id_dice))
+                    Vbool = V >= id_cutoff
+                else:
+                    Vbool = V >= self.ves_probability
 
                 # save to file
                 if not self.DEBUG:
@@ -658,9 +671,9 @@ def debug(*msg):
 if __name__ == '__main__': 
 
     DEBUG = None
-    # DEBUG = True
+    DEBUG = True
 
-    root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy'
+    root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_small'
 
 
     desc = ('Rsom noisy dataset. 27 samples, 50 epochs')
@@ -669,7 +682,7 @@ if __name__ == '__main__':
 
     model_dir = ''
             
-    os.environ["CUDA_VISIBLE_DEVICES"]='7'
+    os.environ["CUDA_VISIBLE_DEVICES"]='0'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -689,11 +702,11 @@ if __name__ == '__main__':
                          sdesc=sdesc,
                          dirs=dirs,
                          divs=(3,3,3),
-                         batch_size=5,
+                         batch_size=2,
                          optimizer='Adam',
                          class_weight=1,
                          initial_lr=1e-4,
-                         epochs=50,
+                         epochs=1,
                          ves_probability=0.95,
                          _DEBUG=DEBUG
                          )

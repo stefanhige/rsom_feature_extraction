@@ -3,19 +3,20 @@ import torch
 
 
 from VesNET import VesNET
+from lossfunctions import dice_loss
 
 
 
 DEBUG = None
 # DEBUG = True
 
-root_dir = '/home/gerlstefan/data/vesnet/annotatedDataset'
+root_dir = '/home/gerlstefan/data/vesnet/synth+annotDataset'
 # root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy_small'
 
 
-desc = ('retrain model trained 50 epochs on noisy rsom data on 2 train datasets and 1 eval, '
-        'use newest model trained on full nrsom dataset ')
-sdesc = 'rt_test2_clw10'
+desc = ('3 synth + 2 rsom , '
+        'try combinded retrain')
+sdesc = 'rt_test_comb'
 
 
         
@@ -41,12 +42,13 @@ net1 = VesNET(device=device,
                      desc=desc,
                      sdesc=sdesc,
                      dirs=dirs,
-                     divs=(2,1,2),
+                     divs=(2,2,2),
                      batch_size=1,
                      optimizer='Adam',
                      class_weight=10,
                      initial_lr=1e-4,
-                     epochs=25,
+                     lossfn=dice_loss,
+                     epochs=20,
                      ves_probability=0.95,
                      _DEBUG=DEBUG
                      )

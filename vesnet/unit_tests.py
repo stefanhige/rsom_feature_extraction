@@ -42,7 +42,7 @@ def _dice(x, y):
 
     i = np.logical_and(x,y)
 
-    if x.sum() + y.sum() == 1:
+    if x.sum() + y.sum() == 0:
         return 1.
 
     return (2. * i.sum()) / (x.sum() + y.sum())
