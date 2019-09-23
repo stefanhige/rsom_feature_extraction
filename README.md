@@ -5,6 +5,12 @@
 
 ## VESNET
 
+* choose automatic probability depending on maximum of dice overlay
+**in progress** need verification sweep that minimize_scalar does actually find the minimum
+ plot a plot prob against dice, to see if there's one or multiple minima
+
+
+
 * major: implement possibility to pass sparsly annotated data.
   - either in different file, or mark unannotated area with label "2"
   - in dataloader, detect, if a file has label "2" inside, if yes, split
@@ -13,7 +19,6 @@
     mask = label != 2    (2 -> 0   , other -> 1) multiply with prediction/unreduced loss/unreduced loss
 
 
-* choose automatic probability depending on maximum of dice overlay
 
 * clean up calc_metrics and move to utils?
 

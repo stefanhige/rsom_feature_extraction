@@ -9,10 +9,10 @@ from torchvision import transforms, utils
 import torch.nn.functional as F
 
 import numpy as np
-import os 
-import sys 
-import copy 
-import json 
+import os
+import sys
+import copy
+import json
 import warnings
 import nibabel as nib
 
@@ -28,6 +28,7 @@ from dataloader import RSOMVesselDataset
 from dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
 from dataloader import PrecalcSkeleton, DataAugmentation
 from lossfunctions import BCEWithLogitsLoss, calc_metrics, find_cutoff
+from lossfunctions import dice_loss
 from patch_handling import get_volume
 
 
@@ -37,7 +38,7 @@ class VesNET():
     Args:
         device             torch.device()      'cuda' 'cpu', obsolete, as sometimes .cuda() is used
         initial_lr         float               initial learning rate
-        epochs             int                 number of epochs 
+        epochs             int                 number of epochs
         to be determined
     '''
     def __init__(self,
@@ -224,7 +225,7 @@ class VesNET():
         train one epoch
         Args:   iterator
                 epoch
-        '''     
+        '''
         self.model.train()
         # number of iterations needed
         n_iter = int(np.ceil(self.args.size_train/self.batch_size))
@@ -246,7 +247,7 @@ class VesNET():
             # debug('prediction shape:', prediction.shape)
 
             loss = self.lossfn(pred=prediction, target=label, weight=self.class_weight)
-            
+            debug('dice loss:', loss.item())
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
@@ -259,6 +260,7 @@ class VesNET():
             self.history['train']['epoch'].append(frac_epoch)
             self.history['train']['loss'].append(loss.data.item())
             self.history['train']['unred_loss'].append(curr_batch_size * loss.data.item())
+            del loss
             
     def eval(self, iterator, epoch):
         '''
@@ -304,8 +306,7 @@ class VesNET():
             # maybe this helps for memory leak?
             del loss
             
-            sigmoid = torch.nn.Sigmoid()
-            bool_prediction = sigmoid(prediction) >= self.ves_probability
+            bool_prediction = torch.sigmoid(prediction) >= self.ves_probability
             # metrics = calc_metrics(bool_prediction, label, batch['meta']['label_skeleton'])
 
             cl_score, out_score, dice = calc_metrics(bool_prediction, 
@@ -671,13 +672,13 @@ def debug(*msg):
 if __name__ == '__main__': 
 
     DEBUG = None
-    DEBUG = True
+    # DEBUG = True
 
-    root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_small'
+    root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy'
 
 
-    desc = ('Rsom noisy dataset. 27 samples, 50 epochs')
-    sdesc = 'nrsomfull_50ep'
+    desc = ('Rsom noisy dataset. 27 samples, 50 epochs, train with dice')
+    sdesc = 'nrsomfull_50ep_dice'
 
 
     model_dir = ''
@@ -698,18 +699,19 @@ if __name__ == '__main__':
           'out': out_dir}
 
     net1 = VesNET(device=device,
-                         desc=desc,
-                         sdesc=sdesc,
-                         dirs=dirs,
-                         divs=(3,3,3),
-                         batch_size=2,
-                         optimizer='Adam',
-                         class_weight=1,
-                         initial_lr=1e-4,
-                         epochs=1,
-                         ves_probability=0.95,
-                         _DEBUG=DEBUG
-                         )
+                  desc=desc,
+                  sdesc=sdesc,
+                  dirs=dirs,
+                  divs=(3,3,3),
+                  batch_size=4,
+                  optimizer='Adam',
+                  class_weight=None,
+                  initial_lr=1e-4,
+                  lossfn=dice_loss,
+                  epochs=50,
+                  ves_probability=0.95,
+                  _DEBUG=DEBUG
+                  )
 
     # CURRENT STATE
 
@@ -721,7 +723,7 @@ if __name__ == '__main__':
     net1.plot_loss()
     net1.save_model()
 
-    net1.predict()
+    # net1.predict()
 
 
 

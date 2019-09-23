@@ -8,9 +8,9 @@ from lossfunctions import dice_loss
 
 
 DEBUG = None
-# DEBUG = True
+DEBUG = True
 
-root_dir = '/home/gerlstefan/data/vesnet/synth+annotDataset'
+root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy_small'
 # root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy_small'
 
 
@@ -19,8 +19,7 @@ desc = ('3 synth + 2 rsom , '
 sdesc = 'rt_test_comb'
 
 
-        
-os.environ["CUDA_VISIBLE_DEVICES"]='7'
+os.environ["CUDA_VISIBLE_DEVICES"]='0'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # torch.backends.cudnn.benchmark=True
 
@@ -33,8 +32,8 @@ model_dir = '/home/gerlstefan/data/vesnet/out/190914-10-nrsomfull_50ep/mod190914
 pred_dir = '/home/gerlstefan/data/vesnet/annotatedDataset/eval'
 
 dirs={'train': train_dir,
-      'eval': eval_dir, 
-      'model': model_dir, 
+      'eval': eval_dir,
+      'model': model_dir,
       'pred': pred_dir,
       'out': out_dir}
 
@@ -45,7 +44,7 @@ net1 = VesNET(device=device,
                      divs=(2,2,2),
                      batch_size=1,
                      optimizer='Adam',
-                     class_weight=10,
+                     class_weight=None,
                      initial_lr=1e-4,
                      lossfn=dice_loss,
                      epochs=20,

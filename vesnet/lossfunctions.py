@@ -23,7 +23,7 @@ def BCEWithLogitsLoss(pred, target, weight=None):
 
 
 
-def dice_loss(pred, target, eps=1e-7):
+def dice_loss(pred, target, eps=1e-7, weight=None):
     """Computes the Sørensen–Dice loss.
     from:
     https://github.com/kevinzakka/pytorch-goodies
@@ -36,6 +36,8 @@ def dice_loss(pred, target, eps=1e-7):
     Returns:
         dice_loss: 1-dice 
     """
+    if weight is not None:
+        raise NotImplementedError
     # parse
     target = target.long()
 
@@ -45,6 +47,7 @@ def dice_loss(pred, target, eps=1e-7):
         # adds dimension at the end, one being the negation of the other
         # order [Foreground, Background)
         mask = (torch.eye(2)[torch.tensor([1, 0]).long()])[target.squeeze(1)]
+        # print(mask.sum(dim=(0,1,2,3)))
         # move to axis=1
         mask = mask.permute(0, 4, 1, 2, 3).float()
         
@@ -58,8 +61,17 @@ def dice_loss(pred, target, eps=1e-7):
     dims = (0,) + tuple(range(2, target.ndimension()))
     intersection = torch.sum(prob * mask, dims)
     cardinality = torch.sum(prob + mask, dims)
-    dice_loss = (2. * intersection + eps / (cardinality + eps)).mean()
-    return (1 - dice_loss)
+    dice = ((2. * intersection + eps) / (cardinality + eps))
+    # print('dice:', dice[0].item(), dice[1].item())
+    dice = (9*dice[0] + dice[1])/10
+    # del pred
+    # del target
+    # del intersection
+    # del cardinality
+    # del mask
+    # del prob
+    # print('lfs.dice_loss', dice.item())
+    return (1 - dice)
 
 if __name__ == '__main__':
 
