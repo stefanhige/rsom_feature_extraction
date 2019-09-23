@@ -6,12 +6,19 @@ Created on Thu Aug 29 15:49:45 2019
 @author: stefan
 """
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import copy
 import math
 import numpy as np
 from scipy.optimize import minimize_scalar
 
 from skimage import morphology
+
+# debug
+import matplotlib.pyplot as plt
+
+
 def BCEWithLogitsLoss(pred, target, weight=None):
 
     fn = torch.nn.BCEWithLogitsLoss(weight=None,
@@ -73,20 +80,6 @@ def dice_loss(pred, target, eps=1e-7, weight=None):
     # print('lfs.dice_loss', dice.item())
     return (1 - dice)
 
-if __name__ == '__main__':
-
-    import os
-    os.environ["CUDA_VISIBLE_DEVICES"]='7'
-    torch.random.manual_seed(5)
-    P = torch.rand((1, 1, 3, 3, 3), requires_grad = True)
-    logits = torch.log(P/(1-P))
-
-    label = torch.rand((1, 1, 3, 3, 3))
-    label = (label >= 0.5).float()
-
-    dice = dice_loss(logits, label)
-
-
 def find_cutoff(pred, label):
     '''
     find ideal binary cutoff to maximize dice
@@ -104,6 +97,22 @@ def find_cutoff(pred, label):
         return 1 - dice
 
     res = minimize_scalar(_fun, bounds=(0, 1), method='bounded')
+
+    #debug: produce plot showing x vs dice
+    x_vec = np.linspace(0.7,1,num=200)
+    y_vec = np.vectorize(_fun)(x_vec)
+    y_vec = 1-y_vec # dice score not dice loss
+
+    fig, ax = plt.subplots()
+    ax.plot(x_vec, y_vec)
+
+    ax.set_yscale('log')
+    ax.set(xlabel='threshold', ylabel='dice')
+    ax.grid()
+
+    fig.savefig('thvsdice.png')
+
+
     return res.x, 1-_fun(res.x) 
 
 def _dice(x, y):
@@ -193,3 +202,83 @@ def calc_metrics(pred, target, skel):
         dice = dice.to('cpu').item()
 
     return cl_score, out_score.item(), dice
+
+
+
+
+class _softcl(nn.Module):
+    def __init__(self, k=2):
+        super(_softcl, self).__init__()
+        
+        self.k = k
+        self.cl = None
+        
+    
+    def forward(self, x):
+        x_ = maxminpool(x)
+        self.cl = F.relu(x-x_)
+        
+        for i in range(self.k):
+            print(i)
+            x = minpool(x)
+            x_ = maxminpool(x)
+
+            self.cl += F.relu(x-x_)
+        return self.cl
+    
+    
+def minpool(x):
+    return -F.max_pool3d(-x, kernel_size=3, stride=1, padding=1, dilation=1)
+
+def maxminpool(x):
+    return F.max_pool3d(minpool(x), kernel_size=3, stride=1, padding=1, dilation=1)
+            
+
+    
+        
+    
+        
+        
+        
+    
+
+
+
+if __name__ == '__main__':
+
+#    import os
+#    os.environ["CUDA_VISIBLE_DEVICES"]='7'
+#    torch.random.manual_seed(5)
+#    P = torch.rand((1, 1, 3, 3, 3), requires_grad = True)
+#    logits = torch.log(P/(1-P))
+#
+#    label = torch.rand((1, 1, 3, 3, 3))
+#    label = (label >= 0.5).float()
+#
+#    dice = dice_loss(logits, label)
+    
+    # try on real data.
+    
+    import nibabel as nib
+    img = nib.load('1.nii.gz')
+    inp = img.get_data()
+    inp = np.expand_dims(inp, axis=0)
+    inp = torch.from_numpy(inp)
+    inp = inp.float()
+
+    
+    f = _softcl(k=10)
+    
+    
+    out = f(inp)
+    out=out.squeeze()
+    out = out.numpy()
+    img = nib.Nifti1Image(out, np.eye(4))
+    nib.save(img, '__out1.nii.gz')
+    
+    
+    
+    
+    
+    
+

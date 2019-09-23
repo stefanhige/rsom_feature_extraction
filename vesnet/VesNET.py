@@ -723,7 +723,7 @@ if __name__ == '__main__':
     net1.plot_loss()
     net1.save_model()
 
-    # net1.predict()
+    net1.predict()
 
 
 
