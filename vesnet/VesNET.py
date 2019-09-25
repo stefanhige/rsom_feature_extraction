@@ -677,8 +677,8 @@ if __name__ == '__main__':
     root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy'
 
 
-    desc = ('Rsom noisy dataset. 27 samples, 50 epochs, train with dice')
-    sdesc = 'nrsomfull_50ep_dice'
+    desc = ('Rsom noisy dataset. 27 samples, 10 epochs, train with dice, foreground only')
+    sdesc = 'nrsomfull_10ep_dice_fg'
 
 
     model_dir = ''
@@ -708,7 +708,7 @@ if __name__ == '__main__':
                   class_weight=None,
                   initial_lr=1e-4,
                   lossfn=dice_loss,
-                  epochs=50,
+                  epochs=10,
                   ves_probability=0.95,
                   _DEBUG=DEBUG
                   )
