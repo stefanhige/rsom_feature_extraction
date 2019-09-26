@@ -5,10 +5,19 @@
 
 ## VESNET
 
+
+* dice. handling when dice score is ~1e-14, which is probably when mask is empty in that patch.
+  do we even care to backprop? or set dice to a higher value.. complicated
+   -> it might acutally help to add some fraction of background dice, as this one is
+      close to 0.99 in that case..
+      **as of now:** ??
+
+* function for hyperpar sweep
+
 * choose automatic probability depending on maximum of dice overlay
 **in progress** need verification sweep that minimize_scalar does actually find the minimum
  plot a plot prob against dice, to see if there's one or multiple minima
-
+ furthermore: implement function doing that for a set of volumes, and they might have multiple global minima
 
 
 * major: implement possibility to pass sparsly annotated data.

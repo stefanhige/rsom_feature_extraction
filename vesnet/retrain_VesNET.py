@@ -10,13 +10,13 @@ from lossfunctions import dice_loss
 DEBUG = None
 # DEBUG = True
 
-root_dir = '/home/gerlstefan/data/vesnet/synth+annotDataset/'
+# root_dir = '/home/gerlstefan/data/vesnet/synth+annotDataset/'
 # root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy_small'
+root_dir = '/home/gerlstefan/data/vesnet/annot_test_retrain_capability'
 
-
-desc = ('3 synth + 2 rsom , '
-        'try combinded retrain, train only on background dice?')
-sdesc = 'rt_test_30ep_no_dataAug_dice_bg'
+desc = ('retrain only on HQ0001'
+        'test if network is capable of learning "identity"')
+sdesc = 'rt_test_HQ0001'
 
 
 os.environ["CUDA_VISIBLE_DEVICES"]='0'
@@ -29,7 +29,7 @@ out_dir = '/home/gerlstefan/data/vesnet/out'
 
 model_dir = '/home/gerlstefan/data/vesnet/out/190924-02-nrsomfull_10ep_dice_fg/mod190924-02.pt'
 # model_dir = ''
-pred_dir = '/home/gerlstefan/data/vesnet/annotatedDataset/eval'
+pred_dir = '/home/gerlstefan/data/vesnet/annot_test_retrain_capability/eval'
 
 dirs={'train': train_dir,
       'eval': eval_dir,
@@ -46,9 +46,9 @@ net1 = VesNET(device=device,
                      optimizer='Adam',
                      class_weight=None,
                      initial_lr=1e-4,
-                    lossfn=dice_loss,
-                     epochs=30,
-                     ves_probability=0.95,
+                     lossfn=dice_loss,
+                     epochs=20,
+                     ves_probability=0.99,
                      _DEBUG=DEBUG
                      )
 

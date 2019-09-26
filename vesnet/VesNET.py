@@ -46,6 +46,7 @@ class VesNET():
                  sdesc,
                  device=torch.device('cuda'),
                  dirs={'train':'','eval':'', 'model':'', 'pred':''},
+                 model=None,
                  divs = (4, 4, 3),
                  offset = (6, 6, 6),
                  batch_size = 1,
@@ -99,9 +100,12 @@ class VesNET():
         self.printandlog('DESCRIPTION:', desc)
 
         # MODEL
-        self.model = DeepVesselNet(in_channels=2,
-                                   dropout=False,
-                                   batchnorm=False)
+        if model is not None:
+            self.model = model
+        else:
+            self.model = DeepVesselNet(in_channels=2,
+                                       dropout=False,
+                                       batchnorm=False)
         
         if self.dirs['model']:
             self.printandlog('Loading model from:', self.dirs['model'])
@@ -675,11 +679,11 @@ if __name__ == '__main__':
     DEBUG = None
     # DEBUG = True
 
-    root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy'
+    root_dir = '/home/gerlstefan/data/vesnet/annot_test_retrain_capability/'
 
 
     desc = ('Rsom noisy dataset. 27 samples, 3 epochs, train with dice, foreground only')
-    sdesc = 'nrsomfull_3ep_dice_fg'
+    sdesc = 'idendity_from_scratch_hq0001'
 
 
     model_dir = ''
@@ -691,7 +695,7 @@ if __name__ == '__main__':
     train_dir = os.path.join(root_dir, 'train')
     eval_dir = os.path.join(root_dir, 'eval')
     out_dir = '/home/gerlstefan/data/vesnet/out'
-    pred_dir = '/home/gerlstefan/data/vesnet/annotatedDataset/eval'
+    pred_dir = '/home/gerlstefan/data/vesnet/annot_test_retrain_capability/eval'
 
     dirs={'train': train_dir,
           'eval': eval_dir, 
@@ -703,13 +707,13 @@ if __name__ == '__main__':
                   desc=desc,
                   sdesc=sdesc,
                   dirs=dirs,
-                  divs=(3,3,3),
-                  batch_size=4,
+                  divs=(2,2,2),
+                  batch_size=1,
                   optimizer='Adam',
                   class_weight=None,
                   initial_lr=1e-4,
                   lossfn=dice_loss,
-                  epochs=3,
+                  epochs=100,
                   ves_probability=0.95,
                   _DEBUG=DEBUG
                   )

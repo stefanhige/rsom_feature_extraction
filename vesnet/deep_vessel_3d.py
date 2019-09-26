@@ -172,13 +172,19 @@ class Deep_Vessel_Net_FC(nn.Module):
 
 class DeepVesselNet(nn.Module):
 
-    def __init__(self, in_channels=2, depth = 5, dropout=False, batchnorm=False):
+    def __init__(self, 
+            in_channels=2,
+            channels = [2, 5, 10, 20, 50, 1],
+            kernels = [3, 5, 5, 3, 1],
+            depth = 5, 
+            dropout=False, 
+            batchnorm=False):
         super(DeepVesselNet, self).__init__()
        
         print('Calling DeepVesselNet init')
         # SETTINGS
         self.in_channels = in_channels
-        self.depth = 4
+        self.depth = depth
         self.dropout = dropout
        
         # generate dropout list for every layer
@@ -188,16 +194,18 @@ class DeepVesselNet(nn.Module):
             self.dropouts = [0] * depth
 
         # generate channels list for every layer
-        self.channels = [in_channels, 5, 10, 20, 50, 1]
+        self.channels = channels
+        # override in_channels
+        self.channels[0] = in_channels
 
         # generate kernel size list
-        self.kernels = [3, 5, 5, 3, 1]
+        self.kernels = kernels
         
         self.batchnorm = batchnorm
         if batchnorm:
-            self.batchnorms = [1]*4 + [0]
+            self.batchnorms = [1]*(depth-1) + [0]
         else:
-            self.batchnorms = [0]*5
+            self.batchnorms = [0]*(depth)
 
         assert len(self.dropouts) == depth
         assert len(self.channels) == depth + 1
@@ -225,6 +233,10 @@ class DeepVesselNet(nn.Module):
     def forward(self, x):
 
         return self.layers(x)
+
+    def count_parameters(self):
+
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 class DVN_Block(nn.Module):
 

@@ -17,7 +17,7 @@ from skimage import morphology
 
 # debug
 import matplotlib.pyplot as plt
-
+import nibabel as nib
 
 def BCEWithLogitsLoss(pred, target, weight=None):
 
@@ -53,9 +53,15 @@ def dice_loss(pred, target, eps=1e-7, weight=None):
         #not clear whats happening here
         # adds dimension at the end, one being the negation of the other
         # order [Foreground, Background)
-        mask = (torch.eye(2)[torch.tensor([1, 0]).long()])[target.squeeze(1)]
+        mask = (torch.eye(2).cuda()[torch.tensor([1, 0]).long()])[target.squeeze(1)]
+        
+        # print(mask.shape) 
+        # img = nib.Nifti1Image(mask[0,...,0].cpu().squeeze().numpy(), np.eye(4))
+        # nib.save(img, 'foreground.nii.gz')
+        # img = nib.Nifti1Image(mask[0,...,1].cpu().squeeze().numpy(), np.eye(4))
+        # nib.save(img, 'background.nii.gz')
         # print(mask.sum(dim=(0,1,2,3)))
-        # move to axis=1
+        # move to axis=
         mask = mask.permute(0, 4, 1, 2, 3).float()
         
         pos_prob = torch.sigmoid(pred)
@@ -64,15 +70,22 @@ def dice_loss(pred, target, eps=1e-7, weight=None):
     else:
         raise NotImplementedError
     
+    # img = nib.Nifti1Image(pos_prob[0,...].cpu().squeeze().detach().numpy(), np.eye(4)) 
+    # nib.save(img, 'foregroundp.nii.gz')
+    # img = nib.Nifti1Image(neg_prob[0,...].cpu().squeeze().detach().numpy(), np.eye(4))
+    # nib.save(img, 'backgroundp.nii.gz')
+
     mask = mask.type_as(pred)
     dims = (0,) + tuple(range(2, target.ndimension()))
     intersection = torch.sum(prob * mask, dims)
     cardinality = torch.sum(prob + mask, dims)
     dice = ((2. * intersection + eps) / (cardinality + eps))
-    # print('dice:', dice[0].item(), dice[1].item())
+    print('dice:', dice[0].item(), dice[1].item(), end=" ")
     
-    # dice = (9*dice[0] + dice[1])/10
-    dice = dice[1]
+
+    dice = (10*dice[0] + 1*dice[1])/11
+    print('->', dice.item())
+    # dice = dice[0]    
 
     # del pred
     # del target
