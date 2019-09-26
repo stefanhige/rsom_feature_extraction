@@ -133,7 +133,7 @@ class VesNET():
                                                    offset=offset,
                                                    transform=transforms.Compose([
                                                        DropBlue(),
-                                                       DataAugmentation(mode='rsom'),
+                                                       # DataAugmentation(mode='rsom'),
                                                        PrecalcSkeleton(),
                                                        ToTensor()]))
 
@@ -243,6 +243,7 @@ class VesNET():
                     non_blocking=self.args.non_blocking)
             # debug('data shape:', data.shape)
             # debug('label shape:', label.shape)
+            debug(batch['meta']['filename'])
             prediction = self.model(data)
             # debug('prediction shape:', prediction.shape)
 
@@ -677,8 +678,8 @@ if __name__ == '__main__':
     root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy'
 
 
-    desc = ('Rsom noisy dataset. 27 samples, 10 epochs, train with dice, foreground only')
-    sdesc = 'nrsomfull_10ep_dice_fg'
+    desc = ('Rsom noisy dataset. 27 samples, 3 epochs, train with dice, foreground only')
+    sdesc = 'nrsomfull_3ep_dice_fg'
 
 
     model_dir = ''
@@ -708,7 +709,7 @@ if __name__ == '__main__':
                   class_weight=None,
                   initial_lr=1e-4,
                   lossfn=dice_loss,
-                  epochs=10,
+                  epochs=3,
                   ves_probability=0.95,
                   _DEBUG=DEBUG
                   )

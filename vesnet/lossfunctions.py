@@ -72,7 +72,7 @@ def dice_loss(pred, target, eps=1e-7, weight=None):
     # print('dice:', dice[0].item(), dice[1].item())
     
     # dice = (9*dice[0] + dice[1])/10
-    dice = dice[0]
+    dice = dice[1]
 
     # del pred
     # del target
