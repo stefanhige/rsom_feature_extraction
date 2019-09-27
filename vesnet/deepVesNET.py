@@ -3,7 +3,7 @@ import torch
 
 
 from VesNET import VesNET
-from lossfunctions import dice_loss
+from lossfunctions import BCEWithLogitsLoss, dice_loss
 from deep_vessel_3d import DeepVesselNet
 # try vesnet with depth 6
 
@@ -15,7 +15,7 @@ root_dir = '/home/gerlstefan/data/vesnet/annot_test_retrain_capability/'
 
 
 desc = ('test train capability with deep deep ves net')
-sdesc = 'idendity_from_scratch_hq0001_d6'
+sdesc = 'idendity_from_scratch_hq0001_d6_bce'
 
 
 model_dir = ''
@@ -45,14 +45,14 @@ net1 = VesNET(device=device,
               desc=desc,
               sdesc=sdesc,
               dirs=dirs,
-              divs=(2,1,2),
+              divs=(2,2,2),
               offset=(7,7,7),
               model=model_d6,
               batch_size=1,
               optimizer='Adam',
-              class_weight=None,
-              initial_lr=1e-3,
-              lossfn=dice_loss,
+              class_weight=10,
+              initial_lr=1e-4,
+              lossfn=BCEWithLogitsLoss,
               epochs=100,
               ves_probability=0.95,
               _DEBUG=DEBUG

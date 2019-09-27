@@ -104,8 +104,11 @@ class VesNET():
             self.model = model
         else:
             self.model = DeepVesselNet(in_channels=2,
+                                       channels = [2, 10, 20, 40, 80, 1],
+                                       kernels = [3, 5, 5, 3, 1],
+                                       depth = 5, 
                                        dropout=False,
-                                       batchnorm=False)
+                                       groupnorm=True)
         
         if self.dirs['model']:
             self.printandlog('Loading model from:', self.dirs['model'])
@@ -683,12 +686,12 @@ if __name__ == '__main__':
 
 
     desc = ('Rsom noisy dataset. 27 samples, 3 epochs, train with dice, foreground only')
-    sdesc = 'idendity_from_scratch_hq0001'
+    sdesc = 'idendity_from_scratch_hq0001_bce_gn_more_params'
 
 
     model_dir = ''
             
-    os.environ["CUDA_VISIBLE_DEVICES"]='0'
+    os.environ["CUDA_VISIBLE_DEVICES"]='2'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -710,15 +713,16 @@ if __name__ == '__main__':
                   divs=(2,2,2),
                   batch_size=1,
                   optimizer='Adam',
-                  class_weight=None,
+                  class_weight=10,
                   initial_lr=1e-4,
-                  lossfn=dice_loss,
+                  lossfn=BCEWithLogitsLoss,
                   epochs=100,
                   ves_probability=0.95,
                   _DEBUG=DEBUG
                   )
 
     # CURRENT STATE
+    print(net1.model.count_parameters())
 
     net1.printConfiguration()
     net1.save_code_status()

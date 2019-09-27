@@ -178,7 +178,7 @@ class DeepVesselNet(nn.Module):
             kernels = [3, 5, 5, 3, 1],
             depth = 5, 
             dropout=False, 
-            batchnorm=False):
+            groupnorm=False):
         super(DeepVesselNet, self).__init__()
        
         print('Calling DeepVesselNet init')
@@ -189,7 +189,7 @@ class DeepVesselNet(nn.Module):
        
         # generate dropout list for every layer
         if dropout:
-            self.dropouts = [0, 0.3, 0.3, 0.3, 0]
+            self.dropouts = [0, 0, 0.3, 0.3, 0]
         else:
             self.dropouts = [0] * depth
 
@@ -201,16 +201,16 @@ class DeepVesselNet(nn.Module):
         # generate kernel size list
         self.kernels = kernels
         
-        self.batchnorm = batchnorm
-        if batchnorm:
-            self.batchnorms = [1]*(depth-1) + [0]
+        self.groupnorm = groupnorm
+        if groupnorm:
+            self.groupnorms = [0] + [1]*(depth-2) + [0]
         else:
-            self.batchnorms = [0]*(depth)
+            self.groupnorms = [0]*(depth)
 
         assert len(self.dropouts) == depth
         assert len(self.channels) == depth + 1
         assert len(self.kernels) == depth
-        assert len(self.batchnorms) == depth
+        assert len(self.groupnorms) == depth
 
         layers = []
         # layers = nn.ModuleList()
@@ -223,7 +223,7 @@ class DeepVesselNet(nn.Module):
                 self.channels[i],
                 self.channels[i+1],
                 self.kernels[i],
-                self.batchnorms[i],
+                self.groupnorms[i],
                 self.dropouts[i]))
         # last layer
         layers.append(nn.Conv3d(self.channels[-2], self.channels[-1], self.kernels[-1])) 
@@ -240,7 +240,7 @@ class DeepVesselNet(nn.Module):
 
 class DVN_Block(nn.Module):
 
-    def __init__(self, in_size, out_size, kernel_size, batchnorm, dropout):
+    def __init__(self, in_size, out_size, kernel_size, groupnorm, dropout):
         super(DVN_Block, self).__init__()
         block = []
 
@@ -248,8 +248,8 @@ class DVN_Block(nn.Module):
         
         block.append(nn.Conv3d(in_size, out_size, kernel_size))
         block.append(nn.ReLU())
-        if batchnorm:
-            block.append(nn.BatchNorm3d(out_size))
+        if groupnorm:
+            block.append(nn.GroupNorm(5, out_size))
         if dropout:
             block.append(nn.Dropout3d(dropout))
         
