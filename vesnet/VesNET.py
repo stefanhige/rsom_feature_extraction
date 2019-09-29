@@ -250,7 +250,7 @@ class VesNET():
                     non_blocking=self.args.non_blocking)
             # debug('data shape:', data.shape)
             # debug('label shape:', label.shape)
-            debug(batch['meta']['filename'])
+            # debug(batch['meta']['filename'])
             prediction = self.model(data)
             # debug('prediction shape:', prediction.shape)
 
@@ -680,7 +680,7 @@ def debug(*msg):
 if __name__ == '__main__': 
 
     DEBUG = None
-    # DEBUG = True
+    DEBUG = True
 
     root_dir = '/home/gerlstefan/data/vesnet/annot_test_retrain_capability/'
 
@@ -691,7 +691,7 @@ if __name__ == '__main__':
 
     model_dir = ''
             
-    os.environ["CUDA_VISIBLE_DEVICES"]='2'
+    os.environ["CUDA_VISIBLE_DEVICES"]='3'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 

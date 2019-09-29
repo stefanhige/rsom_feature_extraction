@@ -115,18 +115,18 @@ def find_cutoff(pred, label):
     res = minimize_scalar(_fun, bounds=(0, 1), method='bounded')
 
     #debug: produce plot showing x vs dice
-    x_vec = np.linspace(0.7,1,num=200)
-    y_vec = np.vectorize(_fun)(x_vec)
-    y_vec = 1-y_vec # dice score not dice loss
+    # x_vec = np.linspace(0.7,1,num=200)
+    # y_vec = np.vectorize(_fun)(x_vec)
+    # y_vec = 1-y_vec # dice score not dice loss
 
-    fig, ax = plt.subplots()
-    ax.plot(x_vec, y_vec)
+    # fig, ax = plt.subplots()
+    # ax.plot(x_vec, y_vec)
 
-    ax.set_yscale('log')
-    ax.set(xlabel='threshold', ylabel='dice')
-    ax.grid()
+    # ax.set_yscale('log')
+    # ax.set(xlabel='threshold', ylabel='dice')
+    # ax.grid()
 
-    fig.savefig('thvsdice.png')
+    # fig.savefig('thvsdice.png')
 
 
     return res.x, 1-_fun(res.x) 
