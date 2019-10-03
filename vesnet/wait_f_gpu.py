@@ -41,6 +41,7 @@ GPU {:s} is free.
 
 
 
+
 context = ssl.create_default_context()
 
 with smtplib.SMTP_SSL('smtp.gmail.com', port, context=context) as server:
@@ -48,6 +49,11 @@ with smtplib.SMTP_SSL('smtp.gmail.com', port, context=context) as server:
     server.sendmail(sender_email, receiver_email, message)
 
 
+py_script = 'VesNET.py'
+
+subprocess.run(['tmux send -t \{next\} \"ipython\" ENTER'], shell=True)
+time.sleep(1)
+subprocess.run(['tmux send -t \{next\} \"run {:s}\" ENTER'.format(py_script)], shell=True)
 
 
 while 0:

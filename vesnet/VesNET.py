@@ -140,7 +140,7 @@ class VesNET():
                                                    offset=offset,
                                                    transform=transforms.Compose([
                                                        DropBlue(),
-                                                       # DataAugmentation(mode='rsom'),
+                                                       DataAugmentation(mode='rsom'),
                                                        PrecalcSkeleton(),
                                                        ToTensor()]))
 
@@ -195,7 +195,7 @@ class VesNET():
                 self.optimizer, 
                 mode='min', 
                 factor=0.1,
-                patience=2,
+                patience=3,
                 verbose=True,
                 threshold=1e-4,
                 threshold_mode='rel',
@@ -255,7 +255,7 @@ class VesNET():
             # debug('prediction shape:', prediction.shape)
 
             loss = self.lossfn(pred=prediction, target=label, weight=self.class_weight)
-            debug('dice loss:', loss.item())
+            debug('current loss:', loss.item())
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
@@ -680,7 +680,7 @@ def debug(*msg):
 if __name__ == '__main__': 
 
     DEBUG = None
-    DEBUG = True
+    # DEBUG = True
 
     root_dir = '/home/gerlstefan/data/vesnet/annot_test_retrain_capability/'
 
@@ -691,7 +691,7 @@ if __name__ == '__main__':
 
     model_dir = ''
             
-    os.environ["CUDA_VISIBLE_DEVICES"]='3'
+    os.environ["CUDA_VISIBLE_DEVICES"]='0'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
