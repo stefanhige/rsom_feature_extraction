@@ -7,15 +7,15 @@ from VesNET import debug
 from VesNET import VesNET
 
 DEBUG = None
-# DEBUG = True
+DEBUG = True
 
-pred_dir = '/home/gerlstefan/data/vesnet/annotatedDataset/train'
+pred_dir = '/home/gerlstefan/data/vesnet/synth+annotDataset/eval'
 
 desc = ('predict only test')
 sdesc = 'nrsomfull_50ep_dice_pred'
 
 # model_dir = '/home/gerlstefan/data/vesnet/out/190914-10-nrsomfull_50ep/mod190914-10.pt'
-model_dir = '/home/gerlstefan/data/vesnet/out/190925-01-rt_test_30ep_no_dataAug/mod190925-01.pt'
+model_dir = '/home/gerlstefan/data/vesnet/out/191002-03-rt_nrsomf_bce_gn_mp/mod191002-03.pt'
         
 os.environ["CUDA_VISIBLE_DEVICES"]='0'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -40,7 +40,7 @@ net1 = VesNET(device=device,
 
 net1.save_code_status()
 
-net1.predict(use_best=False, metrics=True, adj_cutoff=True)
-
+# net1.predict(use_best=False, metrics=True, adj_cutoff=True)
+net1.predict_adj()
 
 

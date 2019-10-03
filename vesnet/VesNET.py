@@ -434,7 +434,82 @@ class VesNET():
             f = open(os.path.join(self.dirs['out'],'loss' + self.today_id + '.json'),'w')
             f.write(json.dumps(self.history))
             f.close()
-                        
+
+    def predict_adj(self):
+        '''
+        predict and and adjust cutoff for all volumes at the same time
+        may need huge amount of memory
+        '''
+
+        print('Predicting..')
+        iterator = iter(self.pred_dataloader) 
+        self.model.eval()
+
+        prediction_stack = []
+        index_stack = []
+        label_stack = []
+
+        L = []
+        V = []
+
+        for i in range(self.args.size_pred):
+           
+            # get the next batch of the evaluation set
+            batch = next(iterator)
+            
+            data = batch['data'].to(
+                    self.args.device,
+                    self.args.dtype,
+                    non_blocking=self.args.non_blocking)
+            
+            debug('prediction, data shape:', data.shape)
+            prediction = self.model(data)
+            prediction = prediction.detach()
+            
+            # convert to probabilities
+            prediction = torch.sigmoid(prediction)
+            
+            # otherwise can't reconstruct.
+            if i==0:
+                assert batch['meta']['index'].item() == 0
+             
+            prediction_stack.append(prediction)
+            index_stack.append(batch['meta']['index'].item())
+            
+            label_stack.append(batch['label'].to(self.args.dtype))
+            
+            # if we got all patches
+            if batch['meta']['index'] == np.prod(self.divs) - 1:
+                
+                debug('Reconstructing volume: index stack is:')
+                debug(index_stack)
+
+                assert len(prediction_stack) == np.prod(self.divs)
+                assert index_stack == list(range(np.prod(self.divs)))
+                
+                patches = (torch.stack(prediction_stack)).to('cpu').numpy()
+                prediction_stack = []
+                index_stack = []
+
+                debug('patches shape:', patches.shape)
+                patches = patches.squeeze()
+                debug('patches shape:', patches.shape)
+                
+                patches = get_volume(patches, self.divs, (0,0,0))
+                V.append(to_numpy(patches, batch['meta'], Vtype='label', dimorder='torch'))
+
+                label_patches = (torch.stack(label_stack)).numpy().squeeze()
+                label_stack = []
+                label_patches = get_volume(label_patches, self.divs, (0, 0, 0))
+                L.append(to_numpy(label_patches, batch['meta'], Vtype='label', dimorder='torch'))
+
+        # we got all prediction volumes in V and their labels in L
+
+        
+        id_cutoff, id_dice = find_cutoff(pred=V, label=L, plot=True)
+
+
+
     def predict(self, use_best=True, metrics=True, adj_cutoff=True):
         '''
         doc string missing
@@ -553,6 +628,7 @@ class VesNET():
                     label_stack = []
                     L = get_volume(label_patches, self.divs, (0, 0, 0))
                     L = to_numpy(L, batch['meta'], Vtype='label', dimorder='torch')
+
                     id_cutoff, id_dice = find_cutoff(pred=V, label=L)
                     self.printandlog('Finding ideal p of ', batch['meta']['filename'][0])
                     self.printandlog('Result. at p={:.5f} : dice={:.5f}'.format(
@@ -572,7 +648,7 @@ class VesNET():
                         fstr = fstr.replace('_pred', '_ppred')
                         self.saveNII(V, dest_dir, fstr)
                     else:
-                        print('Couldn\'t save prediction in.')
+                        print('Couldn\'t save prediction.')
         if not self.DEBUG:
             try:
                 print('Closing logfile..')

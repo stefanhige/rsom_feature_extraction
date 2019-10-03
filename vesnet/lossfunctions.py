@@ -96,37 +96,45 @@ def dice_loss(pred, target, eps=1e-7, weight=None):
     # print('lfs.dice_loss', dice.item())
     return (1 - dice)
 
-def find_cutoff(pred, label):
+def find_cutoff(pred, label, plot=False):
     '''
     find ideal binary cutoff to maximize dice
     '''
     print('function find_cutoff')
-    print(pred.shape)
-    print(label.shape)
 
     # minimize 1- dice
     def _fun(x):
-        print(pred.shape)
-        pred_bool = pred >= x
-        dice = _dice(pred_bool, label)
-        print('x:', x, 'dice:', dice)
+        dice = []
+        if isinstance(pred, list):
+            for p, l in zip(pred, label):
+                dice.append(_dice(p>=x, l))
+                        
+            print('x: {:.3f} dice:'.format(x), dice)
+            dice = np.mean(dice)
+
+        
+        elif isinstance(V, np.ndarray):
+            dice = _dice(pred >= x, label)
+            print('x:', x, 'dice:', dice)
+
         return 1 - dice
 
     res = minimize_scalar(_fun, bounds=(0, 1), method='bounded')
+    
+    if plot:
+        #debug: produce plot showing x vs dice
+        x_vec = np.linspace(0.6,1,num=200)
+        y_vec = np.vectorize(_fun)(x_vec)
+        y_vec = 1-y_vec # dice score not dice loss
 
-    #debug: produce plot showing x vs dice
-    # x_vec = np.linspace(0.7,1,num=200)
-    # y_vec = np.vectorize(_fun)(x_vec)
-    # y_vec = 1-y_vec # dice score not dice loss
+        fig, ax = plt.subplots()
+        ax.plot(x_vec, y_vec)
 
-    # fig, ax = plt.subplots()
-    # ax.plot(x_vec, y_vec)
+        # ax.set_yscale('log')
+        ax.set(xlabel='threshold', ylabel='dice')
+        ax.grid()
 
-    # ax.set_yscale('log')
-    # ax.set(xlabel='threshold', ylabel='dice')
-    # ax.grid()
-
-    # fig.savefig('thvsdice.png')
+        fig.savefig('thvsdice.png')
 
 
     return res.x, 1-_fun(res.x) 
@@ -249,16 +257,6 @@ def minpool(x):
 def maxminpool(x):
     return F.max_pool3d(minpool(x), kernel_size=3, stride=1, padding=1, dilation=1)
             
-
-    
-        
-    
-        
-        
-        
-    
-
-
 
 if __name__ == '__main__':
 
