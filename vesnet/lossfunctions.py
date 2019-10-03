@@ -113,7 +113,7 @@ def find_cutoff(pred, label, plot=False):
             dice = np.mean(dice)
 
         
-        elif isinstance(V, np.ndarray):
+        elif isinstance(pred, np.ndarray):
             dice = _dice(pred >= x, label)
             print('x:', x, 'dice:', dice)
 

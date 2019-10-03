@@ -9,10 +9,11 @@ from VesNET import VesNET
 DEBUG = None
 DEBUG = True
 
-pred_dir = '/home/gerlstefan/data/vesnet/synth+annotDataset/eval'
+#pred_dir = '/home/gerlstefan/data/vesnet/synth+annotDataset/eval'
+pred_dir = '/home/gerlstefan/data/layerunet/for_vesnet/selection1/vessels/input'
 
 desc = ('predict only test')
-sdesc = 'nrsomfull_50ep_dice_pred'
+sdesc = 'rt_nolabel_pred'
 
 # model_dir = '/home/gerlstefan/data/vesnet/out/190914-10-nrsomfull_50ep/mod190914-10.pt'
 model_dir = '/home/gerlstefan/data/vesnet/out/191002-03-rt_nrsomf_bce_gn_mp/mod191002-03.pt'
