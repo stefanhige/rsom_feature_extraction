@@ -765,22 +765,25 @@ class RSOM_vessel(RSOM):
             
             print('Max occ', max_occupation)
             print('idx max occ', max_occupation_idx)
+            if max_occupation >= 0.01:
+                # normalize
+                label_sum = label_sum.astype(np.double) / np.amax(label_sum)
+                
+                # define cutoff parameter
+                cutoff = 0.05
+                
+                label_sum_bin = label_sum > cutoff
+                     
+                label_sum_idx = np.squeeze(np.nonzero(label_sum_bin))
             
-            # normalize
-            label_sum = label_sum.astype(np.double) / np.amax(label_sum)
-            
-            # define cutoff parameter
-            cutoff = 0.05
-            
-            label_sum_bin = label_sum > cutoff
-                 
-            label_sum_idx = np.squeeze(np.nonzero(label_sum_bin))
-        
-            layer_end = label_sum_idx[-1]
-            
-            # additional fixed pixel offset
-            offs = 5
-            layer_end += offs
+                layer_end = label_sum_idx[-1]
+                
+                # additional fixed pixel offset
+                offs = 5
+                layer_end += offs
+            else:
+                print("WARNING:  Could not determine valid epidermis layer.")
+                layer_end = 0
     
         elif mode == 'manual':
             f = open(file)

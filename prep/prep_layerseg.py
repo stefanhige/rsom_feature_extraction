@@ -13,63 +13,41 @@ import os
 
 from classes import RSOM
 
+from utils.get_unique_filepath import get_unique_filepath
 
-#import scipy.io as sio
-#from scipy import interpolate
-#from scipy import ndimage
-#from scipy.optimize import minimize_scalar
-
-#import numpy as np
-
-#import matplotlib.pyplot as plt
-#import matplotlib.cm as cm
-#from mpl_toolkits.mplot3d import Axes3D
-#from matplotlib.ticker import LinearLocator, FormatStrFormatter
-
-# ================ IMPORT MATLAB DATA =========================================
-# `cwd`: current directory
-#cwd = Path.cwd()
-
-# define filenames
-#filenameLF_LIST = ['R_20171127151451_VOL002_RL01_Josefine_RSOM50_wl1_corrLF.mat', #1
-#                   'R_20171127152019_VOL002_RL02_Josefine_RSOM50_wl1_corrLF.mat', #2
-#                   'R_20170726132012_PAT007_RL01_RSOM50_wl1_corrLF.mat', #3
-#                   'R_20170726132929_PAT007_RL02_RSOM50_wl1_corrLF.mat', #4
-#                   'R_20170726135613_PAT008_RL02_RSOM50_wl1_corrLF.mat', #5
-#                   'R_20170726140236_PAT008_RL03_RSOM50_wl1_corrLF.mat', #6
-#                   'R_20170726141633_PAT009_RL01_RSOM50_wl1_corrLF.mat', #7
-#                   'R_20170726142444_PAT009_RL02_RSOM50_wl1_corrLF.mat', #8
-#                   'R_20170726143750_PAT010_RL01_RSOM50_wl1_corrLF.mat', #9
-#                   'R_20170726144243_PAT010_RL02_RSOM50_wl1_corrLF.mat', ] #10
-
-#idx = 1
-#filenameLF_LIST = filenameLF_LIST[idx-1:idx]
 
 # define folder
-
-
-origin = '/home/stefan/PYTHON/HQDatasetVesselAnnot/mat'
-
+origin = '/home/stefan/Documents/RSOM/Diabetes/allmat'
 # origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/allmat'
 # origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
 
-
 # destination = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
 # destination = '/home/sgerl/Documents/PYTHON/TestDataset20190411/selection/other_preproccessing_tests/sliding_mip_6'
-destination = '/home/stefan/PYTHON/HQDatasetVesselAnnot/out_from_prep'
+destination = '/home/stefan/Documents/RSOM/Diabetes/selection1/out_from_prep'
 
 
-cwd = os.getcwd()
+# mode
+mode = 'list'
 
-# change directory to origin, and get a list of all files
-os.chdir(origin)
-all_files = os.listdir()
-os.chdir(cwd)
+if mode=='dir':
+    cwd = os.getcwd()
+    # change directory to origin, and get a list of all files
+    os.chdir(origin)
+    all_files = os.listdir()
+    os.chdir(cwd)
+elif mode=='list':
+    patterns = ['R_20170828154106_PAT026_RL01',
+                'R_20170828155546_PAT027_RL01',
+                'R_20170906132142_PAT040_RL01',
+                'R_20170906141354_PAT042_RL01',
+                'R_20171211150527_PAT057_RL01',
+                'R_20171213135032_VOL009_RL02',
+                'R_20180409164251_VOL015_RL02']
+    all_files = [os.path.basename(get_unique_filepath(origin, pat)[0]) for pat in patterns]
 
 
 # extract the LF.mat files,
 filenameLF_LIST = [el for el in all_files if el[-6:] == 'LF.mat']
-
 
 for idx, filenameLF in enumerate(filenameLF_LIST):
     # the other ones will be automatically defined

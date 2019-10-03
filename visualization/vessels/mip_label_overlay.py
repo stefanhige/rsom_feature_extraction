@@ -107,7 +107,7 @@ def get_unique_filepath(path, pattern):
         else: 
             if 'LF' in occurrences[0]:
                 return os.path.join(path, occurrences[0]), os.path.join(path, occurrences[1])
-            elif 'HF' in occurences[0]:
+            elif 'HF' in occurrences[0]:
                 return os.path.join(path, occurrences[1]), os.path.join(path, occurrences[0])
     # in case of other files (.nii.gz)
     else:
