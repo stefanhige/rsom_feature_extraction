@@ -64,10 +64,16 @@ class RSOMVesselDataset(Dataset):
         all_files = os.listdir(path = root_dir)
         # extract the  data files
         self.data = [el for el in all_files if el[-len(data_str):] == data_str]
-        
-        assert len(self.data) == \
-            len([el for el in all_files if el[-len(label_str):] == label_str]), \
-            'Amount of data and label files not equal.'
+        label_len = len([el for el in all_files if el[-len(label_str):] == label_str])
+        # if label_len is zero, set unlabeled flag
+        if label_len is not 0:
+            assert len(self.data) == \
+                len([el for el in all_files if el[-len(label_str):] == label_str]), \
+                'Amount of data and label files not equal.'
+            self.unlabeled_flag = False
+        else:
+            self.unlabeled_flag = True
+            warnings.warn("Could not find any label files! Unlabeled dataset?", UserWarning)
 
     def __len__(self):
         return len(self.data) * np.prod(self.divs)
@@ -97,10 +103,6 @@ class RSOMVesselDataset(Dataset):
         # index of the volume
         data_idx = np.floor_divide(idx, np.prod(self.divs))
         
-        # debug
-        #print('rem_idx', rem_idx)
-        #print('data_idx', data_idx)
-        
         assert data_idx*np.prod(self.divs) + rem_idx == idx
         
         # add meta information
@@ -108,7 +110,6 @@ class RSOMVesselDataset(Dataset):
                 'dcrop':{'begin': None, 'end': None},
                 'lcrop':{'begin': None, 'end': None},
                 'index': rem_idx}
-        
         
         # load data, if neccessary
         if self.keep_last_data and data_idx == self.last_data_idx:
@@ -126,16 +127,12 @@ class RSOMVesselDataset(Dataset):
             if isinstance(data.item(0), tuple):
                 data = np.stack([data['R'], data['G'], data['B']], axis=-1)
             data = data.astype(np.float32)
-            # read label
-            label = self._readNII(label_path)
-            label = label.astype(np.float32)
-
-            # debug output, mean values
-            # TODO: there's a mistake in the synthetic data generation
-            # 0 is 13 somehow..
-            # print(data.shape)
-            # print('min max and mean values of Red/Green/Blue:', np.amin(data, axis=(0,1,2)),
-                    # np.amax(data, axis=(0,1,2)), np.mean(data, axis=(0,1,2)))
+            if not self.unlabeled_flag:
+                # read label
+                label = self._readNII(label_path)
+                label = label.astype(np.float32)
+            else:
+                label = np.empty(data.shape[:-1], dtype=np.float32)
             
         if self.keep_last_data:
             if not data_idx == self.last_data_idx:
@@ -151,10 +148,7 @@ class RSOMVesselDataset(Dataset):
         initial_dshape = data.shape
         initial_lshape = label.shape
         
-        #print(data.shape)
-        #print('divs:', self.divs)
         rem = np.mod(data.shape[:len(self.divs)], self.divs)
-        #print('Remainder:', rem)
         
         assert len(rem) == 3, \
         'Other cases are not implemented. In general our data is 3D.'

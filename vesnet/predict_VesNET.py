@@ -7,7 +7,7 @@ from VesNET import debug
 from VesNET import VesNET
 
 DEBUG = None
-DEBUG = True
+# DEBUG = True
 
 #pred_dir = '/home/gerlstefan/data/vesnet/synth+annotDataset/eval'
 pred_dir = '/home/gerlstefan/data/layerunet/for_vesnet/selection1/vessels/input'
@@ -24,6 +24,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 out_dir = '/home/gerlstefan/data/vesnet/out'
 
+out_dir = '/home/gerlstefan/data/layerunet/for_vesnet/selection1/vessels/'
+
 dirs={'train': '',
       'eval': '', 
       'model': model_dir, 
@@ -36,12 +38,12 @@ net1 = VesNET(device=device,
                      dirs=dirs,
                      divs=(2,2,2),
                      batch_size=1,
-                     ves_probability=0.95,
+                     ves_probability=0.925,
                      _DEBUG=DEBUG)
 
 net1.save_code_status()
 
-# net1.predict(use_best=False, metrics=True, adj_cutoff=True)
-net1.predict_adj()
+net1.predict(use_best=False, metrics=True, adj_cutoff=False)
+# net1.predict_adj()
 
 

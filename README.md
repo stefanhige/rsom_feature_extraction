@@ -5,6 +5,12 @@
 
 ## VESNET
 
+* use python logger for printouts to file and stdout
+
+* clean up module structure, move reused things to utils
+
+* more data with "red" noise
+
 
 * **currently using bce again**
   dice. handling when dice score is ~1e-14, which is probably when mask is empty in that patch.
@@ -50,6 +56,11 @@
   **fixed**
 
 ##  LAYERUNET
+
+* adjust cutoff in z direction
+
+* merge back coding style improvements from vesnet to layerunet 
+
 * fill holes in prediction in xy direction?
 
 * check if intensity augmentation helps for generalization

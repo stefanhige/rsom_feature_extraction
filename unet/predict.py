@@ -239,13 +239,13 @@ class arg_class():
 
 args = arg_class()
 
-os.environ["CUDA_VISIBLE_DEVICES"]='4'
+os.environ["CUDA_VISIBLE_DEVICES"]='5'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # origin = '/home/gerlstefan/data/fullDataset/labeled/val'
 # origin = '/home/gerlstefan/data/dataloader_dev'
-origin = '/home/gerlstefan/data/layerunet/for_vesnet/input_for_layerseg'
-destination ='/home/gerlstefan/data/layerunet/for_vesnet/prediction'
+origin = '/home/gerlstefan/data/layerunet/for_vesnet/selection1/out_from_prep'
+destination ='/home/gerlstefan/data/layerunet/for_vesnet/selection1/prediction'
 model_path = '/home/gerlstefan/models/layerseg/test/mod_190731_depth4.pt'
 
 # TODO: new dataset without labels

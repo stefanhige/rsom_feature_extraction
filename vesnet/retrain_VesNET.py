@@ -8,7 +8,7 @@ from deep_vessel_3d import DeepVesselNet
 
 
 DEBUG = None
-# DEBUG = True
+DEBUG = True
 
 root_dir = '/home/gerlstefan/data/vesnet/synth+annotDataset/'
 # root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy_small'
