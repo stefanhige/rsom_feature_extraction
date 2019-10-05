@@ -57,6 +57,7 @@ class VesNET():
                  epochs=1,
                  ves_probability=0.5,
                  _DEBUG=False
+                 _LOG=True
                  ):
 
         if _DEBUG:
@@ -66,6 +67,12 @@ class VesNET():
             DEBUG = True
         else:
             self.DEBUG = False
+
+        # logging to stdout and file
+        # enable when called from pipeline
+        # quiet mode: _DEBUG=False
+        #             _LOG=False
+        self.LOG = _LOG
         
         
         # DESCRIPTION
@@ -91,11 +98,14 @@ class VesNET():
 
         if not self.DEBUG: 
             os.mkdir(self.dirs['out'])
-            try:
-                self.logfile = open(os.path.join(self.dirs['out'], 
-                    'log' + self.today_id), 'x')
-            except:
-                print('Couldn\'n open logfile')
+            if self.LOG:
+                try:
+                    self.logfile = open(os.path.join(self.dirs['out'], 
+                        'log' + self.today_id), 'x')
+                except:
+                    print('Couldn\'n open logfile')
+            else
+                self.logfile=None
         
         self.printandlog('DESCRIPTION:', desc)
 
@@ -212,6 +222,7 @@ class VesNET():
         self.curr_epoch = None
         
         # ADDITIONAL ARGS
+        # TODO:bad coding style, relict of previous structure
         self.args = type('args', (object,), dict())
         if self.dirs['train']: 
             self.args.size_train = len(self.train_dataset)
@@ -236,6 +247,7 @@ class VesNET():
         self.model.train()
         # number of iterations needed
         n_iter = int(np.ceil(self.args.size_train/self.batch_size))
+
         for i in range(n_iter):
             # get the next batch of training data
             batch = next(iterator)
@@ -279,10 +291,6 @@ class VesNET():
        
         self.model.eval()
         running_loss = 0.0
-        # running_metrics = {'cl_score': 0.0,
-        #                    'out_score': 0.0,
-        #                    'dice': 0.0}
-
         cl_score_stack = []
         out_score_stack = []
         dice_stack = []
@@ -315,20 +323,14 @@ class VesNET():
             del loss
             
             bool_prediction = torch.sigmoid(prediction) >= self.ves_probability
-            # metrics = calc_metrics(bool_prediction, label, batch['meta']['label_skeleton'])
 
             cl_score, out_score, dice = calc_metrics(bool_prediction, 
                                                      label, 
                                                      batch['meta']['label_skeleton'])
-
             
             cl_score_stack.append(curr_batch_size * cl_score)
             out_score_stack.append(curr_batch_size * out_score) 
             dice_stack.append(curr_batch_size * dice)
-                            
-            # running_metrics['cl_score'] += curr_batch_size * metrics['cl_score']
-            # running_metrics['out_score'] += curr_batch_size * metrics['out_score']
-            # running_metrics['dice'] += curr_batch_size * metrics['dice']
             
             debug('Ep:', epoch, 'fracEp:', (i+1)/n_iter, 'batch', curr_batch_size)
         debug('cl_score_stack:', cl_score_stack)
@@ -336,10 +338,6 @@ class VesNET():
         epoch_out_score = np.nansum(out_score_stack) / self.args.size_eval
         epoch_dice = np.nansum(dice_stack) / self.args.size_eval
         
-        # epoch_cl_score = running_metrics['cl_score'] / self.args.size_eval
-        # epoch_out_score = running_metrics['out_score'] / self.args.size_eval
-        # epoch_dice = running_metrics['dice'] / self.args.size_eval
-
         self.history['eval']['cl_score'].append(epoch_cl_score)
         self.history['eval']['out_score'].append(epoch_out_score)
         self.history['eval']['dice'].append(epoch_dice)
@@ -393,8 +391,8 @@ class VesNET():
             # extract the average training loss of the epoch
             le_idx = self.history['train']['epoch'].index(curr_epoch)
             le_losses = self.history['train']['unred_loss'][le_idx:]
+        
             # divide by dataset size
-
             train_loss = sum(le_losses) / self.args.size_train
             
             # extract most recent eval loss
@@ -507,8 +505,6 @@ class VesNET():
 
         
         id_cutoff, id_dice = find_cutoff(pred=V, label=L, plot=True)
-
-
 
     def predict(self, use_best=True, metrics=True, adj_cutoff=True):
         '''
@@ -681,11 +677,12 @@ class VesNET():
                 'loss' + self.today_id + '.png'))
     
     def printandlog(self, *msg):
-        print(*msg)
-        try:
-            print(*msg, file=self.logfile)
-        except:
-            pass
+        if self.LOG:
+            print(*msg)
+            try:
+                print(*msg, file=self.logfile)
+            except:
+                pass
 
     def printConfiguration(self, destination='both'):
         if not self.DEBUG:
@@ -746,7 +743,6 @@ class VesNET():
             
             torch.save(save_this, os.path.join(self.dirs['out'],'mod' + self.today_id +'.pt'))
 
-
 def debug(*msg):
     ''' debug print helper function'''
     if 'DEBUG' in globals():
@@ -756,9 +752,9 @@ def debug(*msg):
 if __name__ == '__main__': 
 
     DEBUG = None
-    # DEBUG = True
+    DEBUG = True
 
-    root_dir = '/home/gerlstefan/data/vesnet/annot_test_retrain_capability/'
+    root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy_small'
 
 
     desc = ('Rsom noisy dataset. 27 samples, 3 epochs, train with dice, foreground only')
@@ -787,7 +783,7 @@ if __name__ == '__main__':
                   sdesc=sdesc,
                   dirs=dirs,
                   divs=(2,2,2),
-                  batch_size=1,
+                  batch_size=5,
                   optimizer='Adam',
                   class_weight=10,
                   initial_lr=1e-4,

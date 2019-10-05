@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Aug 22 11:21:21 2019
-
-@author: stefan
-"""
-
 import torch
 import numpy as np
 from skimage.morphology import skeletonize_3d
@@ -144,7 +136,6 @@ class RSOMVesselDataset(Dataset):
                 self.last_label = label
             
         # crop data and label in order to be dividable by divs
-        
         initial_dshape = data.shape
         initial_lshape = label.shape
         
@@ -247,7 +238,6 @@ class ToTensor():
         
         # data is [X1 x X2 x X3 x 2]
         # or      [X1 x X2 x X3]
-        
         # label is [X1 x X2 x X3]
         
         # numpy array size of images
@@ -258,7 +248,6 @@ class ToTensor():
         if len(data.shape) == 4:
             data = np.moveaxis(data, -1, 0)
             label = np.moveaxis(label, -1, 0)
-            #print(data.shape, label.shape)
 
         if 'label_skeleton' in meta:
             meta['label_skeleton'] = torch.from_numpy(np.moveaxis(meta['label_skeleton'], -1, 0))
@@ -266,7 +255,6 @@ class ToTensor():
         return {'data': torch.from_numpy(data),
                 'label': torch.from_numpy(label),
                 'meta': meta}
-        
 
 class AddDuplicateDim():
     '''
@@ -291,7 +279,6 @@ class AddDuplicateDim():
         return {'data': data,
                 'label': label,
                 'meta': meta}
-
 
 class PrecalcSkeleton():
     '''
@@ -327,7 +314,7 @@ class DataAugmentation():
       
         # check if current file is a rsom file
         # synthetic files are n_v_rgb.nii.gz
-        # rsom files are R_20190605163439 ..
+        # rsom files are named R_20190605163439...
         f = sample['meta']['filename']
         is_rsom = f[0:2] == 'R_' and f[2:16].isdigit() 
         
@@ -336,14 +323,11 @@ class DataAugmentation():
             # retuns mostly close to slope 1
             # m=0.1 ... 4
             r = 2 * torch.rand(1).item() - 1
-            # print('')
-            # print(r)
             if r<0:
                 m = (abs(r)**2)*3 + 1
             elif r>=0:
                 m = 1-0.9*r**3
 
-            # print('m =', m)
             x0 = 50
             data = np.piecewise(data, 
                     [data < x0, data>=x0], 
@@ -355,7 +339,6 @@ class DataAugmentation():
             
             ax.append(3) # Channels dimension
             ax = tuple(ax)
-            # print(ax)
 
             data = np.transpose(data, ax)
             label = np.transpose(label, ax)
@@ -366,9 +349,7 @@ class DataAugmentation():
                 'label': label,
                 'meta': meta}
 
-
-
-def to_numpy(V, meta,  Vtype='label', dimorder ='numpy'):
+def to_numpy(V, meta, Vtype='label', dimorder ='numpy'):
     '''
     inverse function for class ToTensor()
     args
@@ -406,7 +387,6 @@ def to_numpy(V, meta,  Vtype='label', dimorder ='numpy'):
         raise ValueError('Invalid argument for parameter Vtype')
         
     # TODO: raise error if b, e is not dimension 3
-    
     pad_width = ((b[0], e[0]), (b[1], e[1]), (b[2], e[2]))
     
     V = np.pad(V, pad_width, 'edge')

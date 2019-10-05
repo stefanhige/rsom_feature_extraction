@@ -242,10 +242,9 @@ class DVN_Block(nn.Module):
 
     def __init__(self, in_size, out_size, kernel_size, groupnorm, dropout):
         super(DVN_Block, self).__init__()
+        
         block = []
 
-        # block = nn.ModuleList()
-        
         block.append(nn.Conv3d(in_size, out_size, kernel_size))
         block.append(nn.ReLU())
         if groupnorm:
