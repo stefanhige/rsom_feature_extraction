@@ -1,6 +1,39 @@
- Byte-compiled / optimized / DLL files
+## PYTHON
 __pycache__/
 *.py[cod]
+
+
+## IMAGES
 *.nii.gz
-*.png
+
+# may conflict with LATEX proj in the future
+#*.png
+
+## LATEX
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+.*.lb
+
+*.bbl
+*.bcf
+*.blg
+*-blx.aux
+*-blx.bib
+*.run.xml
+
+*.fdb_latexmk
+*.synctex
+*.synctex(busy)
+*.synctex.gz
+*.synctex.gz(busy)
+*.pdfsync
 
