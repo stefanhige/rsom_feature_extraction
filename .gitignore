@@ -10,6 +10,8 @@ __pycache__/
 #*.png
 
 ## LATEX
+
+main.pdf
 *.aux
 *.lof
 *.log

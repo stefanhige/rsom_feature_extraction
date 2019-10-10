@@ -56,7 +56,7 @@ class VesNET():
                  initial_lr = 1e-6,
                  epochs=1,
                  ves_probability=0.5,
-                 _DEBUG=False
+                 _DEBUG=False,
                  _LOG=True
                  ):
 
@@ -104,7 +104,7 @@ class VesNET():
                         'log' + self.today_id), 'x')
                 except:
                     print('Couldn\'n open logfile')
-            else
+            else:
                 self.logfile=None
         
         self.printandlog('DESCRIPTION:', desc)

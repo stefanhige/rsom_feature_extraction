@@ -1,35 +1,264 @@
-\documentclass{article}
-    % General document formatting
-    \usepackage[margin=0.7in]{geometry}
-    \usepackage[parfill]{parskip}
-    \usepackage[utf8]{inputenc}
-    
-    % Related to math
-    \usepackage{amsmath,amssymb,amsfonts,amsthm}
+\documentclass[a4paper,11pt,english,german]{book}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%            Packages                    %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage[T1]{fontenc} %Set font encoding for output PDF
+%\usepackage[utf8]{inputenc} %Important for German "Umlaute"
+\usepackage[latin9]{inputenc}
+\usepackage{amsfonts,amsmath,amssymb} % AMS and other symbols
+\usepackage{graphicx} %Support for including graphics
+\usepackage{wrapfig} %To wrap text around figures
+\usepackage[english,german]{babel}
+\usepackage{textcomp} % Text-Companion-Symbols (e. g. \texteuro)
+\usepackage{fancyhdr} %Pretty headers/footers
+\usepackage{bm}
+\usepackage{blindtext}
+\usepackage[numbers]{natbib}
+\usepackage{textpos}
+\usepackage{url} 
+\usepackage{mathtools}
+\usepackage{xr} %For correct cross-referencing?
+\usepackage{xcolor} %Support for using colours
+\definecolor{tum}{rgb}{0.0784,0.4667,0.78824}
+\usepackage[unicode=true,bookmarks=true,bookmarksnumbered=true,bookmarksopen=true,bookmarksopenlevel=1,breaklinks=true,pdfborder={0 0 1},backref=false,colorlinks=false]{hyperref}
+\hypersetup{pdftitle={THESIS TITLE - THESIS SUBTITLE}, pdfauthor={FIRSTNAME LASTNAME}, pdfsubject={MSc thesis, Heinz-Nixdorf Chair of Biomedical Electronics, Technical University of Munich},pdfkeywords={acoustofluidics, acoustophoresis, ultrasound, microfluidics, fluid dynamics}}
+
+%\usepackage{varioref}
+%\usepackage{refstyle}
+%\usepackage{booktabs}
+%\usepackage{esint}
+%\usepackage{array}
+%\usepackage{ae} %Fonts for PDF files
+%\usepackage{booktabs} %Professional tables
+%\usepackage[bf,textfont=small]{caption} %Make pretty captions
+%\usepackage[strict]{changepage} %Adjust margins on individual pages
+%\usepackage{dcolumn} %Align table columns on decimal point
+%\usepackage{latexsym} %AMS and other symbols
+%\usepackage{layout} %'\layout' prints margins on page
+%\usepackage{listings} %Include code
+%\usepackage{lmodern} % Latin Modern font to avoid "pixelation"
+%\usepackage{longtable} %Tables that break pages
+%\usepackage{lscape} %Rotate pages (text is rotated)
+%\usepackage[framed,numbered,autolinebreaks,useliterate]{mcode} %Include matlab code 
+%%\usepackage{multicol} %Multicolumned individual pages
+%%\usepackage{pdfpages} %Include pdf documents
+%\usepackage{pdfsync} %Forward or reverse search
+%\usepackage{rotating} %Rotate text
+%\usepackage{siunitx} %SI units and numbers
+%\usepackage{supertabular} %Tables
+%\usepackage{sidecap}
+%\epstopdfsetup{update}
+%\usepackage{pdflscape} %Rotate pages (page is rotated)
+%\usepackage{subfig} %Arrange figures
+%\usepackage{keyval} %Used by subfig 
+%\usepackage{everysel} %Required by subfig
+%\usepackage{ragged2e} %Required by subfig
+%\usepackage[final]{listings}
+%\usepackage{appendix}
+%\usepackage{pdfpages}
+%\pdfinclusioncopyfonts=1
+%\usepackage{tikz}
+%\usepackage{url}
+%\usepackage{lmodern}
+%\usepackage{multirow}
+%\usepackage{makeidx}
+%\usepackage{showidx}
+%\usepackage{attachfile}
+%\usepackage{psfrag}
+%\usepackage{lscape}
+%\usepackage{longtable}
+%\usepackage{BeraMono}
+%\usepackage{verbatim}
+%\usepackage{xargs}[2008/03/08]
+%\PassOptionsToPackage{normalem}{ulem}
+%\usepackage{ulem}
+
+%====================================
+% PAGE GEOMETRY
+%====================================
+%\pagestyle{myheadings}
+\topmargin       0 mm
+\oddsidemargin    10 mm
+\evensidemargin   2 mm
+\textwidth      145 mm
+\textheight     230 mm
+\headheight 15 pt
+
+%====================================
+% HEADINGS SETUP
+%====================================
+\pagestyle{fancyplain}
+\renewcommand{\chaptermark}[1]{\markboth{#1}{}}
+\renewcommand{\sectionmark}[1]{\markright{\thesection\ #1}}
+\lhead[\fancyplain{}{\sffamily\bfseries\thepage}]%
+      {\fancyplain{}{\sffamily\bfseries\rightmark}}
+\rhead[\fancyplain{}{\sffamily\bfseries\leftmark}]%
+      {\fancyplain{}{\sffamily\bfseries\thepage}}
+\cfoot{}
+
+		
+%====================================
+% MACROS / NEWCOMMANDS
+%====================================
+%% EQUATIONS %%
+\newcommand{\beq}[1]{\begin{equation} \eqlab{#1}}
+\newcommand{\eeq}{\end{equation}}
+\newcommand{\bsub}{\begin{subequations}}	
+\newcommand{\esub}{\end{subequations}}
+\def\bal#1\eal{\begin{align}#1\end{align}}
+\def\bsubal#1\esubal{\bsub \begin{align}#1\end{align} \esub}
+\newcommand{\nn}{\nonumber}
+\newcommand{\notop}{{{}_{}}}
+
+%% REFERENCES %%
+\newcommand{\eqlab}[1]{\label{eq:#1}}
+\newcommand{\equref}[1]{Eq.~(\ref{eq:#1})}
+\newcommand{\eqsref}[2]{Eqs.~(\ref{eq:#1}) and~(\ref{eq:#2})}
+\newcommand{\figref}[1]{Fig.~\ref{fig:#1}}
+\newcommand{\figsref}[2]{Figs.~\ref{fig:#1} and~\ref{fig:#2}}
+\newcommand{\figlab}[1]{\label{fig:#1}}
+\newcommand{\appref}[1]{Appendix~\ref{chap:#1}}
+\newcommand{\appsref}[2]{Appendices~\ref{chap:#1} and~\ref{chap:#2}}
+\newcommand{\chapref}[1]{Chapter~\ref{chap:#1}}
+\newcommand{\chapsref}[2]{Chapters~\ref{chap:#1} and~\ref{chap:#2}}
+\newcommand{\chaplab}[1]{\label{chap:#1}}
+\newcommand{\secref}[1]{Section~\ref{sec:#1}}
+\newcommand{\secsref}[2]{Sections~\ref{sec:#1} and~\ref{sec:#2}}
+\newcommand{\seclab}[1]{\label{sec:#1}}
+\newcommand{\tabref}[1]{Table~\ref{tab:#1}}
+\newcommand{\tabsref}[2]{Tables~\ref{tab:#1} and~\ref{tab:#2}}
+\newcommand{\tablab}[1]{\label{tab:#1}}
+
+%% LITERAL ABBREVIATIONS %%
+\newcommand{\ie}{{i.e.}}
+\newcommand{\eg}{{e.g.}}
+\newcommand{\etal}{\textit{et~al.~}}
+\newcommand{\insitu}{\textit{in~situ}}
+
+%% MATH SYMBOLS %%
+\renewcommand{\vec}[1]{\bm{#1}}
+\newcommand{\pp}{\partial}
+\newcommand{\nablabf}{\boldsymbol{\nabla}}
+\newcommand{\ic}{\mathrm{i}} % imaginary unit
+\newcommand{\im}{\mathrm{Im}}
+\newcommand{\re}{\mathrm{Re}}
+\newcommand{\e}[1]{\mathrm e^{#1}}
+\newcommand{\avr}[1]{\big\langle #1 \big\rangle}
+\newcommand{\ee}{\mathrm{e}}
+\newcommand{\ii}{\mathrm{i}}
+\newcommand{\dm}{\mathrm{d}}
+\newcommand{\ex}{\vec{e}^\notop_x}
+\newcommand{\ey}{\vec{e}^\notop_y}
+\newcommand{\ez}{\vec{e}^\notop_z}
+\newcommand{\rrr}{\vec{r}}
+\newcommand{\nx}{n_x}
+\newcommand{\ny}{n_y}
+\newcommand{\nz}{n_z}
+
+%====================================
+% MAIN BODY
+%====================================
+\graphicspath{{figures/}}
 \begin{document}
 
-Name, date, Exercise X
- more line.
-\section*{Part a}
+\input{frontpage.tex}
 
-Put your answer to part a here
+% \include{preface}
 
-\section*{Part b}
-B
-etc
-more here
-\section*{another section}
-\newpage
-\newpage
-more text
-more text
-\newpage
-\section*{4th section}
-blabal
-\begin{itemize}
-    \item 1 
-    \item 2
-    \item 3 abc
-\end{itemize}
+\clearpage{}
+\addtolength{\parskip}{-0pt}\tableofcontents{}%
+\addcontentsline{toc}{section}{Contents}
+\markboth{Contents}{Contents}
+\clearpage{}
+\listoffigures
+\addcontentsline{toc}{section}{List of Figures}
+\markboth{List of Figures}{List of Figures}
+\clearpage{}
+\listoftables
+\addcontentsline{toc}{section}{List of Tables}
+\markboth{List of Tables}{List of Tables}
+\clearpage{}
+%\include{listofsymbols}
+%\include{listofmaterialparameters}
+\mainmatter
+
+\chapter{Introduction}
+\chapter{Draft}
+\section{Background and remarks}
+
+\section{literature review}
+
+
+\section{Layer Segmentation}
+\subsection{Layer annotation}
+sliced mip projection for annotation and then interpolation, backprojected to original volume size
+
+31 volumes are annotated
+\subsection{Data preprocessing}
+data normalization seems to not matter
+different intensity transformations -> choose quadratic intensity transformation with cutoff on both sides
+-standard (quadratic)
+-enhanced signal
+-sliding mip
+-> standard seems to work best
+
+
+
+
+\subsection{network}
+unet depth 3 and 4: 4 performs much better not in loss but in homogenity
+
+TODO: try unet depth 5 and hopefully it will not be much better but will consume much more memory etc
+using dropout in all upconv layer except the "first" one
+
+\subsection{loss functions}
+cross entropy loss with linear increased weight away from layer (detection deep in dermis heavy penalty)
+precalculation implemented in data loader for performance increase
+
+smoothness loss, smoothness loss works with different parameters, but we choose a low one.
+downside: works only in one direction, otherwise dependent on minibatch size
+
+TODO: get a mathematical formulation of the smoothness loss
+
+class weights: light class weight seems to work best (can use class weight to tune the layer thickness)
+no class weight (equal) results in rather too thin layer, class weight equal to the inverse of class distribution in the volume leads to rather thick layer
+
+unfortunately a low loss value is not an indicator for a good prediction? but up to now we were always looking at the model
+which performs best on the val set, need to compare this to the model trained after 30 epochs
+
+\subsection{cross validation}
+no significant loss difference
+also slice-wise reshuffling showed no significant loss difference
+annotations are maybe not so good
+
+\subsection{post processing}
+1. binary fill holes
+
+2. binary closing
+
+3. extract surface data of upper and lower surface (index = value) projection from 3D to 2D
+
+4. apply median filter 26x26, if median[x,y] larger value[x,y], replace value with median. therefore removal of spikes and hills!
+
+5. apply uniform filter 9x5, 9 in direction of minibatch, 5 in direction already smoothened by smoothing loss
+
+6. reconstruct label by filling up the space between the two surfaces.
+
+remarks: tried flipping x and y dimensions and getting two predictions to combine. Network works perfectly in other direction as well, but combination fails. Tried to combine label as well as raw prediction scores, but can't.
+
+\section{Vessel segmentation}
+\subsection{synthetic data}
+
+\subsection{vessel annotation}
+
+
+\subsection{vesnet}
+
+
+
+\appendix
+\bibliographystyle{ieeetr}
+\bibliography{references}
+
 \end{document}
