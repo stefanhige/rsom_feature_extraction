@@ -5,7 +5,7 @@
 
 ## VESNET
 
-* use python logger for printouts to file and stdout
+* use python logger for printouts to file and stdout, maybe not, confusing..
 
 * clean up module structure, move reused things to utils
 
