@@ -10,13 +10,13 @@ from deep_vessel_3d import DeepVesselNet
 DEBUG = None
 DEBUG = True
 
-root_dir = '/home/gerlstefan/data/vesnet/synth+annotDataset/'
+root_dir = os.getenv('HOME') + '/data/vesnet/synth+annot+backgDataset/'
 # root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy_small'
 # root_dir = '/home/gerlstefan/data/vesnet/annot_test_retrain_capability'
 
-desc = ('retrain on 3 synth + 2 rsom'
+desc = ('retrain on 3 synth, 3 rsom, 4 rsom background'
         ' ')
-sdesc = 'rt_nrsomf_bce_gn'
+sdesc = 'rt_+backg_bce_gn'
 
 
 os.environ["CUDA_VISIBLE_DEVICES"]='0'
@@ -25,11 +25,11 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 train_dir = os.path.join(root_dir, 'train')
 eval_dir = os.path.join(root_dir, 'eval')
-out_dir = '/home/gerlstefan/data/vesnet/out'
+out_dir = '/home/stefan/data/vesnet/out'
 
-model_dir = '/home/gerlstefan/data/vesnet/out/190929-01-nrsomf_bce_gn/mod190929-01.pt'
+model_dir = os.getenv('HOME') + '/data/vesnet/out/190929-01-nrsomf_bce_gn/mod190929-01.pt'
 # model_dir = ''
-pred_dir = '/home/gerlstefan/data/vesnet/synth+annotDataset/eval'
+pred_dir = os.getenv('HOME') + '/data/vesnet/synth+annotDataset/eval'
 
 dirs={'train': train_dir,
       'eval': eval_dir,
