@@ -572,6 +572,8 @@ class RSOM():
         
         self.Vm = np.stack([self.Vl_1, self.Vh_1, B], axis = -1)
         
+        
+        
     def cutDEPTH(self):
         ''' cut Vl and Vh to 500 x 171 x 333'''
         
@@ -788,6 +790,7 @@ class RSOM_vessel(RSOM):
         elif mode == 'manual':
             f = open(file)
             layer_end = int(str(f.read()))
+            f.close()
         else:
             raise NotImplementedError
             
@@ -806,6 +809,42 @@ class RSOM_vessel(RSOM):
         
         
         # keep meta information?
+    def backgroundAnnot_replaceVessel(self, path, mode='manual', fstr='ves_cutoff'):
+        '''
+        cut off the epidermis with loading corresponding segmentation mask.
+        '''
+        
+        # generate path
+        filename = 'R' + self.file.DATETIME + self.file.ID + '_' + fstr
+        file = os.path.join(path, filename)
+        
+        print('Loading', file)
+        
+        if mode=='manual':
+            f = open(file)
+            background_end = int(str(f.read()))
+            f.close()
+            
+        print('Replace with 0: z<=', background_end)
+
+        
+        # shift, in case layer was cut before,
+        # may rise error if self.layer_end undefined
+        background_end = background_end - self.layer_end
+        
+        # replace with 0
+        self.Vl_1[:background_end, :, :] = 0
+        self.Vh_1[:background_end, :, :] = 0
+        
+        # cut unneccessary background
+        # but keep 200 pixels extension to get a similar volume size
+        if background_end - 200 >= 0:
+            cut = background_end - 200
+        else:
+            cut = 0
+        #self.Vl_1 = self.Vl_1[cut:, :, :]
+        #self.Vh_1 = self.Vh_1[cut:, :, :]
+            
         
         
         
@@ -831,6 +870,9 @@ class RSOM_vessel(RSOM):
         self.Vseg = np.logical_or(np.logical_or((self.Vh_1 + self.Vl_1) >= 1, 
                                                 self.Vl_1 > 0.3),
                                     self.Vh_1 > 0.7)
+        
+        # hack for background annotation. zeros only
+        self.Vseg = np.zeros_like(self.Vh_1)
         return self.Vseg
         
     def mathMORPH(self):
