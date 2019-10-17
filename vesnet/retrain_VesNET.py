@@ -8,7 +8,7 @@ from deep_vessel_3d import DeepVesselNet
 
 
 DEBUG = None
-DEBUG = True
+# DEBUG = True
 
 root_dir = os.getenv('HOME') + '/data/vesnet/synth+annot+backgDataset/'
 # root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy_small'
@@ -50,7 +50,7 @@ net1 = VesNET(device=device,
                      desc=desc,
                      sdesc=sdesc,
                      dirs=dirs,
-                     divs=(2,3,3),
+                     divs=(3,3,3),
                      model=model,
                      batch_size=1,
                      optimizer='Adam',
