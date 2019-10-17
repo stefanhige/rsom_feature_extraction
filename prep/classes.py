@@ -872,7 +872,7 @@ class RSOM_vessel(RSOM):
                                     self.Vh_1 > 0.7)
         
         # hack for background annotation. zeros only
-        self.Vseg = np.zeros_like(self.Vh_1)
+        # self.Vseg = np.zeros_like(self.Vh_1)
         return self.Vseg
         
     def mathMORPH(self):

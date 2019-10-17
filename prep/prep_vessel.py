@@ -95,13 +95,13 @@ for idx, filenameLF in enumerate(filenameLF_LIST):
     Obj.normINTENSITY()
     Obj.rescaleINTENSITY()
     
-    debug = Obj.thresholdSEGMENTATION()
+    # debug = Obj.thresholdSEGMENTATION()
     # Obj.mathMORPH()
     
-    Obj.saveSEGMENTATION(destination, fstr='l')
-    Obj.backgroundAnnot_replaceVessel(origin_layer, 
-                                      mode='manual',
-                                      fstr='ves_cutoff')
+    # Obj.saveSEGMENTATION(destination, fstr='l')
+    #Obj.backgroundAnnot_replaceVessel(origin_layer, 
+                                      # mode='manual',
+                                      # fstr='ves_cutoff')
     
     Obj.mergeVOLUME_RGB()
     Obj.saveVOLUME(destination, fstr = 'v_rgb')
