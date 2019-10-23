@@ -17,17 +17,17 @@ from utils.get_unique_filepath import get_unique_filepath
 
 
 # define folder
-origin = '/home/stefan/Documents/RSOM/Diabetes/allmat'
+origin = '/home/stefan/Documents/RSOM/Diabetes/new_data/no_surf'
 # origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/allmat'
 # origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
 
 # destination = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
 # destination = '/home/sgerl/Documents/PYTHON/TestDataset20190411/selection/other_preproccessing_tests/sliding_mip_6'
-destination = '/home/stefan/Documents/RSOM/Diabetes/selection1/out_from_prep'
+destination = '/home/stefan/Documents/RSOM/Diabetes/new_data/no_surf/out_from_prep'
 
 
 # mode
-mode = 'list'
+mode = 'dir'
 
 if mode=='dir':
     cwd = os.getcwd()
