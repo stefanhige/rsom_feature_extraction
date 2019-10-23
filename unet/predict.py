@@ -237,62 +237,63 @@ def to_numpy(V, meta):
 class arg_class():
     pass
 
-args = arg_class()
+if __name__ == '__main__':
+    args = arg_class()
 
-os.environ["CUDA_VISIBLE_DEVICES"]='5'
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    os.environ["CUDA_VISIBLE_DEVICES"]='5'
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# origin = '/home/gerlstefan/data/fullDataset/labeled/val'
-# origin = '/home/gerlstefan/data/dataloader_dev'
-origin = '/home/gerlstefan/data/layerunet/for_vesnet/selection1/out_from_prep'
-destination ='/home/gerlstefan/data/layerunet/for_vesnet/selection1/prediction'
-model_path = '/home/gerlstefan/models/layerseg/test/mod_190731_depth4.pt'
+    # origin = '/home/gerlstefan/data/fullDataset/labeled/val'
+    # origin = '/home/gerlstefan/data/dataloader_dev'
+    origin = '/home/gerlstefan/data/layerunet/for_vesnet/selection1/out_from_prep'
+    destination ='/home/gerlstefan/data/layerunet/for_vesnet/selection1/prediction'
+    model_path = '/home/gerlstefan/models/layerseg/test/mod_190731_depth4.pt'
 
-# TODO: new dataset without labels
-# or optional labels to use also with evaluation set?
+    # TODO: new dataset without labels
+    # or optional labels to use also with evaluation set?
 
-# create Dataset of prediction data
-dataset_pred = RSOMLayerDatasetUnlabeled(origin,
-        transform=transforms.Compose([
-            ZeroCenter(), 
-            CropToEven(network_depth=4),
-            DropBlue(),
-            ToTensor()]))
+    # create Dataset of prediction data
+    dataset_pred = RSOMLayerDatasetUnlabeled(origin,
+            transform=transforms.Compose([
+                ZeroCenter(), 
+                CropToEven(network_depth=4),
+                DropBlue(),
+                ToTensor()]))
 
-dataloader_pred = DataLoader(dataset_pred,
-        batch_size=1, 
-        shuffle=False, 
-        num_workers=4, 
-        pin_memory=True)
-
-
-args.size_pred = len(dataset_pred)
-
-print("Predicting ", args.size_pred, " Volumes.")
-args.minibatch_size = 1
-args.device = device
-args.dtype = torch.float32
-args.non_blocking = True
-args.destination_dir = destination
-
-model = UNet(in_channels=2,
-             n_classes=2,
-             depth=4,
-             wf=6,
-             padding=True,
-             batch_norm=True,
-             up_mode='upconv').to(args.device)
+    dataloader_pred = DataLoader(dataset_pred,
+            batch_size=1, 
+            shuffle=False, 
+            num_workers=4, 
+            pin_memory=True)
 
 
-model = model.float()
+    args.size_pred = len(dataset_pred)
 
-model.load_state_dict(torch.load(model_path))
+    print("Predicting ", args.size_pred, " Volumes.")
+    args.minibatch_size = 1
+    args.device = device
+    args.dtype = torch.float32
+    args.non_blocking = True
+    args.destination_dir = destination
+
+    model = UNet(in_channels=2,
+                 n_classes=2,
+                 depth=4,
+                 wf=6,
+                 padding=True,
+                 batch_norm=True,
+                 up_mode='upconv').to(args.device)
 
 
-iterator_pred = iter(dataloader_pred)
+    model = model.float()
 
-pred(model=model,
-        iterator=iterator_pred,
-        args=args)
+    model.load_state_dict(torch.load(model_path))
 
-    
+
+    iterator_pred = iter(dataloader_pred)
+
+    pred(model=model,
+            iterator=iterator_pred,
+            args=args)
+
+        
