@@ -504,7 +504,9 @@ class VesNET():
         # we got all prediction volumes in V and their labels in L
 
         
-        id_cutoff, id_dice = find_cutoff(pred=V, label=L, plot=True)
+        id_cutoff, id_dice, fig = find_cutoff(pred=V, label=L, plot=True)
+        if not self.DEBUG:
+            fig.savefig(os.path.join(self.dirs['out'],'thvsdice.png'))
 
     def predict(self, use_best=True, metrics=True, adj_cutoff=True):
         '''

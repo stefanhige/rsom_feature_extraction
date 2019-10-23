@@ -134,10 +134,11 @@ def find_cutoff(pred, label, plot=False):
         ax.set(xlabel='threshold', ylabel='dice')
         ax.grid()
 
-        fig.savefig('thvsdice.png')
+        
+        return res.x, 1-_fun(res.x), fig
+    else:
 
-
-    return res.x, 1-_fun(res.x) 
+        return res.x, 1-_fun(res.x) 
 
 def _dice(x, y):
     '''
