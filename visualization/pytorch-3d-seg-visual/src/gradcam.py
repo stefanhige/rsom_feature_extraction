@@ -3,12 +3,19 @@ Created on Thu Oct 26 11:06:51 2017
 
 @author: Utku Ozbulak - github.com/utkuozbulak
 """
+import sys
 from PIL import Image
 import numpy as np
 import torch
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms, utils
 
 from misc_functions import get_example_params, save_class_activation_images
 
+# to make classes importable
+sys.path.append('../../../')
+from vesnet.dataloader import RSOMVesselDataset, DropBlue, ToTensor
+from vesnet.deep_vessel_3d import DeepVesselNet
 
 class CamExtractor():
     """
@@ -22,29 +29,18 @@ class CamExtractor():
     def save_gradient(self, grad):
         self.gradients = grad
 
-    def forward_pass_on_convolutions(self, x):
+    def forward_pass(self, x):
         """
-            Does a forward pass on convolutions, hooks the function at given layer
+            Does a full forward pass on convolutions, hooks the function at given layer
         """
         conv_output = None
-        for module_pos, module in self.model.features._modules.items():
+        for module_pos, module in self.model.layers._modules.items():
             x = module(x)  # Forward
             if int(module_pos) == self.target_layer:
                 x.register_hook(self.save_gradient)
                 conv_output = x  # Save the convolution output on that layer
         return conv_output, x
-
-    def forward_pass(self, x):
-        """
-            Does a full forward pass on the model
-        """
-        # Forward pass on the convolutions
-        conv_output, x = self.forward_pass_on_convolutions(x)
-        x = x.view(x.size(0), -1)  # Flatten
-        # Forward pass on the classifier
-        x = self.model.classifier(x)
-        return conv_output, x
-
+    
 
 class GradCam():
     """
@@ -61,20 +57,24 @@ class GradCam():
         # conv_output is the output of convolutions at specified layer
         # model_output is the final output of the model (1, 1000)
         conv_output, model_output = self.extractor.forward_pass(input_image)
+        
+        
         if target_class is None:
             target_class = np.argmax(model_output.data.numpy())
         # Target for backprop
-        one_hot_output = torch.FloatTensor(1, model_output.size()[-1]).zero_()
-        one_hot_output[0][target_class] = 1
+        one_hot_output = torch.zeros(tuple(model_output.shape), dtype=torch.float32)
+        one_hot_output[0][0][target_class] = 1
         # Zero grads
-        self.model.features.zero_grad()
-        self.model.classifier.zero_grad()
+        self.model.layers.zero_grad()
         # Backward pass with specified target
         model_output.backward(gradient=one_hot_output, retain_graph=True)
         # Get hooked gradients
-        guided_gradients = self.extractor.gradients.data.numpy()[0]
+        guided_gradients = self.extractor.gradients.data.numpy()[0,0, ...]
         # Get convolution outputs
-        target = conv_output.data.numpy()[0]
+        # TODO:
+        # works till here,
+        # what is target used for??
+        target = conv_output.data.numpy()[0,0, ...]
         # Get weights from gradients
         weights = np.mean(guided_gradients, axis=(1, 2))  # Take averages for each gradient
         # Create empty numpy array for cam
@@ -96,17 +96,33 @@ class GradCam():
         return cam
 
 
-if __name__ == '__main__':
-    # Get params
-    target_example = 1  # cat dog
-    (original_image, prep_img, target_class, file_name_to_export, pretrained_model) =\
-        get_example_params(target_example)
-        
-        
-    # Grad cam
-    grad_cam = GradCam(pretrained_model, target_layer=11)
-    # Generate cam mask
-    cam = grad_cam.generate_cam(prep_img, target_class)
-    # Save mask
-    save_class_activation_images(original_image, cam, file_name_to_export)
-    print('Grad cam completed')
+
+target_class = (50, 50, 50) # coordinates
+# load pretrained model
+model_dir = '/home/stefan/data/vesnet/out/191017-00-rt_+backg_bce_gn/mod191017-00.pt'
+model = DeepVesselNet(groupnorm=True) # default settings with group norm
+model.load_state_dict(torch.load(model_dir))
+model.eval()
+
+# load rsom images
+# use standard dataset, this is the easiest
+data_dir = '/home/stefan/data/vesnet/annotatedDataset/train'
+
+dataset = RSOMVesselDataset(data_dir,
+                            divs=(1,1,1), 
+                            offset=(6,6,6),
+                            transform=transforms.Compose([
+                                    DropBlue(),
+                                    ToTensor()]))
+img = dataset[0]['data']
+img = img.unsqueeze(0)
+img = img[:, :, :100, :100, :100]
+    
+    
+# Grad cam
+grad_cam = GradCam(model, target_layer=1)
+# Generate cam mask
+cam = grad_cam.generate_cam(img, target_class)
+# Save mask
+save_class_activation_images(original_image, cam, file_name_to_export)
+print('Grad cam completed')
