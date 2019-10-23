@@ -6,7 +6,7 @@ import os
 import copy
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
-from patch_handling import get_patch
+from .patch_handling import get_patch
 
 import nibabel as nib
 import warnings
