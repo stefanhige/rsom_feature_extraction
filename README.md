@@ -5,6 +5,8 @@
 
 ## VESNET
 
+* major: implement pipeline
+
 * major: implement grad cam for segmentation
 
 * patching is causing different prediction intensities? why? groupnorm?
@@ -34,7 +36,7 @@
     into "loss mask" and actual label
     acutal_label = label == 1
     mask = label != 2    (2 -> 0   , other -> 1) multiply with prediction/unreduced loss/unreduced loss
-    ** might not be needed, as I just cut away vessels from background. So label is zero everywhere**
+    **might not be needed, as I just cut away vessels from background. So label is zero everywhere**
 
 * **currently using bce again**
   dice. handling when dice score is ~1e-14, which is probably when mask is empty in that patch.
