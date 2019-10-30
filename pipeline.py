@@ -29,15 +29,26 @@ import unet.dataloader_dev as unet_dl
 origin = '/home/stefan/Documents/RSOM/Diabetes/new_data/mat'
 
 layerseg_model = '/home/stefan/models/layerseg/test/mod_190731_depth4.pt'
+
 destination = '/home/stefan/Documents/RSOM/Diabetes/new_data/out'
 
 tmp_layerseg_prep = os.path.join(destination, 'tmp', 'layerseg_prep')
 tmp_layerseg_out = os.path.join(destination, 'tmp', 'layerseg_out')
 
+if not os.path.isdir(os.path.join(destination, 'tmp')):
+    os.mkdir(os.path.join(destination, 'tmp'))
+else:
+    print('dir does exist!')
 
-os.mkdir(os.path.join(destination, 'tmp'))
-os.mkdir(tmp_layerseg_prep)
+if not os.path.isdir(tmp_layerseg_prep):
+    os.mkdir(tmp_layerseg_prep)
+else:
+    print(tmp_layerseg_prep, 'does exist!')
 
+if not os.path.isdir(tmp_layerseg_out):
+    os.mkdir(tmp_layerseg_out)
+else:
+    print(tmp_layerseg_out, 'does exist!')
 
 # mode
 mode = 'dir'
@@ -107,6 +118,7 @@ dataloader_pred = DataLoader(dataset_pred,
 args = unet_pred.arg_class()
 args.size_pred = len(dataset_pred)
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print("Predicting ", args.size_pred, " Volumes.")
 args.minibatch_size = 1
 args.device = device
@@ -125,7 +137,7 @@ model = UNet(in_channels=2,
 
 model = model.float()
 
-model.load_state_dict(torch.load(model_path))
+model.load_state_dict(torch.load(layerseg_model))
 
 iterator_pred = iter(dataloader_pred)
 
@@ -142,9 +154,9 @@ unet_pred.pred(model=model,
 # ***** VISUALIZATION *****
 
 
-os.rmdir(os.path.join(destination, 'tmp'))
-os.rmdir(tmp_layerseg_prep)
-os.rmdir(tmp_layerseg_out)
+# os.rmdir(os.path.join(destination, 'tmp'))
+# os.rmdir(tmp_layerseg_prep)
+# os.rmdir(tmp_layerseg_out)
 
 
 
