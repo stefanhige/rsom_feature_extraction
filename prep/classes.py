@@ -781,7 +781,7 @@ class RSOM_vessel(RSOM):
                 layer_end = label_sum_idx[-1]
                 
                 # additional fixed pixel offset
-                offs = 5
+                offs = 10
                 layer_end += offs
             else:
                 print("WARNING:  Could not determine valid epidermis layer.")
