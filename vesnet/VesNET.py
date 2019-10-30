@@ -23,13 +23,13 @@ from timeit import default_timer as timer
 from datetime import date
 
 # MY MODULES
-from deep_vessel_3d import DeepVesselNet
-from dataloader import RSOMVesselDataset
-from dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
-from dataloader import PrecalcSkeleton, DataAugmentation
-from lossfunctions import BCEWithLogitsLoss, calc_metrics, find_cutoff
-from lossfunctions import dice_loss
-from patch_handling import get_volume
+from .deep_vessel_3d import DeepVesselNet
+from .dataloader import RSOMVesselDataset
+from .dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
+from .dataloader import PrecalcSkeleton, DataAugmentation
+from .lossfunctions import BCEWithLogitsLoss, calc_metrics, find_cutoff
+from .lossfunctions import dice_loss
+from .patch_handling import get_volume
 
 
 class VesNET():

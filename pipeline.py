@@ -11,7 +11,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from prep.classes import RSOM
+from prep.classes import RSOM, RSOM_vessel
 from prep.utils.get_unique_filepath import get_unique_filepath
 
 from torch.utils.data import Dataset, DataLoader
@@ -24,16 +24,20 @@ import unet.predict as unet_pred
 from unet.dataloader_dev import RSOMLayerDatasetUnlabeled 
 import unet.dataloader_dev as unet_dl
 
-
+from vesnet.deep_vessel_3d import DeepVesselNet
+from vesnet.VesNET import VesNET, debug
 # define folder
 origin = '/home/stefan/Documents/RSOM/Diabetes/new_data/mat'
 
 layerseg_model = '/home/stefan/models/layerseg/test/mod_190731_depth4.pt'
+vesselseg_model = '/home/stefan/data/vesnet/out/191017-00-rt_+backg_bce_gn/mod191017-00.pt'
 
 destination = '/home/stefan/Documents/RSOM/Diabetes/new_data/out'
 
 tmp_layerseg_prep = os.path.join(destination, 'tmp', 'layerseg_prep')
 tmp_layerseg_out = os.path.join(destination, 'tmp', 'layerseg_out')
+tmp_vesselseg_prep = os.path.join(destination, 'tmp', 'vesselseg_prep')
+tmp_vesselseg_out = os.path.join(destination, 'tmp', 'vesselseg_out')
 
 if not os.path.isdir(os.path.join(destination, 'tmp')):
     os.mkdir(os.path.join(destination, 'tmp'))
@@ -49,6 +53,16 @@ if not os.path.isdir(tmp_layerseg_out):
     os.mkdir(tmp_layerseg_out)
 else:
     print(tmp_layerseg_out, 'does exist!')
+
+if not os.path.isdir(tmp_vesselseg_prep):
+    os.mkdir(tmp_vesselseg_prep)
+else:
+    print(tmp_vesselseg_prep, 'does exist!')
+
+if not os.path.isdir(tmp_vesselseg_out):
+    os.mkdir(tmp_vesselseg_out)
+else:
+    print(tmp_vesselseg_out, 'does exist!')
 
 # mode
 mode = 'dir'
@@ -170,26 +184,57 @@ for idx, filenameLF in enumerate(filenameLF_LIST):
     Obj.cutDEPTH()
     
     # cut epidermis
-    Obj.cutLAYER(origin_layer, mode='pred', fstr='_pred.nii.gz')
+    Obj.cutLAYER(tmp_layerseg_out, mode='pred', fstr='pred.nii.gz')
     
     # VOLUME
     Obj.normINTENSITY()
     Obj.rescaleINTENSITY()
-    
-    # debug = Obj.thresholdSEGMENTATION()
-    # Obj.mathMORPH()
-    
-    # Obj.saveSEGMENTATION(destination, fstr='l')
-    #Obj.backgroundAnnot_replaceVessel(origin_layer, 
-                                      # mode='manual',
-                                      # fstr='ves_cutoff')
-    
     Obj.mergeVOLUME_RGB()
-    Obj.saveVOLUME(destination, fstr = 'v_rgb')
+    Obj.saveVOLUME(tmp_vesselseg_prep, fstr = 'v_rgb')
     
     print('Processing file', idx+1, 'of', len(filenameLF_LIST))
     
 # ***** VESSEL SEGMENTATION *****
+
+DEBUG = None
+# DEBUG = True
+
+desc = ('pipeline test')
+sdesc = ''
+        
+# out_dir = '~/data/vesnet/out'
+vesselseg_out = '/home/stefan/Documents/RSOM/Diabetes/new_data/out'
+
+dirs={'train': '',
+      'eval': '', 
+      'model': vesselseg_model, 
+      'pred': tmp_vesselseg_prep,
+      'out': vesselseg_out}
+
+model = DeepVesselNet(groupnorm=True) # default settings with group norm
+
+# model = DeepVesselNet(in_channels=2,
+                      # channels = [2, 10, 20, 40, 80, 1],
+                      # kernels = [3, 5, 5, 3, 1],
+                      # depth = 5, 
+                      # dropout=False,
+                      # groupnorm=True)
+
+net1 = VesNET(device=device,
+                     desc=desc,
+                     sdesc=sdesc,
+                     dirs=dirs,
+                     divs=(4,4,3),
+                     model=model,
+                     batch_size=1,
+                     ves_probability=0.855,
+                     _DEBUG=DEBUG)
+
+net1.save_code_status()
+
+net1.predict(use_best=False, metrics=True, adj_cutoff=False)
+# net1.predict_adj()
+
 
 
 # ***** VISUALIZATION *****
