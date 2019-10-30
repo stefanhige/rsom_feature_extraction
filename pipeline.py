@@ -148,6 +148,47 @@ unet_pred.pred(model=model,
     
 # ***** PREPROCESSING FOR VESSEL SEGMENTATION *****
 
+for idx, filenameLF in enumerate(filenameLF_LIST):
+
+    filenameHF = filenameLF.replace('LF.mat','HF.mat')
+    
+    # extract datetime
+    idx_1 = filenameLF.find('_')
+    idx_2 = filenameLF.find('_', idx_1+1)
+    filenameSurf = 'Surf' + filenameLF[idx_1:idx_2+1] + '.mat'
+    
+    # merge paths
+    fullpathHF = os.path.join(origin, filenameHF)
+    fullpathLF = os.path.join(origin, filenameLF)
+    fullpathSurf = os.path.join(origin, filenameSurf)
+    
+    Obj = RSOM_vessel(fullpathLF, fullpathHF, fullpathSurf)
+    
+    Obj.readMATLAB()
+    
+    Obj.flatSURFACE()
+    Obj.cutDEPTH()
+    
+    # cut epidermis
+    Obj.cutLAYER(origin_layer, mode='pred', fstr='_pred.nii.gz')
+    
+    # VOLUME
+    Obj.normINTENSITY()
+    Obj.rescaleINTENSITY()
+    
+    # debug = Obj.thresholdSEGMENTATION()
+    # Obj.mathMORPH()
+    
+    # Obj.saveSEGMENTATION(destination, fstr='l')
+    #Obj.backgroundAnnot_replaceVessel(origin_layer, 
+                                      # mode='manual',
+                                      # fstr='ves_cutoff')
+    
+    Obj.mergeVOLUME_RGB()
+    Obj.saveVOLUME(destination, fstr = 'v_rgb')
+    
+    print('Processing file', idx+1, 'of', len(filenameLF_LIST))
+    
 # ***** VESSEL SEGMENTATION *****
 
 

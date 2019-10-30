@@ -809,6 +809,7 @@ class RSOM_vessel(RSOM):
         
         
         # keep meta information?
+
     def backgroundAnnot_replaceVessel(self, path, mode='manual', fstr='ves_cutoff'):
         '''
         cut off the epidermis with loading corresponding segmentation mask.
@@ -844,9 +845,6 @@ class RSOM_vessel(RSOM):
             cut = 0
         #self.Vl_1 = self.Vl_1[cut:, :, :]
         #self.Vh_1 = self.Vh_1[cut:, :, :]
-            
-        
-        
         
     def rescaleINTENSITY(self):
         '''
@@ -863,7 +861,6 @@ class RSOM_vessel(RSOM):
             
         self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0.05, 1))
         self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0.05, 1))
-        
         
     def thresholdSEGMENTATION(self):
         
@@ -901,10 +898,6 @@ class RSOM_vessel(RSOM):
         # 30 seems a good value, tested from 10 to 40
         self.Vseg = morphology.remove_small_objects(self.Vseg, 30)
         
-        
-        
-        
-        
     def saveSEGMENTATION(self, destination, fstr='th'):
         '''
         save rgb volume
@@ -923,7 +916,6 @@ class RSOM_vessel(RSOM):
                             
         
         nib.save(img, path)
-        
         
     def saveVOLUME_float(self, destination, fstr = ''):
         '''
@@ -976,7 +968,6 @@ class RSOM_vessel(RSOM):
         
             
             nib.save(img, str(nii_file))
-        
             
 class RSOM_mip_interp():
     def __init__(self, filepath):
@@ -1141,22 +1132,3 @@ class RSOM_mip_interp():
     
         # RESULT: in dim 0: ascending index: label order: 4 3 2 1 0
         
-        
-#        self.L = interpolate.interpn(
-#                (x1, x2, x3),
-#                self.L_sliced,
-#                (x1_q, x2_q, x3_q),
-#                method='linear',
-#                bounds_error = False,
-#                fill_value = None)
-#        
-#        self.L_255 = self.L.copy()
-#        
-#        self.L = np.round(self.L)
-#        self.L = exposure.rescale_intensity(self.L, in_range = np.uint8, out_range = (label_min, label_max))
-#        
-#        # TODO EROSION DILATION?
-#        #scipy.ndimage.morphology.grey_closing
-#        
-#        print('Shape of L', self.L.shape)
-
