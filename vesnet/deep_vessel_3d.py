@@ -180,14 +180,26 @@ class DeepVesselNet(nn.Module):
             kernels = [3, 5, 5, 3, 1],
             depth = 5, 
             dropout=False, 
-            groupnorm=False):
+            groupnorm=False,
+            use_vblock=False,
+            vblock_layer=None):
+        
         super(DeepVesselNet, self).__init__()
        
         print('Calling DeepVesselNet init')
+        
         # SETTINGS
         self.in_channels = in_channels
         self.depth = depth
         self.dropout = dropout
+        self.use_vblock = use_vblock
+
+        if use_vblock:
+            assert vblock_layer is not None
+            # don't try to use it in the last layer
+            assert vblock_layer <= depth - 2
+        
+        self.vblock_layer = vblock_layer
        
         # generate dropout list for every layer
         if dropout:
@@ -215,18 +227,24 @@ class DeepVesselNet(nn.Module):
         assert len(self.groupnorms) == depth
 
         layers = []
-        # layers = nn.ModuleList()
 
         # TODO fix notation depth layers?
         
         # deep layers
         for i in range(depth-1):
-            layers.append(DVN_Block(
-                self.channels[i],
-                self.channels[i+1],
-                self.kernels[i],
-                self.groupnorms[i],
-                self.dropouts[i]))
+            if use_vblock and i == vblock_layer:
+                layers.append(V_Block(
+                    self.channels[i],
+                    self.channels[i+1],
+                    self.kernels[i],
+                    4))
+            else:
+                layers.append(DVN_Block(
+                    self.channels[i],
+                    self.channels[i+1],
+                    self.kernels[i],
+                    self.groupnorms[i],
+                    self.dropouts[i]))
         # last layer
         layers.append(nn.Conv3d(self.channels[-2], self.channels[-1], self.kernels[-1])) 
 
@@ -260,7 +278,6 @@ class DVN_Block(nn.Module):
         
         return self.block(x)
 
-
 class V_Block(nn.Module):
 
     def __init__(self, in_size, out_size, kernel_size_conv, kernel_size_pool):
@@ -293,7 +310,9 @@ class V_Block(nn.Module):
 
         self.up = nn.Sequential(*up)
 
-    def forward(self, x):
+        self.cat = Cat()
+    
+    def forward(self, x): 
         
         print('in:',x.shape)
         bridge = self.straight(x)
@@ -315,19 +334,26 @@ class V_Block(nn.Module):
         x = self.up(x)
         x = nn.functional.pad(x, tuple(-el for el in pad))
         print('after up:', x.shape)
-        return torch.cat((x, bridge), 1)
+        return self.cat(x, bridge)
 
+class Cat(nn.Module):
+    def __init__(self):
+        super(Cat, self).__init__()
+
+    def forward(self, x, bridge):
+        return torch.cat((x, bridge), 1)
 
 if __name__ == '__main__':
     
     # test V_Block
     # batch x channels x X x Y x Z
-    x = torch.rand((1, 1, 24, 28, 28))
-
-    m = V_Block(1, 2, kernel_size_conv=3, kernel_size_pool=5)
+    x = torch.rand((1, 2, 24, 28, 28))
+    # m = DeepVesselNet()
+    m = DeepVesselNet(use_vblock=True,vblock_layer=0)
 
     y = m(x)
-
+    print(m)
+    print(m.count_parameters())
         
 
 
