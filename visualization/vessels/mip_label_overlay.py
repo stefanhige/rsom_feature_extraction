@@ -21,8 +21,9 @@ from scipy.ndimage import morphology
 import sys
 
 # to make classes importable
-sys.path.append('../../prep/')
-from classes import RSOM
+if __name__ == '__main__':
+    sys.path.append('../../')
+from prep.classes import RSOM
 
 class RsomVisualization(RSOM):
     '''
@@ -232,7 +233,14 @@ def mip_label_overlay(file_ids, dirs, plot_epidermis=False):
     out_dir = dirs['out']
 
     if isinstance(file_ids, str):
+        
         file_ids = [file_ids]
+
+    elif file_ids is None:
+        
+        # get file_ids from vesselseg directory
+        file_ids = os.listdir(seg_dir_ves)
+        file_ids = [id_[:id_.find('_', 2)] for id_ in file_ids]
 
     for file_id in file_ids:
 

@@ -26,6 +26,11 @@ import unet.dataloader_dev as unet_dl
 
 from vesnet.deep_vessel_3d import DeepVesselNet
 from vesnet.VesNET import VesNET, debug
+
+from visualization.vessels.mip_label_overlay import mip_label_overlay
+from visualization.vessels.mip_label_overlay import RsomVisualization
+from visualization.vessels.mip_label_overlay import get_unique_filepath
+
 # define folder
 origin = '/home/stefan/Documents/RSOM/Diabetes/new_data/mat'
 
@@ -177,6 +182,7 @@ for idx, filenameLF in enumerate(filenameLF_LIST):
     fullpathSurf = os.path.join(origin, filenameSurf)
     
     Obj = RSOM_vessel(fullpathLF, fullpathHF, fullpathSurf)
+   
     
     Obj.readMATLAB()
     
@@ -238,6 +244,26 @@ net1.predict(use_best=False, metrics=True, adj_cutoff=False)
 
 
 # ***** VISUALIZATION *****
+
+file_ids = ['R_20170828154106_',
+            'R_20170906132142_',
+            'R_20170906141354_',
+            'R_20171211150527_',
+            'R_20171213135032_',
+            'R_20180409164251_']  # enough string to identify an unique file
+
+# directory with the raw matlab files
+
+
+dirs = {'in': origin,
+        'layer': tmp_layerseg_out,
+        'vessel': tmp_vesselseg_out,
+        'out': destination }
+
+plot_epidermis = True
+
+
+mip_label_overlay(None, dirs, plot_epidermis=False)
 
 
 # os.rmdir(os.path.join(destination, 'tmp'))
