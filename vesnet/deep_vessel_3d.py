@@ -5,6 +5,8 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
+
+from math import floor, ceil
 # this whole file is copied from
 # https://github.com/ramialmask/pytorch_deepvessel/tree/master/components
 # thanks to Rami Al-Maskari
@@ -259,8 +261,74 @@ class DVN_Block(nn.Module):
         return self.block(x)
 
 
+class V_Block(nn.Module):
+
+    def __init__(self, in_size, out_size, kernel_size_conv, kernel_size_pool):
+        super(V_Block, self).__init__()
+
+        assert kernel_size_conv % 2
+        
+        self.ksp = kernel_size_pool
+        
+        straight = []
+        straight.append(nn.Conv3d(in_size, floor(out_size/2), kernel_size_conv))
+        straight.append(nn.ReLU())
+        
+        self.straight = nn.Sequential(*straight)
+        padding = 0
+
+        down = []
+        down.append(nn.MaxPool3d(kernel_size_pool, padding=0))
+        down.append(nn.Conv3d(in_size, ceil(out_size/2), kernel_size_conv))
+        down.append(nn.ReLU())
+        # down.append(nn.ReplicationPad3d(floor(kernel_size_conv/2)))
+        
+        self.down = nn.Sequential(*down)
+
+        up = []
+        up.append(nn.Upsample(scale_factor=kernel_size_pool, mode='trilinear'))
+        pad = (kernel_size_pool-1) * floor(kernel_size_conv/2)
+        print(pad)
+        up.append(nn.ReplicationPad3d(pad))
+
+        self.up = nn.Sequential(*up)
+
+    def forward(self, x):
+        
+        print('in:',x.shape)
+        bridge = self.straight(x)
+        print('bridge:', bridge.shape)
+        
+        # pad to the next multiplier of kernel_size_pool
+        pad = (floor(-x.shape[-1] % self.ksp / 2), 
+               ceil(-x.shape[-1] % self.ksp / 2), 
+               floor(-x.shape[-2] % self.ksp / 2), 
+               ceil(-x.shape[-2] % self.ksp / 2), 
+               floor(-x.shape[-3] % self.ksp / 2), 
+               ceil(-x.shape[-3] % self.ksp / 2))
+
+        x = nn.functional.pad(x, pad)
+        print('after pad:', x.shape)
+
+        x = self.down(x)
+        print('after down:', x.shape)
+        x = self.up(x)
+        x = nn.functional.pad(x, tuple(-el for el in pad))
+        print('after up:', x.shape)
+        return torch.cat((x, bridge), 1)
 
 
+if __name__ == '__main__':
+    
+    # test V_Block
+    # batch x channels x X x Y x Z
+    x = torch.rand((1, 1, 24, 28, 28))
+
+    m = V_Block(1, 2, kernel_size_conv=3, kernel_size_pool=5)
+
+    y = m(x)
+
+        
 
 
 
