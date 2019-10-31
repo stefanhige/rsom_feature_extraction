@@ -209,22 +209,21 @@ desc = ('pipeline test')
 sdesc = ''
         
 # out_dir = '~/data/vesnet/out'
-vesselseg_out = '/home/stefan/Documents/RSOM/Diabetes/new_data/out'
 
 dirs={'train': '',
       'eval': '', 
       'model': vesselseg_model, 
       'pred': tmp_vesselseg_prep,
-      'out': vesselseg_out}
+      'out': destination}
 
-model = DeepVesselNet(groupnorm=True) # default settings with group norm
+# model = DeepVesselNet(groupnorm=True) # default settings with group norm
 
-# model = DeepVesselNet(in_channels=2,
-                      # channels = [2, 10, 20, 40, 80, 1],
-                      # kernels = [3, 5, 5, 3, 1],
-                      # depth = 5, 
-                      # dropout=False,
-                      # groupnorm=True)
+model = DeepVesselNet(in_channels=2,
+                      channels = [2, 10, 20, 40, 80, 1],
+                      kernels = [3, 5, 5, 3, 1],
+                      depth = 5, 
+                      dropout=False,
+                      groupnorm=True)
 
 net1 = VesNET(device=device,
                      desc=desc,
@@ -245,22 +244,11 @@ net1.predict(use_best=False, metrics=True, adj_cutoff=False)
 
 # ***** VISUALIZATION *****
 
-file_ids = ['R_20170828154106_',
-            'R_20170906132142_',
-            'R_20170906141354_',
-            'R_20171211150527_',
-            'R_20171213135032_',
-            'R_20180409164251_']  # enough string to identify an unique file
-
-# directory with the raw matlab files
-
 
 dirs = {'in': origin,
         'layer': tmp_layerseg_out,
         'vessel': tmp_vesselseg_out,
         'out': destination }
-
-plot_epidermis = True
 
 
 mip_label_overlay(None, dirs, plot_epidermis=False)

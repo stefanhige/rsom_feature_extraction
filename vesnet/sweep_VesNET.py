@@ -19,13 +19,13 @@ sdes = []
 model = []
 
 # run 1
-desc.append(('Rsom noisy dataset. 27 samples, bce loss, standard DeepVesselNet 10ep'))
+desc.append(('Rsom noisy dataset. 27 samples, DeepVesselNet, standard'))
 sdesc.append('nrsomf_bce_gn')
 
 model.append(DeepVesselNet(groupnorm=True)) # default settings with group norm
 
 # run 2
-desc.append(('Rsom noisy dataset. 27 samples, bce loss, DeepVesselNet, with more params 10ep'))
+desc.append(('Rsom noisy dataset. 27 samples, DeepVesselNet,'))
 sdesc.append('nrsomf_bce_gn_mp')
 
 model.append(DeepVesselNet(in_channels=2,

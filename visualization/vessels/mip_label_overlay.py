@@ -245,12 +245,12 @@ def mip_label_overlay(file_ids, dirs, plot_epidermis=False):
     for file_id in file_ids:
 
         matLF, matHF = get_unique_filepath(mat_dir, file_id)
-        print(matLF)
         
-        idx_1 = matLF.find('_')
-        idx_2 = matLF.find('_', idx_1+1)
-        matSurf = os.path.join(mat_dir, 'Surf' + matLF[idx_1:idx_2+1] + '.mat')
-        
+        _, matLF_ = os.path.split(matLF)
+        idx_1 = matLF_.find('_')
+        idx_2 = matLF_.find('_', idx_1+1)
+        matSurf = os.path.join(mat_dir, 'Surf' + matLF_[idx_1:idx_2+1] + '.mat')
+        print('SURF file:', matSurf) 
         
         Obj = RsomVisualization(matLF, matHF, matSurf)
         Obj.readMATLAB()
