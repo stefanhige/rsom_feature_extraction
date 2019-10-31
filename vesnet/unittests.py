@@ -17,15 +17,14 @@ from torchvision import transforms, utils
 
 
 # modules to get tested
-from lossfunctions import calc_metrics
-from dataloader import DataAugmentation
+from .lossfunctions import calc_metrics
+from .dataloader import DataAugmentation
 
-from dataloader import RSOMVesselDataset
-from dataloader import DropBlue, ToTensor, to_numpy
-from patch_handling import get_patches, get_volume
+from .dataloader import RSOMVesselDataset
+from .dataloader import DropBlue, ToTensor, to_numpy
+from .patch_handling import get_patches, get_volume
 
-
-os.environ["CUDA_VISIBLE_DEVICES"]='5'
+# os.environ["CUDA_VISIBLE_DEVICES"]='0'
 
 # helper functions
 def _dice(x, y):
@@ -517,35 +516,4 @@ class TestPatchHandling(unittest.TestCase):
             # print('divs:', divs, 'offset:', offset, 'dimensions:', dimensions)
             V = np.random.random_sample(tuple(dimensions))
             self.assertTrue(self._testit(V, divs, offset))
-
-
-
-
-
-suiteList = []
-suiteList.append(unittest.TestLoader().loadTestsFromTestCase(TestCalcMetrics))
-suiteList.append(unittest.TestLoader().loadTestsFromTestCase(TestDataloaderDataAugmentation))
-suiteList.append(unittest.TestLoader().loadTestsFromTestCase(TestDataloaderPatches))
-suiteList.append(unittest.TestLoader().loadTestsFromTestCase(TestPatchHandling))
-
-suite = unittest.TestSuite(suiteList)
-unittest.TextTestRunner(verbosity=2).run(suite)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
