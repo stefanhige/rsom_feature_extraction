@@ -23,13 +23,24 @@ from timeit import default_timer as timer
 from datetime import date
 
 # MY MODULES
-from .deep_vessel_3d import DeepVesselNet
-from .dataloader import RSOMVesselDataset
-from .dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
-from .dataloader import PrecalcSkeleton, DataAugmentation
-from .lossfunctions import BCEWithLogitsLoss, calc_metrics, find_cutoff
-from .lossfunctions import dice_loss
-from .patch_handling import get_volume
+parent_module = sys.modules['.'.join(__name__.split('.')[:-1]) or '__main__']
+if __name__ == '__main__' or parent_module.__name__ == '__main__':
+    from deep_vessel_3d import DeepVesselNet
+    from dataloader import RSOMVesselDataset
+    from dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
+    from dataloader import PrecalcSkeleton, DataAugmentation
+    from lossfunctions import BCEWithLogitsLoss, calc_metrics, find_cutoff
+    from lossfunctions import dice_loss
+    from patch_handling import get_volume
+
+else:
+    from .deep_vessel_3d import DeepVesselNet
+    from .dataloader import RSOMVesselDataset
+    from .dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
+    from .dataloader import PrecalcSkeleton, DataAugmentation
+    from .lossfunctions import BCEWithLogitsLoss, calc_metrics, find_cutoff
+    from .lossfunctions import dice_loss
+    from .patch_handling import get_volume
 
 
 class VesNET():
@@ -118,7 +129,7 @@ class VesNET():
                                        kernels = [3, 5, 5, 3, 1],
                                        depth = 5, 
                                        dropout=False,
-                                       groupnorm=True)
+                                       groupnorm=False)
         
         if self.dirs['model']:
             self.printandlog('Loading model from:', self.dirs['model'])
@@ -754,25 +765,25 @@ def debug(*msg):
 if __name__ == '__main__': 
 
     DEBUG = None
-    DEBUG = True
+    # DEBUG = True
 
-    root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy_small'
+    root_dir = '~/data/vesnet/synthDataset/rsom_style_noisy'
 
 
-    desc = ('Rsom noisy dataset. 27 samples, 3 epochs, train with dice, foreground only')
-    sdesc = 'idendity_from_scratch_hq0001_bce_gn_more_params'
+    desc = ('train on 27 synth samples. No groupnorm')
+    sdesc = 'nrsom'
 
 
     model_dir = ''
             
-    os.environ["CUDA_VISIBLE_DEVICES"]='0'
+    os.environ["CUDA_VISIBLE_DEVICES"]='6'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
     train_dir = os.path.join(root_dir, 'train')
     eval_dir = os.path.join(root_dir, 'eval')
     out_dir = '/home/gerlstefan/data/vesnet/out'
-    pred_dir = '/home/gerlstefan/data/vesnet/annot_test_retrain_capability/eval'
+    pred_dir = '/home/gerlstefan/data/vesnet/annotatedDataset/eval'
 
     dirs={'train': train_dir,
           'eval': eval_dir, 
@@ -780,11 +791,23 @@ if __name__ == '__main__':
           'pred': pred_dir,
           'out': out_dir}
 
+    dirs = {k: os.path.expanduser(v) for k, v in dirs.items()}
+
+    # model = DeepVesselNet(groupnorm=False) # default settings with group norm
+
+    model = DeepVesselNet(in_channels=2,
+                      channels = [2, 10, 20, 40, 80, 1],
+                      kernels = [3, 5, 5, 3, 1],
+                      depth = 5, 
+                      dropout=False,
+                      groupnorm=False)
+
     net1 = VesNET(device=device,
                   desc=desc,
                   sdesc=sdesc,
+                  model=model,
                   dirs=dirs,
-                  divs=(2,2,2),
+                  divs=(4,4,4),
                   batch_size=5,
                   optimizer='Adam',
                   class_weight=10,
@@ -806,7 +829,7 @@ if __name__ == '__main__':
     net1.plot_loss()
     net1.save_model()
 
-    net1.predict()
+    net1.predict_adj()
 
 
 
