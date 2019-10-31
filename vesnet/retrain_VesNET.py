@@ -8,7 +8,7 @@ from deep_vessel_3d import DeepVesselNet
 
 
 DEBUG = None
-DEBUG = True
+# DEBUG = True
 
 root_dir = '~/data/vesnet/synth+annot+backgDataset/'
 # root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy_small'
@@ -16,10 +16,10 @@ root_dir = '~/data/vesnet/synth+annot+backgDataset/'
 
 desc = ('retrain'
         ' ')
-sdesc = 'rt_mp'
+sdesc = 'rt_vblock'
 
 
-os.environ["CUDA_VISIBLE_DEVICES"]='6'
+os.environ["CUDA_VISIBLE_DEVICES"]='5'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # torch.backends.cudnn.benchmark=True
 
@@ -27,7 +27,7 @@ train_dir = os.path.join(root_dir, 'train')
 eval_dir = os.path.join(root_dir, 'eval')
 out_dir = '~/data/vesnet/out'
 
-model_dir = '~/data/vesnet/out/191031-05-nrsom_mp/mod191031-05.pt'
+model_dir = '~/data/vesnet/out/191031-08-nrsom_vblock/mod191031-08.pt'
 # model_dir = ''
 pred_dir = '~/data/vesnet/synth+annot+backgDataset/eval'
 
@@ -40,13 +40,16 @@ dirs={'train': train_dir,
 dirs = {k: os.path.expanduser(v) for k, v in dirs.items()}
 
 
-# model = DeepVesselNet(groupnorm=False) # default settings with group norm
-model = DeepVesselNet(in_channels=2,
-                      channels = [2, 10, 20, 40, 80, 1],
-                      kernels = [3, 5, 5, 3, 1],
-                      depth = 5, 
-                      dropout=False,
-                      groupnorm=False)
+model = DeepVesselNet(groupnorm=False,
+                      use_vblock=True,
+                      vblock_layer=2)
+
+# model = DeepVesselNet(in_channels=2,
+#                       channels = [2, 10, 20, 40, 80, 1],
+#                       kernels = [3, 5, 5, 3, 1],
+#                       depth = 5, 
+#                       dropout=False,
+#                       groupnorm=False)
 
 net1 = VesNET(device=device,
                      desc=desc,
