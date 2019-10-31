@@ -17,12 +17,12 @@ from prep.utils.get_unique_filepath import get_unique_filepath
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 
-from unet.unet import UNet
-import unet.lossfunctions as unet_lfs
-import unet.predict as unet_pred
+from laynet._model import UNet
+import laynet._metrics as unet_lfs
+import laynet.predict as unet_pred
 
-from unet.dataloader_dev import RSOMLayerDatasetUnlabeled 
-import unet.dataloader_dev as unet_dl
+from laynet._dataset import RSOMLayerDatasetUnlabeled 
+import laynet._dataset as unet_dl
 
 from vesnet.deep_vessel_3d import DeepVesselNet
 from vesnet.VesNET import VesNET, debug
