@@ -8,18 +8,18 @@ from deep_vessel_3d import DeepVesselNet
 
 
 DEBUG = None
-# DEBUG = True
+DEBUG = True
 
 root_dir = '~/data/vesnet/synth+annot+backgDataset/'
 # root_dir = '/home/gerlstefan/data/vesnet/synthDataset/rsom_style_noisy_small'
 # root_dir = '/home/gerlstefan/data/vesnet/annot_test_retrain_capability'
 
-desc = ('retrain on 3 synth, 3 rsom, 4 rsom background'
+desc = ('retrain'
         ' ')
-sdesc = 'rt_+backg_bce_gn_mp'
+sdesc = 'rt_mp'
 
 
-os.environ["CUDA_VISIBLE_DEVICES"]='0'
+os.environ["CUDA_VISIBLE_DEVICES"]='6'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # torch.backends.cudnn.benchmark=True
 
@@ -27,7 +27,7 @@ train_dir = os.path.join(root_dir, 'train')
 eval_dir = os.path.join(root_dir, 'eval')
 out_dir = '~/data/vesnet/out'
 
-model_dir = '~/data/vesnet/out/190929-02-nrsomf_bce_gn_mp/mod190929-02.pt'
+model_dir = '~/data/vesnet/out/191031-05-nrsom_mp/mod191031-05.pt'
 # model_dir = ''
 pred_dir = '~/data/vesnet/synth+annot+backgDataset/eval'
 
@@ -40,19 +40,19 @@ dirs={'train': train_dir,
 dirs = {k: os.path.expanduser(v) for k, v in dirs.items()}
 
 
-# model = DeepVesselNet(groupnorm=True) # default settings with group norm
+# model = DeepVesselNet(groupnorm=False) # default settings with group norm
 model = DeepVesselNet(in_channels=2,
                       channels = [2, 10, 20, 40, 80, 1],
                       kernels = [3, 5, 5, 3, 1],
                       depth = 5, 
                       dropout=False,
-                      groupnorm=True)
+                      groupnorm=False)
 
 net1 = VesNET(device=device,
                      desc=desc,
                      sdesc=sdesc,
                      dirs=dirs,
-                     divs=(4,4,3),
+                     divs=(2,2,3),
                      model=model,
                      batch_size=1,
                      optimizer='Adam',

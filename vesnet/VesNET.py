@@ -771,7 +771,7 @@ if __name__ == '__main__':
 
 
     desc = ('train on 27 synth samples. No groupnorm')
-    sdesc = 'nrsom'
+    sdesc = 'nrsom_vblock'
 
 
     model_dir = ''
@@ -793,27 +793,29 @@ if __name__ == '__main__':
 
     dirs = {k: os.path.expanduser(v) for k, v in dirs.items()}
 
-    # model = DeepVesselNet(groupnorm=False) # default settings with group norm
+    model = DeepVesselNet(groupnorm=False,
+                          use_vblock=True,
+                          vblock_layer=2) # default settings with group norm
 
-    model = DeepVesselNet(in_channels=2,
-                      channels = [2, 10, 20, 40, 80, 1],
-                      kernels = [3, 5, 5, 3, 1],
-                      depth = 5, 
-                      dropout=False,
-                      groupnorm=False)
+    # model = DeepVesselNet(in_channels=2,
+    #                   channels = [2, 10, 20, 40, 80, 1],
+    #                   kernels = [3, 5, 5, 3, 1],
+    #                   depth = 5, 
+    #                   dropout=False,
+    #                   groupnorm=False)
 
     net1 = VesNET(device=device,
                   desc=desc,
                   sdesc=sdesc,
                   model=model,
                   dirs=dirs,
-                  divs=(4,4,4),
+                  divs=(3,3,4),
                   batch_size=5,
                   optimizer='Adam',
                   class_weight=10,
                   initial_lr=1e-4,
                   lossfn=BCEWithLogitsLoss,
-                  epochs=100,
+                  epochs=10,
                   ves_probability=0.95,
                   _DEBUG=DEBUG
                   )

@@ -305,7 +305,7 @@ class V_Block(nn.Module):
         up = []
         up.append(nn.Upsample(scale_factor=kernel_size_pool, mode='trilinear'))
         pad = (kernel_size_pool-1) * floor(kernel_size_conv/2)
-        print(pad)
+        # print(pad)
         up.append(nn.ReplicationPad3d(pad))
 
         self.up = nn.Sequential(*up)
@@ -314,9 +314,9 @@ class V_Block(nn.Module):
     
     def forward(self, x): 
         
-        print('in:',x.shape)
+        # print('in:',x.shape)
         bridge = self.straight(x)
-        print('bridge:', bridge.shape)
+        # print('bridge:', bridge.shape)
         
         # pad to the next multiplier of kernel_size_pool
         pad = (floor(-x.shape[-1] % self.ksp / 2), 
@@ -327,13 +327,13 @@ class V_Block(nn.Module):
                ceil(-x.shape[-3] % self.ksp / 2))
 
         x = nn.functional.pad(x, pad)
-        print('after pad:', x.shape)
+        # print('after pad:', x.shape)
 
         x = self.down(x)
-        print('after down:', x.shape)
+        # print('after down:', x.shape)
         x = self.up(x)
         x = nn.functional.pad(x, tuple(-el for el in pad))
-        print('after up:', x.shape)
+        # print('after up:', x.shape)
         return self.cat(x, bridge)
 
 class Cat(nn.Module):
