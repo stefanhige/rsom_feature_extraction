@@ -17,16 +17,16 @@ import warnings
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 
-from unet import UNet
-import lossfunctions as lfs
+from ._model import UNet
+import laynet._metrics as lfs #lfs=lossfunctions
 # import nibabel as nib
 from timeit import default_timer as timer
 
-from dataloader_dev import RSOMLayerDataset
-from dataloader_dev import RandomZShift, ZeroCenter, CropToEven
-from dataloader_dev import DropBlue, ToTensor, precalcLossWeight
+from ._dataset import RSOMLayerDataset
+from ._dataset import RandomZShift, ZeroCenter, CropToEven
+from ._dataset import DropBlue, ToTensor, precalcLossWeight
 
-from dataloader_dev import SwapDim
+from ._dataset import SwapDim
 
 
 
@@ -508,50 +508,51 @@ class LayerUNET():
 # eval_dir = train_dir
 
 # try 4 class weights
-N = 1
+if __name__ == '__main__':
+    N = 1
 
 
-root_dir = '/home/gerlstefan/data/fullDataset/labeled'
+    root_dir = '/home/gerlstefan/data/fullDataset/labeled'
 
 
-model_name = '190808_dimswap_test'
+    model_name = '190808_dimswap_test'
 
 
-model_dir = '/home/gerlstefan/models/layerseg/dimswap'
-        
-os.environ["CUDA_VISIBLE_DEVICES"]='7'
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model_dir = '/home/gerlstefan/models/layerseg/dimswap'
+            
+    os.environ["CUDA_VISIBLE_DEVICES"]='7'
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-for idx in range(N):
-    root_dir = root_dir
+    for idx in range(N):
+        root_dir = root_dir
 
-    print('current model')
-    print(model_name, root_dir)
-    train_dir = os.path.join(root_dir, 'train')
-    eval_dir = os.path.join(root_dir, 'val')
-    dirs={'train':train_dir,'eval':eval_dir, 'model':model_dir, 'pred':''}
+        print('current model')
+        print(model_name, root_dir)
+        train_dir = os.path.join(root_dir, 'train')
+        eval_dir = os.path.join(root_dir, 'val')
+        dirs={'train':train_dir,'eval':eval_dir, 'model':model_dir, 'pred':''}
 
-    net1 = LayerUNET(device=device,
-                         model_depth=4,
-                         dataset_zshift=(-50, 200),
-                         dirs=dirs,
-                         filename=model_name,
-                         optimizer='Adam',
-                         initial_lr=1e-4,
-                         scheduler_patience=3,
-                         lossfn=lfs.custom_loss_1_smooth,
-                         lossfn_smoothness = 50,
-                         epochs=30,
-                         dropout=True,
-                         class_weight=(0.3, 0.7),
-                         )
+        net1 = LayerUNET(device=device,
+                             model_depth=4,
+                             dataset_zshift=(-50, 200),
+                             dirs=dirs,
+                             filename=model_name,
+                             optimizer='Adam',
+                             initial_lr=1e-4,
+                             scheduler_patience=3,
+                             lossfn=lfs.custom_loss_1_smooth,
+                             lossfn_smoothness = 50,
+                             epochs=30,
+                             dropout=True,
+                             class_weight=(0.3, 0.7),
+                             )
 
-    net1.printConfiguration()
-    net1.printConfiguration('logfile')
-    print(net1.model, file=net1.logfile)
+        net1.printConfiguration()
+        net1.printConfiguration('logfile')
+        print(net1.model, file=net1.logfile)
 
-    net1.train_all_epochs()
-    net1.save()
+        net1.train_all_epochs()
+        net1.save()
 
 
 # filestrings = ['190721_unet4_dropout_no_clw', '190721_unet4_dropout_low_clw']

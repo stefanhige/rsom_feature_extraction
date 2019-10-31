@@ -14,12 +14,12 @@ import copy
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 
-from .unet import UNet
-from . import lossfunctions as lfs
+from ._model import UNet
+from . import _metrics as lfs # lossfunctions
 import nibabel as nib
 
-from .dataloader_dev import RSOMLayerDataset, RSOMLayerDatasetUnlabeled 
-from .dataloader_dev import RandomZShift, ZeroCenter, CropToEven, DropBlue, ToTensor
+from ._dataset import RSOMLayerDataset, RSOMLayerDatasetUnlabeled 
+from ._dataset import RandomZShift, ZeroCenter, CropToEven, DropBlue, ToTensor
 
 def pred(model=None, iterator=None, history=None, lossfn=None, args=None):
     '''
