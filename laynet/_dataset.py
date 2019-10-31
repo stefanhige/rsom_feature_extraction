@@ -649,6 +649,55 @@ class CropToEven(object):
     #print(sample['data'].shape)
 
 
+def to_numpy(V, meta):
+    '''
+    inverse function for class ToTensor() in dataloader_dev.py 
+    args
+        V: torch.tensor volume
+        meta: batch['meta'] information
+
+    return V as numpy.array volume
+    '''
+    # torch sizes X is batch size, C is Colour
+    # data
+    # [X x C x Z x Y] [171 x 3 x 500-crop x 333] (without crop)
+    # and for the label
+    # [X x Z x Y] [171 x 500 x 333]
+    
+    # we want to reshape to
+    # numpy sizes
+    # data
+    # [Z x X x Y x 3] [500 x 171 x 333 x 3]
+    # label
+    # [Z x X x Y] [500 x 171 x 333]
+    
+    # here: we only need to backtransform labels
+    print(V.shape)
+    if not isinstance(V, np.ndarray):
+        assert isinstance(V, torch.Tensor)
+        V = V.numpy()
+    V = V.transpose((1, 0, 2))
+
+    # add padding, which was removed before,
+    # and saved in meta['lcrop'] and meta['dcrop']
+
+    # structure for np.pad
+    # (before0, after0), (before1, after1), ..)
+    
+    # parse label crop
+    b = (meta['lcrop']['begin']).numpy().squeeze()
+    e = (meta['lcrop']['end']).numpy().squeeze()
+    print('b, e')
+    print(b, e)
+    print(b.shape, e.shape)
+    
+    pad_width = ((b[0], e[0]), (b[1], e[1]), (b[2], e[2]))
+    print(V.shape)
+    
+    V = np.pad(V, pad_width, 'edge')
+
+    print(V.shape)
+    return V
 # numpy array size of images
 # [H x W x C]
 # torch tensor size of images

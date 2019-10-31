@@ -25,9 +25,194 @@ from timeit import default_timer as timer
 from ._dataset import RSOMLayerDataset
 from ._dataset import RandomZShift, ZeroCenter, CropToEven
 from ._dataset import DropBlue, ToTensor, precalcLossWeight
-
+from ._dataset import to_numpy
 from ._dataset import SwapDim
 
+from utils import save_nii
+
+class LayerNetBase():
+    """
+    stripped base class for predicting RSOM layers.
+    for training user class LayerNet
+    Args:
+        device             torch.device()     'cuda' 'cpu'
+        dirs               dict of string      use these directories
+        filename           string              pattern to save output
+    """
+    def __init__(dirs=None):
+
+        self.model_depth = 4
+
+        self.pred_dataset = RSOMLayerDatasetUnlabeled(
+                dirs['pred'],
+                transform=transforms.Compose([
+                    ZeroCenter(), 
+                    CropToEven(network_depth=self.model_depth),
+                    DropBlue(),
+                    ToTensor()])
+                )
+
+        self.pred_dataloader = DataLoader(
+            self.pred_dataset,
+            batch_size=1, 
+            shuffle=False, 
+            num_workers=4, 
+            pin_memory=True)
+
+
+        self.size_pred = len(self.pred_dataset)
+
+        self.minibatch_size = 1
+        self.device = device
+        self.dtype = torch.float32
+        
+        self.model = UNet(in_channels=2,
+                          n_classes=2,
+                          depth=self.model_depth,
+                          wf=6,
+                          padding=True,
+                          batch_norm=True,
+                          up_mode='upconv').to(self.device)
+        
+        if self.dirs['model'] is not None:
+            self.model.load_state_dict(torch.load(self.dirs['model']))
+        
+
+    def predict():
+        self.model.eval()
+        iterator = iter(self.pred_dataloader) 
+
+        for i in range(self.size_pred):
+            # get the next volume to evaluate 
+            batch = next(iterator)
+            
+            m = batch['meta']
+            
+            batch['data'] = batch['data'].to(
+                    self.device,
+                    self.dtype,
+                    non_blocking=True
+                    )
+            
+            # divide into minibatches
+            minibatches = np.arange(batch['data'].shape[1],
+                    self=args.minibatch_size
+                    )
+            # init empty prediction stack
+            shp = batch['data'].shape
+            # [0 x 2 x 500 x 332]
+            prediction_stack = torch.zeros((0, 2, shp[3], shp[4]),
+                    dtype=self.dtype,
+                    requires_grad=False
+                    )
+            prediction_stack = prediction_stack.to(self.device)
+
+            for i2, idx in enumerate(minibatches):
+                if idx + args.minibatch_size < batch['data'].shape[1]:
+                    data = batch['data'][:,
+                            idx:idx+args.minibatch_size, :, :]
+                else:
+                    data = batch['data'][:, idx:, :, :]
+     
+                data = torch.squeeze(data, dim=0)
+
+                prediction = model(data)
+
+                prediction = prediction.detach() 
+                prediction_stack = torch.cat((prediction_stack, prediction), dim=0) 
+            
+            prediction_stack = prediction_stack.to('cpu')
+            
+            
+            # transform -> labels
+            label = (prediction_stack[:,1,:,:] > prediction_stack[:,0,:,:]) 
+
+            m = batch['meta']
+
+            label = to_numpy(label, m)
+
+            # filename = batch['meta']['filename'][0]
+            filename = filename.replace('rgb.nii.gz','')
+            label = self.smooth_pred(label, filename)
+
+            print('Saving', filename)
+            saveNII(label, self.dirs['out'], filename + 'pred')
+            
+
+            # compare to ground truth
+            if 0:
+                label_gt = batch['label']
+          
+                label_gt = torch.squeeze(label_gt, dim=0)
+                label_gt = to_numpy(label_gt, m)
+
+                label_diff = (label > label_gt).astype(np.uint8)
+                label_diff += 2*(label < label_gt).astype(np.uint8)
+                # label_diff = label != label_gt
+                save_nii(label_diff, self.dirs['out'], filename + 'dpred')
+
+    @staticmethod
+    def smooth_pred(label, filename):
+        '''
+        smooth the prediction
+        '''
+        
+        # 1. fill holes inside the label
+        ldtype = label.dtype
+        label = ndimage.binary_fill_holes(label).astype(ldtype)
+        label_shape = label.shape
+        label = np.pad(label, 2, mode='edge')
+        label = ndimage.binary_closing(label, iterations=2)
+        label = label[2:-2,2:-2,2:-2]
+        assert label_shape == label.shape
+        
+        # 2. scan along z-dimension change in label 0->1 1->0
+        #    if there's more than one transition each, one needs to be dropped
+        #    after filling holes, we hope to be able to drop the outer one
+        # 3. get 2x 2-D surface data with surface height being the index in z-direction
+        
+        surf_lo = np.zeros((label_shape[1], label_shape[2]))
+        
+        # set highest value possible (500) as default. Therefore, empty sections
+        # of surf_up and surf_lo will get smoothened towards each other, and during
+        # reconstructions, we won't have any weird shapes.
+        surf_up = surf_lo.copy()+label_shape[0]
+
+        for xx in np.arange(label_shape[1]):
+            for yy in np.arange(label_shape[2]):
+                nz = np.nonzero(label[:,xx,yy])
+                
+                if nz[0].size != 0:
+                    idx_up = nz[0][0]
+                    idx_lo = nz[0][-1]
+                    surf_up[xx,yy] = idx_up
+                    surf_lo[xx,yy] = idx_lo
+       
+        #    smooth coarse structure, eg with a 25x25 average and crop everything which is above average*factor
+        #           -> hopefully spikes will be removed.
+        surf_up_m = ndimage.median_filter(surf_up, size=(26, 26), mode='nearest')
+        surf_lo_m = ndimage.median_filter(surf_lo, size=(26, 26), mode='nearest')
+        
+        for xx in np.arange(label_shape[1]):
+            for yy in np.arange(label_shape[2]):
+                if surf_up[xx,yy] < surf_up_m[xx,yy]:
+                    surf_up[xx,yy] = surf_up_m[xx,yy]
+                if surf_lo[xx,yy] > surf_lo_m[xx,yy]:
+                    surf_lo[xx,yy] = surf_lo_m[xx,yy]
+
+        # apply suitable kernel in order to smooth
+        # smooth fine structure, eg with a 5x5 moving average
+        surf_up = ndimage.uniform_filter(surf_up, size=(9, 5), mode='nearest')
+        surf_lo = ndimage.uniform_filter(surf_lo, size=(9, 5), mode='nearest')
+
+        # 5. reconstruct label
+        label_rec = np.zeros(label_shape, dtype=np.uint8)
+        for xx in np.arange(label_shape[1]):
+            for yy in np.arange(label_shape[2]):
+
+                label_rec[int(np.round(surf_up[xx,yy])):int(np.round(surf_lo[xx,yy])),xx,yy] = 1     
+
+        return label_rec
 
 
 class LayerUNET():
@@ -554,42 +739,3 @@ if __name__ == '__main__':
         net1.train_all_epochs()
         net1.save()
 
-
-# filestrings = ['190721_unet4_dropout_no_clw', '190721_unet4_dropout_low_clw']
-# for i, class_weight in enumerate((None, (0.25, 0.75))):
-#     print(filestrings[i])
-#     print(class_weight)
-
-#     net1 = LayerUNET(device=device,
-#                      model_depth=4,
-#                      dataset_zshift=(-50, 200),
-#                      dirs=dirs,
-#                      filename = filestrings[i],
-#                      optimizer = 'Adam',
-#                      initial_lr = 1e-4,
-#                      scheduler_patience = 3,
-#                      lossfn = lfs.custom_loss_1,
-#                      epochs = 20,
-#                      dropout=True,
-#                      class_weight=None
-#                      )
-
-#     net1.printConfiguration()
-#     net1.printConfiguration('logfile')
-#     print(net1.model, file=net1.logfile)
-
-#     net1.train_all_epochs()
-#     net1.save()
-
-# PARAMETER SWEEPS
-# class weights: None,  (weight_background, weight_Epidermis)   ~ (0.11, 0.89) class distribution is (0.89, 0.11)
-# lossfunctions: standard cross entropy,  weighted cross entropy, weighted cross entropy with smoothness?
-# different normalization -127...126,  -5...250, 0...255
-# different data augumentation values dataset_zshift   (-50, 100) ..   (-50, 200 ?)
-
-# different depth of unet    3, 4 , 5
-
-            
-                
-    
-    
