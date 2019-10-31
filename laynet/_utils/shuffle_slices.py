@@ -1,5 +1,5 @@
 # shuffle individual slices of training and validation set, and then build one mega .nii stacked file.
-
+raise NotImplementedError('script needs further editing to be run! i.a. move to top level')
 
 import os
 import random
@@ -40,7 +40,7 @@ data_str='_rgb.nii.gz'
 label_str='_l.nii.gz'
 
 
-root_dir = '/home/gerlstefan/data/fullDataset/slice_shuffle_backup'
+root_dir = '/home/stefan/data/fullDataset/slice_shuffle_backup'
 
 assert os.path.exists(root_dir) and os.path.isdir(root_dir), \
 root_dir + ' not a valid directory'
@@ -121,7 +121,7 @@ print('Val:', val_data_stack.shape, '\n', val_label_stack.shape)
 
 # save
 
-dest = '/home/gerlstefan/data/fullDataset/slice_shuffle'
+dest = '/home/stefan/data/fullDataset/slice_shuffle'
 
 saveNIIrgb(train_data_stack, os.path.join(dest, 'train', 'train_rgb.nii.gz'))
 saveNII(train_label_stack, os.path.join(dest, 'train', 'train_l.nii.gz'))

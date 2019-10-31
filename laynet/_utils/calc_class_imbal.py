@@ -1,9 +1,8 @@
 # calculate class imbalance
+
+raise NotImplementedError('script needs further editing to be run! i.a. move to top level')
+
 import torch
-
-from torch import nn
-
-import torch.nn.functional as F
 
 import numpy as np
 
@@ -13,14 +12,9 @@ import sys
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 
-from dataloader_dev import RSOMLayerDataset
-from dataloader_dev import RandomZShift, ZeroCenter, CropToEven
-from dataloader_dev import DropBlue, ToTensor, precalcLossWeight
-
-
-
-
-
+from laynet._dataset import RSOMLayerDataset
+from laynet._dataset import RandomZShift, ZeroCenter, CropToEven
+from laynet._dataset import DropBlue, ToTensor, precalcLossWeight
 
 # TODO:
 # import training dataset
@@ -30,7 +24,7 @@ from dataloader_dev import DropBlue, ToTensor, precalcLossWeight
 # class1 = n_1/(n_0+n_1)
 
 
-dataset_dir = '/home/gerlstefan/data/fullDataset/labeled/train'
+dataset_dir = '/home/stefan/data/fullDataset/labeled/train'
 
 dataset = RSOMLayerDataset(dataset_dir,
         transform=transforms.Compose([RandomZShift(), ZeroCenter(), DropBlue(), ToTensor()]))

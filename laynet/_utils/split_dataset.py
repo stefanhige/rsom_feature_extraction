@@ -1,3 +1,5 @@
+raise NotImplementedError('script needs further editing to be run! i.a. move to top level')
+
 import random
 import os
 import shutil
@@ -100,6 +102,6 @@ def merge(root_dir):
 
             shutil.move(os.path.join(cdir, file), root_dir)
 
-ddir = '/home/gerlstefan/data/fullDataset/labeled_prep3'
+ddir = '/home/stefan/data/fullDataset/labeled_prep3'
 split(ddir)
 # merge(ddir)
