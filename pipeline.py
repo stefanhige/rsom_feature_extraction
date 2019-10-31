@@ -17,9 +17,12 @@ from prep.utils.get_unique_filepath import get_unique_filepath
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 
+# REMOVE
 from laynet._model import UNet
 import laynet._metrics as unet_lfs
 import laynet.predict as unet_pred
+
+from laynet import LayerNetBase
 
 from laynet._dataset import RSOMLayerDatasetUnlabeled 
 import laynet._dataset as unet_dl
@@ -92,6 +95,9 @@ elif mode=='list':
 # extract the LF.mat files,
 filenameLF_LIST = [el for el in all_files if el[-6:] == 'LF.mat']
 
+# TODO: HACK
+filenameLF_LIST = [filenameLF_LIST[0]]
+
 for idx, filenameLF in enumerate(filenameLF_LIST):
     # the other ones will be automatically defined
     filenameHF = filenameLF.replace('LF.mat','HF.mat')
@@ -120,49 +126,16 @@ for idx, filenameLF in enumerate(filenameLF_LIST):
     print('Processing file', idx+1, 'of', len(filenameLF_LIST))
 
 # ***** LAYER SEGMENTATION *****
-
-dataset_pred = RSOMLayerDatasetUnlabeled(tmp_layerseg_prep,
-        transform=transforms.Compose([
-            unet_dl.ZeroCenter(), 
-            unet_dl.CropToEven(network_depth=4),
-            unet_dl.DropBlue(),
-            unet_dl.ToTensor()]))
-
-dataloader_pred = DataLoader(dataset_pred,
-        batch_size=1, 
-        shuffle=False, 
-        num_workers=4, 
-        pin_memory=True)
-
-args = unet_pred.arg_class()
-args.size_pred = len(dataset_pred)
-
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print("Predicting ", args.size_pred, " Volumes.")
-args.minibatch_size = 1
-args.device = device
-args.dtype = torch.float32
-args.non_blocking = True
-args.destination_dir = tmp_layerseg_out
 
-model = UNet(in_channels=2,
-             n_classes=2,
-             depth=4,
-             wf=6,
-             padding=True,
-             batch_norm=True,
-             up_mode='upconv').to(args.device)
+LayerNetInstance = LayerNetBase(
+        dirs={'model': layerseg_model,
+              'pred': tmp_layerseg_prep,
+              'out': tmp_layerseg_out},
+        device=device)
 
+LayerNetInstance.predict()
 
-model = model.float()
-
-model.load_state_dict(torch.load(layerseg_model))
-
-iterator_pred = iter(dataloader_pred)
-
-unet_pred.pred(model=model,
-        iterator=iterator_pred,
-        args=args)
 
     
 # ***** PREPROCESSING FOR VESSEL SEGMENTATION *****

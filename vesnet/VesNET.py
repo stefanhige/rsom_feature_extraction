@@ -56,7 +56,7 @@ class VesNET():
                  desc,
                  sdesc,
                  device=torch.device('cuda'),
-                 dirs={'train':'','eval':'', 'model':'', 'pred':''},
+                 dirs={'train':'','eval':'', 'model':'', 'pred':''}, #add out
                  model=None,
                  divs = (4, 4, 3),
                  offset = (6, 6, 6),

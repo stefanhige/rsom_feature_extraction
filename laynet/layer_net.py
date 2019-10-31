@@ -1,33 +1,24 @@
 # class for one CNN experiment
 
-import torch
-
-from torch import nn
-
-import torch.nn.functional as F
-
-import numpy as np
-
 import os
 import sys
 import copy
 import json
 import warnings
+from timeit import default_timer as timer
 
+import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 
+import numpy as np
+from scipy import ndimage
+
 from ._model import UNet
 import laynet._metrics as lfs #lfs=lossfunctions
-# import nibabel as nib
-from timeit import default_timer as timer
-
-from ._dataset import RSOMLayerDataset
-from ._dataset import RandomZShift, ZeroCenter, CropToEven
-from ._dataset import DropBlue, ToTensor, precalcLossWeight
-from ._dataset import to_numpy
-from ._dataset import SwapDim
-
+from ._dataset import RSOMLayerDataset, RSOMLayerDatasetUnlabeled, \
+                      RandomZShift, ZeroCenter, CropToEven, DropBlue, \
+                      ToTensor, precalcLossWeight, SwapDim, to_numpy
 from utils import save_nii
 
 class LayerNetBase():
@@ -39,9 +30,13 @@ class LayerNetBase():
         dirs               dict of string      use these directories
         filename           string              pattern to save output
     """
-    def __init__(dirs=None):
+    def __init__(self, 
+                 dirs={'train':'', 'eval':'', 'pred':'', 'model':'', 'out':''},
+                 device=torch.device('cuda'),
+                 ):
 
         self.model_depth = 4
+        self.dirs = dirs
 
         self.pred_dataset = RSOMLayerDatasetUnlabeled(
                 dirs['pred'],
@@ -74,11 +69,11 @@ class LayerNetBase():
                           batch_norm=True,
                           up_mode='upconv').to(self.device)
         
-        if self.dirs['model'] is not None:
+        if self.dirs['model']:
             self.model.load_state_dict(torch.load(self.dirs['model']))
         
 
-    def predict():
+    def predict(self):
         self.model.eval()
         iterator = iter(self.pred_dataloader) 
 
@@ -96,8 +91,7 @@ class LayerNetBase():
             
             # divide into minibatches
             minibatches = np.arange(batch['data'].shape[1],
-                    self=args.minibatch_size
-                    )
+                                    step=self.minibatch_size)
             # init empty prediction stack
             shp = batch['data'].shape
             # [0 x 2 x 500 x 332]
@@ -108,15 +102,14 @@ class LayerNetBase():
             prediction_stack = prediction_stack.to(self.device)
 
             for i2, idx in enumerate(minibatches):
-                if idx + args.minibatch_size < batch['data'].shape[1]:
-                    data = batch['data'][:,
-                            idx:idx+args.minibatch_size, :, :]
+                if idx + self.minibatch_size < batch['data'].shape[1]:
+                    data = batch['data'][:, idx:idx+self.minibatch_size, :, :]
                 else:
                     data = batch['data'][:, idx:, :, :]
      
                 data = torch.squeeze(data, dim=0)
 
-                prediction = model(data)
+                prediction = self.model(data)
 
                 prediction = prediction.detach() 
                 prediction_stack = torch.cat((prediction_stack, prediction), dim=0) 
@@ -131,12 +124,12 @@ class LayerNetBase():
 
             label = to_numpy(label, m)
 
-            # filename = batch['meta']['filename'][0]
+            filename = batch['meta']['filename'][0]
             filename = filename.replace('rgb.nii.gz','')
             label = self.smooth_pred(label, filename)
 
             print('Saving', filename)
-            saveNII(label, self.dirs['out'], filename + 'pred')
+            save_nii(label, self.dirs['out'], filename + 'pred')
             
 
             # compare to ground truth
@@ -636,7 +629,7 @@ class LayerUNET():
         calculate the standard deviation of all weights in model_dir
 
         '''
-        if isinstance(model, nn.Module):
+        if isinstance(model, torch.nn.Module):
             model = model.state_dict()
         
         all_values = np.array([])
