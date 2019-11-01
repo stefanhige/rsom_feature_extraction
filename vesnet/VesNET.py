@@ -216,7 +216,7 @@ class VesNET():
                 self.optimizer, 
                 mode='min', 
                 factor=0.1,
-                patience=3,
+                patience=4,
                 verbose=True,
                 threshold=1e-4,
                 threshold_mode='rel',
