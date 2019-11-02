@@ -62,7 +62,7 @@ net1 = VesNET(device=device,
                      class_weight=10,
                      initial_lr=1e-4,
                      lossfn=BCEWithLogitsLoss,
-                     epochs=50,
+                     epochs=75,
                      ves_probability=0.85,
                      _DEBUG=DEBUG
                      )

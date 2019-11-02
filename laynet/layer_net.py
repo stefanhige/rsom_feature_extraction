@@ -33,9 +33,10 @@ class LayerNetBase():
     def __init__(self, 
                  dirs={'train':'', 'eval':'', 'pred':'', 'model':'', 'out':''},
                  device=torch.device('cuda'),
+                 model_depth=4
                  ):
 
-        self.model_depth = 4
+        self.model_depth = model_depth
         self.dirs = dirs
 
         self.pred_dataset = RSOMLayerDatasetUnlabeled(
@@ -289,7 +290,7 @@ class LayerUNET():
         self.train_dataset = RSOMLayerDataset(self.dirs['train'],
             transform=transforms.Compose([RandomZShift(dataset_zshift),
                                           ZeroCenter(),
-                                          SwapDim(),
+                                          # SwapDim(),
                                           CropToEven(network_depth=self.model_depth),
                                           DropBlue(),
                                           ToTensor(),
@@ -307,7 +308,7 @@ class LayerUNET():
         self.eval_dataset = RSOMLayerDataset(self.dirs['eval'],
             transform=transforms.Compose([RandomZShift(),
                                           ZeroCenter(),
-                                          SwapDim(),
+                                          # SwapDim(),
                                           CropToEven(network_depth=self.model_depth),
                                           DropBlue(),
                                           ToTensor(),
@@ -407,6 +408,7 @@ class LayerUNET():
             
             self.train(iterator=train_iterator, epoch=curr_epoch)
             
+            torch.cuda.empty_cache()
             if curr_epoch == 1:
                 toc = timer()
                 print('Training took:', toc - tic)
@@ -414,6 +416,7 @@ class LayerUNET():
             
             self.eval(iterator=eval_iterator, epoch=curr_epoch)
         
+            torch.cuda.empty_cache()
             if curr_epoch == 1:
                 toc = timer()
                 print('Evaluation took:', toc - tic)
@@ -698,7 +701,7 @@ if __name__ == '__main__':
 
     model_dir = '/home/gerlstefan/models/layerseg/dimswap'
             
-    os.environ["CUDA_VISIBLE_DEVICES"]='7'
+    os.environ["CUDA_VISIBLE_DEVICES"]='6'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     for idx in range(N):
