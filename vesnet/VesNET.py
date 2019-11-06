@@ -155,53 +155,10 @@ class VesNET():
 
         # DATASET
         self.batch_size = batch_size
-        if self.dirs['train']:
-            self.train_dataset = RSOMVesselDataset(self.dirs['train'],
-                                                   divs=divs, 
-                                                   offset=offset,
-                                                   transform=transforms.Compose([
-                                                       DropBlue(),
-                                                       DataAugmentation(mode='rsom'),
-                                                       PrecalcSkeleton(),
-                                                       ToTensor()]))
+        self._setup_dataloaders()
 
-            self.train_dataloader = DataLoader(self.train_dataset,
-                                               batch_size=self.batch_size, 
-                                               shuffle=True, 
-                                               num_workers=4, 
-                                               pin_memory=True)
-
-        if self.dirs['eval']:
-            self.eval_dataset = RSOMVesselDataset(self.dirs['eval'],
-                                               divs=divs,
-                                               offset=offset,
-                                               transform=transforms.Compose([
-                                                   DropBlue(),
-                                                   PrecalcSkeleton(),
-                                                   ToTensor()]))
-
-            self.eval_dataloader = DataLoader(self.eval_dataset,
-                                              batch_size=self.batch_size, 
-                                              shuffle=False, 
-                                              num_workers=4,
-                                              pin_memory=True)
 
         if self.dirs['pred']:
-            self.pred_dataset = RSOMVesselDataset(self.dirs['pred'],
-                                              divs=divs,
-                                              offset=offset,
-                                              transform=transforms.Compose([
-                                                  DropBlue(),
-                                                  PrecalcSkeleton(),
-                                                  ToTensor()]))
-
-
-            self.pred_dataloader = DataLoader(self.pred_dataset,
-                                              batch_size=1, # easier for reconstruction 
-                                              shuffle=False, 
-                                              num_workers=4,
-                                              pin_memory=True)
-
             if not self.DEBUG:
                 os.mkdir(os.path.join(self.dirs['out'],'prediction'))
  
@@ -248,6 +205,54 @@ class VesNET():
             self.args.data_shape = self.train_dataset[0]['data'].shape
         else:
             self.args.data_shape = self.pred_dataset[0]['data'].shape
+
+    def _setup_dataloaders(self):
+ 
+        if self.dirs['train']:
+            self.train_dataset = RSOMVesselDataset(self.dirs['train'],
+                                                   divs=self.divs, 
+                                                   offset=self.offset,
+                                                   transform=transforms.Compose([
+                                                       DropBlue(),
+                                                       DataAugmentation(mode='rsom'),
+                                                       PrecalcSkeleton(),
+                                                       ToTensor()]))
+
+            self.train_dataloader = DataLoader(self.train_dataset,
+                                               batch_size=self.batch_size, 
+                                               shuffle=True, 
+                                               num_workers=4, 
+                                               pin_memory=True)
+
+        if self.dirs['eval']:
+            self.eval_dataset = RSOMVesselDataset(self.dirs['eval'],
+                                               divs=self.divs,
+                                               offset=self.offset,
+                                               transform=transforms.Compose([
+                                                   DropBlue(),
+                                                   PrecalcSkeleton(),
+                                                   ToTensor()]))
+
+            self.eval_dataloader = DataLoader(self.eval_dataset,
+                                              batch_size=self.batch_size, 
+                                              shuffle=False, 
+                                              num_workers=4,
+                                              pin_memory=True)
+
+        if self.dirs['pred']:
+            self.pred_dataset = RSOMVesselDataset(self.dirs['pred'],
+                                              divs=self.divs,
+                                              offset=self.offset,
+                                              transform=transforms.Compose([
+                                                  DropBlue(),
+                                                  PrecalcSkeleton(),
+                                                  ToTensor()]))
+
+            self.pred_dataloader = DataLoader(self.pred_dataset,
+                                              batch_size=1, # easier for reconstruction 
+                                              shuffle=False, 
+                                              num_workers=4,
+                                              pin_memory=True)
 
     def train(self, iterator, epoch):
         '''
@@ -357,7 +362,7 @@ class VesNET():
         self.history['eval']['epoch'].append(epoch)
         self.history['eval']['loss'].append(epoch_loss)
 
-    def train_all_epochs(self):
+    def train_all_epochs(self, cleanup=True):
         self.best_model = copy.deepcopy(self.model.state_dict())
         for k, v in self.best_model.items():
             self.best_model[k] = v.to('cpu')
@@ -434,10 +439,13 @@ class VesNET():
         self.last_model = copy.deepcopy(self.model.state_dict())
         for k, v in self.last_model.items():
             self.last_model[k] = v.to('cpu')
+
+        if cleanup:
+            self.cleanup()
     
     # destructor
     # see if that works
-    def __del__(self):
+    def cleanup(self):
         if not self.DEBUG:
             if not self.dirs['pred']:
                 print('Closing logfile..')
@@ -522,7 +530,7 @@ class VesNET():
         if not self.DEBUG:
             fig.savefig(os.path.join(self.dirs['out'],'thvsdice.png'))
 
-    def predict(self, use_best=True, metrics=True, adj_cutoff=True):
+    def predict(self, use_best=True, metrics=True, adj_cutoff=True, cleanup=True):
         '''
         doc string missing
         '''
@@ -661,12 +669,12 @@ class VesNET():
                         self.saveNII(V, dest_dir, fstr)
                     else:
                         print('Couldn\'t save prediction.')
-        if not self.DEBUG:
-            try:
-                print('Closing logfile..')
-                self.logfile.close()
-            except:
-                pass
+            if cleanup:
+                try:
+                    print('Closing logfile..')
+                    self.logfile.close()
+                except:
+                    pass
 
     @staticmethod
     def saveNII(V, path, fstr):
@@ -796,18 +804,18 @@ if __name__ == '__main__':
 
     dirs = {k: os.path.expanduser(v) for k, v in dirs.items()}
 
-    # model = DeepVesselNet(groupnorm=False,
-    #                       use_vblock=True,
-    #                       vblock_layer=2) # default settings with group norm
+    model = DeepVesselNet(groupnorm=False,
+                          use_vblock=True,
+                          vblock_layer=2) # default settings with group norm
 
-    model = DeepVesselNet(in_channels=2,
-                      channels = [2, 10, 20, 40, 80, 1],
-                      kernels = [3, 5, 5, 3, 1],
-                      depth = 5, 
-                      dropout=False,
-                      groupnorm=False,
-                      use_vblock=True,
-                      vblock_layer=2)
+    # model = DeepVesselNet(in_channels=2,
+    #                   channels = [2, 10, 20, 40, 80, 1],
+    #                   kernels = [3, 5, 5, 3, 1],
+    #                   depth = 5, 
+    #                   dropout=False,
+    #                   groupnorm=False,
+    #                   use_vblock=True,
+    #                   vblock_layer=2)
 
     net1 = VesNET(device=device,
                   desc=desc,
@@ -820,7 +828,7 @@ if __name__ == '__main__':
                   class_weight=10,
                   initial_lr=1e-4,
                   lossfn=BCEWithLogitsLoss,
-                  epochs=10,
+                  epochs=1,
                   ves_probability=0.95,
                   _DEBUG=DEBUG
                   )
