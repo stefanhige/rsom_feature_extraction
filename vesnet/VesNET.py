@@ -190,21 +190,10 @@ class VesNET():
         self.curr_epoch = None
         
         # ADDITIONAL ARGS
-        # TODO:bad coding style, relict of previous structure
-        self.args = type('args', (object,), dict())
-        if self.dirs['train']: 
-            self.args.size_train = len(self.train_dataset)
-            self.args.size_eval = len(self.eval_dataset)
-        if self.dirs['pred']:
-            self.args.size_pred = len(self.pred_dataset)
-        self.args.non_blocking = True
-        self.args.device = device
-        self.args.dtype = torch.float32
-        self.args.n_epochs = epochs
-        if self.dirs['train']:
-            self.args.data_shape = self.train_dataset[0]['data'].shape
-        else:
-            self.args.data_shape = self.pred_dataset[0]['data'].shape
+        self.non_blocking = True
+        self.device = device
+        self.dtype = torch.float32
+        self.n_epochs = epochs
 
     def _setup_dataloaders(self):
  
@@ -253,6 +242,15 @@ class VesNET():
                                               shuffle=False, 
                                               num_workers=4,
                                               pin_memory=True)
+        
+        if self.dirs['train']: 
+            self.size_train = len(self.train_dataset)
+            self.size_eval = len(self.eval_dataset)
+            self.data_shape = self.train_dataset[0]['data'].shape
+        else:
+            self.data_shape = self.pred_dataset[0]['data'].shape
+        if self.dirs['pred']:
+            self.size_pred = len(self.pred_dataset)
 
     def train(self, iterator, epoch):
         '''
@@ -262,20 +260,20 @@ class VesNET():
         '''
         self.model.train()
         # number of iterations needed
-        n_iter = int(np.ceil(self.args.size_train/self.batch_size))
+        n_iter = int(np.ceil(self.size_train/self.batch_size))
 
         for i in range(n_iter):
             # get the next batch of training data
             batch = next(iterator)
             
             data = batch['data'].to(
-                    self.args.device,
-                    self.args.dtype,
-                    non_blocking=self.args.non_blocking)
+                    self.device,
+                    self.dtype,
+                    non_blocking=self.non_blocking)
             label = batch['label'].to(
-                    self.args.device, 
-                    dtype=self.args.dtype, 
-                    non_blocking=self.args.non_blocking)
+                    self.device, 
+                    dtype=self.dtype, 
+                    non_blocking=self.non_blocking)
             # debug('data shape:', data.shape)
             # debug('label shape:', label.shape)
             # debug(batch['meta']['filename'])
@@ -311,7 +309,7 @@ class VesNET():
         out_score_stack = []
         dice_stack = []
 
-        n_iter = int(np.ceil(self.args.size_eval/self.batch_size))
+        n_iter = int(np.ceil(self.size_eval/self.batch_size))
         
         for i in range(n_iter):
            
@@ -319,13 +317,13 @@ class VesNET():
             batch = next(iterator)
             
             data = batch['data'].to(
-                    self.args.device,
-                    self.args.dtype,
-                    non_blocking=self.args.non_blocking)
+                    self.device,
+                    self.dtype,
+                    non_blocking=self.non_blocking)
             label = batch['label'].to(
-                    self.args.device, 
-                    dtype=self.args.dtype, 
-                    non_blocking=self.args.non_blocking)
+                    self.device, 
+                    dtype=self.dtype, 
+                    non_blocking=self.non_blocking)
 
             debug('eval, data shape:', data.shape)
             prediction = self.model(data)
@@ -350,15 +348,15 @@ class VesNET():
             
             debug('Ep:', epoch, 'fracEp:', (i+1)/n_iter, 'batch', curr_batch_size)
         debug('cl_score_stack:', cl_score_stack)
-        epoch_cl_score = np.nansum(cl_score_stack) / self.args.size_eval
-        epoch_out_score = np.nansum(out_score_stack) / self.args.size_eval
-        epoch_dice = np.nansum(dice_stack) / self.args.size_eval
+        epoch_cl_score = np.nansum(cl_score_stack) / self.size_eval
+        epoch_out_score = np.nansum(out_score_stack) / self.size_eval
+        epoch_dice = np.nansum(dice_stack) / self.size_eval
         
         self.history['eval']['cl_score'].append(epoch_cl_score)
         self.history['eval']['out_score'].append(epoch_out_score)
         self.history['eval']['dice'].append(epoch_dice)
 
-        epoch_loss = running_loss / self.args.size_eval
+        epoch_loss = running_loss / self.size_eval
         self.history['eval']['epoch'].append(epoch)
         self.history['eval']['loss'].append(epoch_loss)
 
@@ -371,7 +369,7 @@ class VesNET():
         torch.cuda.empty_cache()
         print('Entering training loop..')
         
-        for curr_epoch in range(self.args.n_epochs): 
+        for curr_epoch in range(self.n_epochs): 
             
             # in every epoch, generate iterators
             train_iterator = iter(self.train_dataloader)
@@ -395,7 +393,7 @@ class VesNET():
             debug('calling eval method') 
             self.eval(iterator=eval_iterator, epoch=curr_epoch)
 
-            if curr_epoch == self.args.n_epochs-1:
+            if curr_epoch == self.n_epochs-1:
                 print('Keeping memory cached to occupy GPU... ;)')
             else:
                 torch.cuda.empty_cache()
@@ -409,7 +407,7 @@ class VesNET():
             le_losses = self.history['train']['unred_loss'][le_idx:]
         
             # divide by dataset size
-            train_loss = sum(le_losses) / self.args.size_train
+            train_loss = sum(le_losses) / self.size_train
             
             # extract most recent eval loss
             curr_loss = self.history['eval']['loss'][-1]
@@ -430,7 +428,7 @@ class VesNET():
                 found_nb = ''
         
             self.printandlog('Epoch {:3d} of {:3d}: lr={:.0e}, Lt={:.2e}, Le={:.2e}'.format(
-                curr_epoch+1, self.args.n_epochs, curr_lr, train_loss, curr_loss), found_nb)
+                curr_epoch+1, self.n_epochs, curr_lr, train_loss, curr_loss), found_nb)
             self.printandlog('                : cl={:.3f}, os={:.3f}, di={:.3f}'.format(
                 curr_cl_score, curr_out_score, curr_dice))
     
@@ -441,11 +439,11 @@ class VesNET():
             self.last_model[k] = v.to('cpu')
 
         if cleanup:
-            self.cleanup()
+            self._cleanup()
     
     # destructor
     # see if that works
-    def cleanup(self):
+    def _cleanup(self):
         if not self.DEBUG:
             if not self.dirs['pred']:
                 print('Closing logfile..')
@@ -472,15 +470,15 @@ class VesNET():
         L = []
         V = []
 
-        for i in range(self.args.size_pred):
+        for i in range(self.size_pred):
            
             # get the next batch of the evaluation set
             batch = next(iterator)
             
             data = batch['data'].to(
-                    self.args.device,
-                    self.args.dtype,
-                    non_blocking=self.args.non_blocking)
+                    self.device,
+                    self.dtype,
+                    non_blocking=self.non_blocking)
             
             debug('prediction, data shape:', data.shape)
             prediction = self.model(data)
@@ -496,7 +494,7 @@ class VesNET():
             prediction_stack.append(prediction)
             index_stack.append(batch['meta']['index'].item())
             
-            label_stack.append(batch['label'].to(self.args.dtype))
+            label_stack.append(batch['label'].to(self.dtype))
             
             # if we got all patches
             if batch['meta']['index'] == np.prod(self.divs) - 1:
@@ -557,21 +555,21 @@ class VesNET():
             label_stack = []
 
         
-        for i in range(self.args.size_pred):
+        for i in range(self.size_pred):
            
             # get the next batch of the evaluation set
             batch = next(iterator)
             
             data = batch['data'].to(
-                    self.args.device,
-                    self.args.dtype,
-                    non_blocking=self.args.non_blocking)
+                    self.device,
+                    self.dtype,
+                    non_blocking=self.non_blocking)
             
             if metrics:
                 label = batch['label'].to(
-                         self.args.device,
-                         self.args.dtype,
-                         non_blocking=self.args.non_blocking)
+                         self.device,
+                         self.dtype,
+                         non_blocking=self.non_blocking)
             
 
             debug('prediction, data shape:', data.shape)
@@ -597,7 +595,7 @@ class VesNET():
             if metrics:
                 del label
             if adj_cutoff:
-                label_stack.append(batch['label'].to(self.args.dtype))
+                label_stack.append(batch['label'].to(self.dtype))
             
             if metrics:
                 cl_score_stack.append(cl_score)
@@ -669,12 +667,12 @@ class VesNET():
                         self.saveNII(V, dest_dir, fstr)
                     else:
                         print('Couldn\'t save prediction.')
-            if cleanup:
-                try:
-                    print('Closing logfile..')
-                    self.logfile.close()
-                except:
-                    pass
+        if cleanup:
+            try:
+                print('Closing logfile..')
+                self.logfile.close()
+            except:
+                pass
 
     @staticmethod
     def saveNII(V, path, fstr):
@@ -706,7 +704,7 @@ class VesNET():
             try:
                 print(*msg, file=self.logfile)
             except:
-                pass
+                print(*msg, "to",self.logfile, "failed!")
 
     def printConfiguration(self, destination='both'):
         if not self.DEBUG:
@@ -723,16 +721,16 @@ class VesNET():
             print('VesNet configuration:',file=where)
             print(self.desc, file=where)
             print('DATA: train dataset:', self.dirs['train'], file=where)
-            print('             length:', self.args.size_train, file=where)
+            print('             length:', self.size_train, file=where)
             print('       eval dataset:', self.dirs['eval'], file=where)
-            print('             length:', self.args.size_eval, file=where)
-            print('       sample shape:', self.args.data_shape, file=where)
+            print('             length:', self.size_eval, file=where)
+            print('       sample shape:', self.data_shape, file=where)
             print('               divs:', self.divs, file=where)
             print('             offset:', self.offset, file=where)
             print('         batch size:', self.batch_size, file=where)
 
 
-            print('EPOCHS:', self.args.n_epochs, file=where)
+            print('EPOCHS:', self.n_epochs, file=where)
             print('OPTIMIZER:', self.optimizer, file=where)
             print('initial lr:', self.initial_lr, file=where)
             print('LOSS: fn', self.lossfn, file=where)
@@ -743,7 +741,7 @@ class VesNET():
             #print('CNN:  ', self.model.__class__.__name__, file=where)
             if self.dirs['pred']:
                 print('PRED:  pred dataset:', self.dirs['pred'], file=where)
-                print('             length:', self.args.size_pred, file=where)
+                print('             length:', self.size_pred, file=where)
             if self.dirs['model']:
                 print('LOADING MODEL  :', self.dirs['model'], file=where)
             print('OUT:               :', self.dirs['out'], file=where)
