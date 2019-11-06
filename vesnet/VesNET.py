@@ -750,14 +750,14 @@ class VesNET():
             except:
                 self.printandlog('Saving git diff FAILED!')
 
-    def save_model(self, model='best'):
+    def save_model(self, model='best', pat=''):
         if not self.DEBUG:
             if model=='best':
                 save_this = self.best_model
             elif model=='last':
                 save_this = self.last_model
             
-            torch.save(save_this, os.path.join(self.dirs['out'],'mod' + self.today_id +'.pt'))
+            torch.save(save_this, os.path.join(self.dirs['out'],'mod' + self.today_id + pat + '.pt'))
 
 def debug(*msg):
     ''' debug print helper function'''
