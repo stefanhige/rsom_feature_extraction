@@ -24,6 +24,8 @@ from .dataloader import RSOMVesselDataset
 from .dataloader import DropBlue, ToTensor, to_numpy
 from .patch_handling import get_patches, get_volume
 
+from .deep_vessel_3d import DeepVesselNet
+
 # os.environ["CUDA_VISIBLE_DEVICES"]='0'
 
 # helper functions
@@ -516,4 +518,11 @@ class TestPatchHandling(unittest.TestCase):
             # print('divs:', divs, 'offset:', offset, 'dimensions:', dimensions)
             V = np.random.random_sample(tuple(dimensions))
             self.assertTrue(self._testit(V, divs, offset))
+
+
+# Test distribution of weights?
+# probably not needed
+class TestWeightInitialization(unittest.TestCase)
+    def setUp(self):
+        pass
 
