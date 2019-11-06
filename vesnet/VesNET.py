@@ -434,7 +434,10 @@ class VesNET():
         self.last_model = copy.deepcopy(self.model.state_dict())
         for k, v in self.last_model.items():
             self.last_model[k] = v.to('cpu')
-       
+    
+    # destructor
+    # see if that works
+    def __del__(self):
         if not self.DEBUG:
             if not self.dirs['pred']:
                 print('Closing logfile..')
@@ -765,7 +768,7 @@ def debug(*msg):
 if __name__ == '__main__': 
 
     DEBUG = None
-    # DEBUG = True
+    DEBUG = True
 
     root_dir = '~/data/vesnet/synthDataset/rsom_style_noisy'
 
@@ -793,16 +796,18 @@ if __name__ == '__main__':
 
     dirs = {k: os.path.expanduser(v) for k, v in dirs.items()}
 
-    model = DeepVesselNet(groupnorm=False,
-                          use_vblock=True,
-                          vblock_layer=2) # default settings with group norm
+    # model = DeepVesselNet(groupnorm=False,
+    #                       use_vblock=True,
+    #                       vblock_layer=2) # default settings with group norm
 
-    # model = DeepVesselNet(in_channels=2,
-    #                   channels = [2, 10, 20, 40, 80, 1],
-    #                   kernels = [3, 5, 5, 3, 1],
-    #                   depth = 5, 
-    #                   dropout=False,
-    #                   groupnorm=False)
+    model = DeepVesselNet(in_channels=2,
+                      channels = [2, 10, 20, 40, 80, 1],
+                      kernels = [3, 5, 5, 3, 1],
+                      depth = 5, 
+                      dropout=False,
+                      groupnorm=False,
+                      use_vblock=True,
+                      vblock_layer=2)
 
     net1 = VesNET(device=device,
                   desc=desc,
