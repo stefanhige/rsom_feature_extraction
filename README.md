@@ -67,13 +67,19 @@
 
 ##  LAYERUNET
 
-* adjust cutoff in z direction
 
 * merge back coding style improvements from vesnet to layerunet 
+  **in progress**  
 
 * fill holes in prediction in xy direction?
+  **not yet done, but probably too much work**
 
 * check if intensity augmentation helps for generalization
+  **too much work. drop that idea**
+
+* adjust cutoff in z direction
+  **done**
+
 ##  OTHERS
 
 
