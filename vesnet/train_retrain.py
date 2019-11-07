@@ -11,14 +11,14 @@ DEBUG = None
 # DEBUG = True
 
 
-root_dir = '~/data/vesnet/synthDataset/rsom_style_noisy_small'
+root_dir = '~/data/vesnet/synthDataset/rsom_style_noisy'
 
 desc = ('train and retrain')
-sdesc = 't+rt'
-
+# sdesc = 't+rt_mp_vblock2_weight_decay'
+sdesc = 'test'
 model_dir = ''
         
-os.environ["CUDA_VISIBLE_DEVICES"]='6'
+os.environ["CUDA_VISIBLE_DEVICES"]='7'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 train_dir = os.path.join(root_dir, 'train')
@@ -76,7 +76,7 @@ net1.save_code_status()
 
 net1.train_all_epochs(cleanup=False)
 
-net1.plot_loss()
+net1.plot_loss(pat='t')
 net1.save_model(pat='t')
 
 # net1.predict(cleanup=False)
@@ -98,6 +98,8 @@ if 1:
     net1.n_epochs = epochs[1]
     net1.batch_size = 1
     net1._setup_dataloaders()
+    net1._setup_optim()
+    net1._setup_history()
     net1.printConfiguration()
     net1.train_all_epochs()
     net1.plot_loss()

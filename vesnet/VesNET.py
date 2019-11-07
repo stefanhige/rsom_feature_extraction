@@ -164,30 +164,9 @@ class VesNET():
  
         # OPTIMIZER
         self.initial_lr = initial_lr
-        if optimizer == 'Adam':
-            self.optimizer = torch.optim.Adam(self.model.parameters(),
-                                              lr=self.initial_lr,
-                                              weight_decay = 0)
-        # SCHEDULER
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer, 
-                mode='min', 
-                factor=0.1,
-                patience=4,
-                verbose=True,
-                threshold=1e-4,
-                threshold_mode='rel',
-                cooldown=0,
-                min_lr=0,
-                eps=1e-8)
-
-        # HISTORY
-        self.history = {'train':{'epoch': [], 'loss': [], 'unred_loss': []},
-                'eval':{'epoch': [], 'loss': [], 'cl_score': [],
-                    'out_score': [], 'dice': []}}
-        
-        # CURRENT EPOCH
-        self.curr_epoch = None
+        self._setup_optim(optimizer=optimizer)
+       
+        self._setup_history()
         
         # ADDITIONAL ARGS
         self.non_blocking = True
@@ -251,6 +230,44 @@ class VesNET():
             self.data_shape = self.pred_dataset[0]['data'].shape
         if self.dirs['pred']:
             self.size_pred = len(self.pred_dataset)
+
+    def _setup_optim(self, optimizer='Adam'):
+        if hasattr(self, 'optim') or hasattr(self, 'scheduler'):
+            warnings.warn('Overwriting optimizer and scheduler!', UserWarning)
+
+        # OPTIMIZER
+        if optimizer == 'Adam':
+            self.optimizer = torch.optim.Adam(self.model.parameters(),
+                                              lr=self.initial_lr,
+                                              weight_decay=1e-4)
+        else:
+            raise NotImplementedError
+
+        # SCHEDULER
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                self.optimizer, 
+                mode='min', 
+                factor=0.1,
+                patience=4,
+                verbose=True,
+                threshold=1e-4,
+                threshold_mode='rel',
+                cooldown=0,
+                min_lr=0,
+                eps=1e-8)
+
+    def _setup_history(self):
+        
+        if hasattr(self, 'history'):
+            warnings.warn('Overwriting history!', UserWarning)
+        
+        # HISTORY
+        self.history = {'train':{'epoch': [], 'loss': [], 'unred_loss': []},
+                'eval':{'epoch': [], 'loss': [], 'cl_score': [],
+                    'out_score': [], 'dice': []}}
+        
+        # CURRENT EPOCH
+        self.curr_epoch = None
 
     def train(self, iterator, epoch):
         '''
@@ -440,7 +457,6 @@ class VesNET():
 
         if cleanup:
             self._cleanup()
-    
     # destructor
     # see if that works
     def _cleanup(self):
@@ -681,7 +697,7 @@ class VesNET():
         fstr = fstr + '.nii.gz'
         nib.save(img, os.path.join(path, fstr))
 
-    def plot_loss(self):
+    def plot_loss(self, pat=''):
         fig, ax = plt.subplots()
         ax.plot(np.array(self.history['train']['epoch']),
                 np.array(self.history['train']['loss']),
@@ -696,7 +712,7 @@ class VesNET():
         
         if not self.DEBUG:
             fig.savefig(os.path.join(self.dirs['out'],
-                'loss' + self.today_id + '.png'))
+                'loss' + self.today_id + pat + '.png'))
     
     def printandlog(self, *msg):
         if self.LOG:
@@ -704,7 +720,7 @@ class VesNET():
             try:
                 print(*msg, file=self.logfile)
             except:
-                print(*msg, "to",self.logfile, "failed!")
+                pass
 
     def printConfiguration(self, destination='both'):
         if not self.DEBUG:
@@ -774,18 +790,18 @@ def debug(*msg):
 if __name__ == '__main__': 
 
     DEBUG = None
-    DEBUG = True
+    # DEBUG = True
 
-    root_dir = '~/data/vesnet/synthDataset/rsom_style_noisy'
+    root_dir = '~/data/vesnet/synthDataset/1channel'
 
 
-    desc = ('train on 27 synth samples. No groupnorm')
-    sdesc = 'nrsom_vblock'
+    desc = ('compare synth data 1 channel and 2 channel')
+    sdesc = 'synth_1channel'
 
 
     model_dir = ''
             
-    os.environ["CUDA_VISIBLE_DEVICES"]='6'
+    os.environ["CUDA_VISIBLE_DEVICES"]='2'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -802,9 +818,11 @@ if __name__ == '__main__':
 
     dirs = {k: os.path.expanduser(v) for k, v in dirs.items()}
 
-    model = DeepVesselNet(groupnorm=False,
-                          use_vblock=True,
-                          vblock_layer=2) # default settings with group norm
+    model = DeepVesselNet()
+    
+    # model = DeepVesselNet(groupnorm=False,
+                          # use_vblock=True,
+                          # vblock_layer=2) # default settings with group norm
 
     # model = DeepVesselNet(in_channels=2,
     #                   channels = [2, 10, 20, 40, 80, 1],
@@ -820,13 +838,13 @@ if __name__ == '__main__':
                   sdesc=sdesc,
                   model=model,
                   dirs=dirs,
-                  divs=(3,3,4),
+                  divs=(3,3,3),
                   batch_size=5,
                   optimizer='Adam',
                   class_weight=10,
                   initial_lr=1e-4,
                   lossfn=BCEWithLogitsLoss,
-                  epochs=1,
+                  epochs=75,
                   ves_probability=0.95,
                   _DEBUG=DEBUG
                   )
@@ -842,7 +860,7 @@ if __name__ == '__main__':
     net1.plot_loss()
     net1.save_model()
 
-    net1.predict_adj()
+    net1.predict()
 
 
 
