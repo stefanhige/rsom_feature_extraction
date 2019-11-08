@@ -239,7 +239,7 @@ class VesNET():
         if optimizer == 'Adam':
             self.optimizer = torch.optim.Adam(self.model.parameters(),
                                               lr=self.initial_lr,
-                                              weight_decay=1e-4)
+                                              weight_decay=0)
         else:
             raise NotImplementedError
 
@@ -569,10 +569,8 @@ class VesNET():
 
         if adj_cutoff:
             label_stack = []
-
         
         for i in range(self.size_pred):
-           
             # get the next batch of the evaluation set
             batch = next(iterator)
             
@@ -587,11 +585,9 @@ class VesNET():
                          self.dtype,
                          non_blocking=self.non_blocking)
             
-
             debug('prediction, data shape:', data.shape)
             prediction = self.model(data)
             prediction = prediction.detach()
-            
             # convert to probabilities
             sigmoid = torch.nn.Sigmoid()
             prediction = sigmoid(prediction)
@@ -647,7 +643,7 @@ class VesNET():
                     dice_stack = []
 
                 debug('patches shape:', patches.shape)
-                patches = patches.squeeze()
+                patches = patches.squeeze(axis=(1,2))
                 debug('patches shape:', patches.shape)
                 
                 V = get_volume(patches, self.divs, (0,0,0))
@@ -658,7 +654,7 @@ class VesNET():
                 debug('vessel probability min/max:', np.amin(V),'/', np.amax(V))
 
                 if adj_cutoff:
-                    label_patches = (torch.stack(label_stack)).numpy().squeeze()
+                    label_patches = (torch.stack(label_stack)).numpy().squeeze(axis=(1,2))
                     label_stack = []
                     L = get_volume(label_patches, self.divs, (0, 0, 0))
                     L = to_numpy(L, batch['meta'], Vtype='label', dimorder='torch')
