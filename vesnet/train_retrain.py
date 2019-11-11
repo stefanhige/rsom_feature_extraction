@@ -15,10 +15,10 @@ root_dir = '~/data/vesnet/synthDataset/rsom_style_noisy'
 
 desc = ('train and retrain')
 # sdesc = 't+rt_mp_vblock2_weight_decay'
-sdesc = 'test'
+sdesc = 't+rt_mp_gn_do'
 model_dir = ''
         
-os.environ["CUDA_VISIBLE_DEVICES"]='7'
+os.environ["CUDA_VISIBLE_DEVICES"]='6'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 train_dir = os.path.join(root_dir, 'train')
@@ -47,10 +47,10 @@ model = DeepVesselNet(in_channels=2,
                   channels=[2, 10, 20, 40, 80, 1],
                   kernels=[3, 5, 5, 3, 1],
                   depth=5, 
-                  dropout=False,
-                  groupnorm=False,
-                  use_vblock=True,
-                  vblock_layer=2)
+                  dropout=True,
+                  groupnorm=True)
+                  # use_vblock=True,
+                  # vblock_layer=1)
 
 net1 = VesNET(device=device,
               desc=desc,
@@ -58,7 +58,7 @@ net1 = VesNET(device=device,
               model=model,
               dirs=dirs,
               divs=(4,4,4),
-              batch_size=4,
+              batch_size=3,
               optimizer='Adam',
               class_weight=10,
               initial_lr=1e-4,
@@ -94,7 +94,7 @@ if 1:
     net1.dirs['eval'] = os.path.expanduser(eval_dir)
     net1.dirs['pred'] = os.path.expanduser(pred_dir)
 
-    net1.divs=(2,2,2)
+    net1.divs=(2,3,3)
     net1.n_epochs = epochs[1]
     net1.batch_size = 1
     net1._setup_dataloaders()
