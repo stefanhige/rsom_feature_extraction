@@ -79,7 +79,7 @@ class VesNetBase():
             try:
                 self.model.load_state_dict(torch.load(self.dirs['model']))
             except:
-                self.print('Could not load model!') 
+                warnings.warn('Could not load model!', UserWarning) 
 
         self.out_pred_dir = self.dirs['out']
 
@@ -206,7 +206,7 @@ class VesNetBase():
             
             
             debug('prediction, data shape:', data.shape)
-            
+            print('prediction, data shape:', data.shape)
             # acutally, this does not influence memory usage
             with torch.no_grad(): 
                 prediction = self.model(data)
