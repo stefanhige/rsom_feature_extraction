@@ -7,6 +7,8 @@ import numpy as np
 from PIL import Image
 
 from math import floor, ceil
+
+from timeit import default_timer as timer
 # this whole file is copied from
 # https://github.com/ramialmask/pytorch_deepvessel/tree/master/components
 # thanks to Rami Al-Maskari
@@ -182,7 +184,8 @@ class DeepVesselNet(nn.Module):
             dropout=False, 
             groupnorm=False,
             use_vblock=False,
-            vblock_layer=None):
+            vblock_layer=None,
+            save_memory=False):
         
         super(DeepVesselNet, self).__init__()
        
@@ -193,6 +196,7 @@ class DeepVesselNet(nn.Module):
         self.depth = depth
         self.dropout = dropout
         self.use_vblock = use_vblock
+        self.save_memory = save_memory
 
         if use_vblock:
             assert vblock_layer is not None
@@ -251,8 +255,21 @@ class DeepVesselNet(nn.Module):
         self.layers = nn.Sequential(*layers)
 
     def forward(self, x):
-
-        return self.layers(x)
+        
+        if self.training or not self.save_memory():
+            return self.layers(x)
+        else:
+            # self.layers is nested nn.Sequential
+            for i in range(len(self.layers)):
+                # nn.Sequential is named block
+                if hasattr(self.layers[i], 'block'):
+                    for j in range(len(self.layers[i].block)):
+                        x = self.layers[i].block[j](x)
+                        torch.cuda.empty_cache()
+                else:
+                    x = self.layers[i](x)
+                    torch.cuda.empty_cache()
+            return x
 
     def count_parameters(self):
 
