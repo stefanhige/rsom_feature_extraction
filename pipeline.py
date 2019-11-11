@@ -21,7 +21,7 @@ from torchvision import transforms, utils
 from laynet import LayerNetBase
 
 from vesnet.deep_vessel_3d import DeepVesselNet
-from vesnet.VesNET import VesNET, debug
+from vesnet.VesNET import VesNetBase, debug
 
 from visualization.vessels.mip_label_overlay import mip_label_overlay
 from visualization.vessels.mip_label_overlay import RsomVisualization
@@ -76,6 +76,7 @@ def vessel_pipeline(dirs={'input':'',
         print(tmp_vesselseg_out, 'does exist!')
 
     # mode
+    print(pattern)
     if pattern == None:
         cwd = os.getcwd()
         # change directory to origin, and get a list of all files
@@ -83,6 +84,7 @@ def vessel_pipeline(dirs={'input':'',
         all_files = os.listdir()
         os.chdir(cwd)
     else:
+        print('here')
         if isinstance(pattern, str):
             pattern = [pattern]
         # pattern = ['R_20170828154106_PAT026_RL01',
@@ -169,17 +171,11 @@ def vessel_pipeline(dirs={'input':'',
         print('Processing file', idx+1, 'of', len(filenameLF_LIST))
         
     # ***** VESSEL SEGMENTATION *****
-
-    DEBUG = None
-    # DEBUG = True
-    desc = ('pipeline test')
-    sdesc = ''
-
     _dirs={'train': '',
           'eval': '', 
           'model': dirs['vesnet_model'], 
           'pred': tmp_vesselseg_prep,
-          'out': dirs['output']}
+          'out': tmp_vesselseg_out}
 
     # model = DeepVesselNet(groupnorm=True) # default settings with group norm
     # model = DeepVesselNet(in_channels=2,
@@ -189,28 +185,28 @@ def vessel_pipeline(dirs={'input':'',
     #                       dropout=False,
     #                       groupnorm=True)
 
-    net1 = VesNET(device=device,
-                         desc=desc,
-                         sdesc=sdesc,
+    net1 = VesNetBase(device=device,
                          dirs=_dirs,
                          divs=(4,4,3),
                          model=vesnet_model,
-                         batch_size=1,
-                         ves_probability=0.855,
-                         _DEBUG=DEBUG)
+                         ves_probability=ves_probability)
 
-    net1.save_code_status()
-    net1.predict(use_best=False, metrics=True, adj_cutoff=False)
+    net1.predict(use_best=False, 
+                 metrics=False,
+                 adj_cutoff=False,
+                 save_ppred=False)
     # net1.predict_adj()
+    # os.remove(os.path.join(tmp_vesselseg_out,'*ppred*'))
 
     # ***** VISUALIZATION *****
     _dirs = {'in': dirs['input'],
             'layer': tmp_layerseg_out,
             'vessel': tmp_vesselseg_out,
             'out': dirs['output'] }
-
+    
+    print('there')
     mip_label_overlay(None, _dirs, plot_epidermis=False)
-
+    print('after')
     if delete_tmp:
         shutil.rmtree(os.path.join(dirs['output'],'tmp'))
 
@@ -219,10 +215,10 @@ def vessel_pipeline(dirs={'input':'',
 
 if __name__ == '__main__':
 
-    dirs = {'input': '~/Documents/RSOM/Diabetes/new_data/mat',
+    dirs = {'input': '~/data/pipeline/new_data/mat',
             'laynet_model': '~/models/layerseg/test/mod_190731_depth4.pt',
-            'vesnet_model': '~/data/vesnet/out/191017-00-rt_+backg_bce_gn/mod191017-00.pt',
-            'output': '~/Documents/RSOM/Diabetes/new_data/out'}
+            'vesnet_model': '~/data/vesnet/out/synth1ch/191107-06-synth_2channel_rt/mod191107-06.pt',
+            'output': '~/data/pipeline/new_data/test'}
 
     dirs = {k: os.path.expanduser(v) for k, v in dirs.items()}
 
@@ -234,19 +230,8 @@ if __name__ == '__main__':
                     laynet_depth=4,
                     vesnet_model=DeepVesselNet(),
                     ves_probability=0.9,
-                    pattern=None,  #if list, use patterns, otherwise, use whole dir
-                    delete_tmp=False):
-
-
-
-
-
-
-
-
-
-
-
+                    pattern=['R_20190213170831'],  #if list, use patterns, otherwise, use whole dir
+                    delete_tmp=True)
 
 
 

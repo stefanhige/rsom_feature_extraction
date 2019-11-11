@@ -43,7 +43,282 @@ else:
     from .patch_handling import get_volume
 
 
-class VesNET():
+class VesNetBase():
+    """
+    stripped base class for predicting RSOM vessels.
+    for training use class VesNet
+    """
+    def __init__(self,
+                 dirs={'train':'','eval':'', 'model':'', 'pred':''}, #add out
+                 device=torch.device('cuda'),
+                 model=None,
+                 divs = (4, 4, 3),
+                 offset = (6, 6, 6),
+                 batch_size = 1,
+                 ves_probability=0.5,
+                 ):
+
+        self.DEBUG = False
+
+        # OUTPUT DIRECTORIES
+        self.dirs = dirs
+
+        # MODEL
+        if model is not None:
+            self.model = model
+        else:
+            self.model = DeepVesselNet(in_channels=2,
+                                       channels = [2, 10, 20, 40, 80, 1],
+                                       kernels = [3, 5, 5, 3, 1],
+                                       depth = 5, 
+                                       dropout=False,
+                                       groupnorm=False)
+        
+        if self.dirs['model']:
+            print('Loading model from:', self.dirs['model'])
+            try:
+                self.model.load_state_dict(torch.load(self.dirs['model']))
+            except:
+                self.print('Could not load model!') 
+
+        self.out_pred_dir = self.dirs['out']
+
+        self.model = self.model.to(device)
+        self.model = self.model.float()
+
+        # VESSEL prediction probability boundary
+        self.ves_probability = ves_probability
+
+        # DIVS, OFFSET
+        self.divs = divs
+        self.offset = offset
+
+        # DATASET
+        self._setup_dataloaders()
+        self.batch_size = batch_size
+
+        # ADDITIONAL ARGS
+        self.non_blocking = True
+        self.device = device
+        self.dtype = torch.float32
+
+    def _setup_dataloaders(self):
+ 
+        if self.dirs['train']:
+            self.train_dataset = RSOMVesselDataset(self.dirs['train'],
+                                                   divs=self.divs, 
+                                                   offset=self.offset,
+                                                   transform=transforms.Compose([
+                                                       DropBlue(),
+                                                       DataAugmentation(mode='rsom'),
+                                                       PrecalcSkeleton(),
+                                                       ToTensor()]))
+
+            self.train_dataloader = DataLoader(self.train_dataset,
+                                               batch_size=self.batch_size, 
+                                               shuffle=True, 
+                                               num_workers=4, 
+                                               pin_memory=True)
+
+        if self.dirs['eval']:
+            self.eval_dataset = RSOMVesselDataset(self.dirs['eval'],
+                                               divs=self.divs,
+                                               offset=self.offset,
+                                               transform=transforms.Compose([
+                                                   DropBlue(),
+                                                   PrecalcSkeleton(),
+                                                   ToTensor()]))
+
+            self.eval_dataloader = DataLoader(self.eval_dataset,
+                                              batch_size=self.batch_size, 
+                                              shuffle=False, 
+                                              num_workers=4,
+                                              pin_memory=True)
+
+        if self.dirs['pred']:
+            self.pred_dataset = RSOMVesselDataset(self.dirs['pred'],
+                                              divs=self.divs,
+                                              offset=self.offset,
+                                              transform=transforms.Compose([
+                                                  DropBlue(),
+                                                  PrecalcSkeleton(),
+                                                  ToTensor()]))
+
+            self.pred_dataloader = DataLoader(self.pred_dataset,
+                                              batch_size=1, # easier for reconstruction 
+                                              shuffle=False, 
+                                              num_workers=4,
+                                              pin_memory=True)
+        
+        if self.dirs['train']: 
+            self.size_train = len(self.train_dataset)
+            self.size_eval = len(self.eval_dataset)
+            self.data_shape = self.train_dataset[0]['data'].shape
+        else:
+            self.data_shape = self.pred_dataset[0]['data'].shape
+        if self.dirs['pred']:
+            self.size_pred = len(self.pred_dataset)
+    def predict(self, 
+                use_best=True, 
+                metrics=True, 
+                adj_cutoff=True, 
+                cleanup=True,
+                save_ppred=True):
+        '''
+        doc string missing
+        '''
+        print('Predicting..')
+        # TODO: better solution needed?
+        if use_best:
+            print('Using best model.')
+            self.model.load_state_dict(self.best_model)
+        else:
+            print('Using last model.')
+
+        iterator = iter(self.pred_dataloader) 
+        self.model.eval()
+
+        prediction_stack = []
+        index_stack = []
+
+        if metrics:
+            cl_score_stack = []
+            out_score_stack = []
+            dice_stack = []
+
+        if adj_cutoff:
+            label_stack = []
+        
+        for i in range(self.size_pred):
+            # get the next batch of the evaluation set
+            batch = next(iterator)
+            
+            data = batch['data'].to(
+                    self.device,
+                    self.dtype,
+                    non_blocking=self.non_blocking)
+            
+            if metrics:
+                label = batch['label'].to(
+                         self.device,
+                         self.dtype,
+                         non_blocking=self.non_blocking)
+            
+            
+            debug('prediction, data shape:', data.shape)
+            
+            # acutally, this does not influence memory usage
+            with torch.no_grad(): 
+                prediction = self.model(data)
+            debug(torch.cuda.max_memory_allocated()/1e6, 'MB memory used') 
+            prediction = prediction.detach()
+            # convert to probabilities
+            sigmoid = torch.nn.Sigmoid()
+            prediction = sigmoid(prediction)
+
+            # calculate metrics
+            if metrics:
+                cl_score, out_score, dice = calc_metrics(prediction >= self.ves_probability, 
+                                                         label, 
+                                                         batch['meta']['label_skeleton'])
+            
+            # otherwise can't reconstruct.
+            if i==0:
+                assert batch['meta']['index'].item() == 0
+             
+            prediction_stack.append(prediction)
+            index_stack.append(batch['meta']['index'].item())
+            if metrics:
+                del label
+            if adj_cutoff:
+                label_stack.append(batch['label'].to(self.dtype))
+            
+            if metrics:
+                cl_score_stack.append(cl_score)
+                out_score_stack.append(out_score)
+                dice_stack.append(dice)
+
+
+            # if we got all patches
+            if batch['meta']['index'] == np.prod(self.divs) - 1:
+                
+                debug('Reconstructing volume: index stack is:')
+                debug(index_stack)
+
+                assert len(prediction_stack) == np.prod(self.divs)
+                assert index_stack == list(range(np.prod(self.divs)))
+                
+                patches = (torch.stack(prediction_stack)).to('cpu').numpy()
+                prediction_stack = []
+                index_stack = []
+
+                if metrics:
+                    self.printandlog('Metrics of', batch['meta']['filename'][0])
+                    self.printandlog('  cl={:.3f}, os={:.3f}, di={:.3f}'.format(
+                        np.nanmean(cl_score_stack), 
+                        np.nanmean(out_score_stack), 
+                        np.nanmean(dice_stack)))
+                    print(cl_score_stack)
+                    print(out_score_stack)
+                    print(dice_stack)
+                    
+                    out_score_stack = []
+                    cl_score_stack = []
+                    dice_stack = []
+
+                debug('patches shape:', patches.shape)
+                patches = patches.squeeze(axis=(1,2))
+                debug('patches shape:', patches.shape)
+                
+                V = get_volume(patches, self.divs, (0,0,0))
+                V = to_numpy(V, batch['meta'], Vtype='label', dimorder='torch')
+                debug('reconstructed volume shape:', V.shape)
+
+                # TODO: binary cutoff??
+                debug('vessel probability min/max:', np.amin(V),'/', np.amax(V))
+
+                if adj_cutoff:
+                    label_patches = (torch.stack(label_stack)).numpy().squeeze(axis=(1,2))
+                    label_stack = []
+                    L = get_volume(label_patches, self.divs, (0, 0, 0))
+                    L = to_numpy(L, batch['meta'], Vtype='label', dimorder='torch')
+
+                    id_cutoff, id_dice = find_cutoff(pred=V, label=L)
+                    self.printandlog('Finding ideal p of ', batch['meta']['filename'][0])
+                    self.printandlog('Result. at p={:.5f} : dice={:.5f}'.format(
+                        id_cutoff, id_dice))
+                    Vbool = V >= id_cutoff
+                else:
+                    Vbool = V >= self.ves_probability
+
+                # save to file
+                if not self.DEBUG:
+                    if os.path.exists(self.dirs['out']):
+                        # create ../prediction directory
+                        dest_dir = os.path.join(self.out_pred_dir)
+                        fstr = batch['meta']['filename'][0].replace('.nii.gz','')  + '_pred'
+                        self.saveNII(Vbool.astype(np.uint8), dest_dir, fstr)
+                        if save_ppred:
+                            fstr = fstr.replace('_pred', '_ppred')
+                            self.saveNII(V, dest_dir, fstr)
+                    else:
+                        print('Couldn\'t save prediction.')
+        if cleanup:
+            try:
+                print('Closing logfile..')
+                self.logfile.close()
+            except:
+                pass
+    @staticmethod
+    def saveNII(V, path, fstr):
+        img = nib.Nifti1Image(V, np.eye(4))
+    
+        fstr = fstr + '.nii.gz'
+        nib.save(img, os.path.join(path, fstr))
+
+    def printandlog(self, *msg):
+        print(*msg)
+class VesNET(VesNetBase):
     '''
     class for setting up, training of vessel segmentation with deep vessel net 3d on RSOM dataset
     Args:
@@ -160,7 +435,8 @@ class VesNET():
 
         if self.dirs['pred']:
             if not self.DEBUG:
-                os.mkdir(os.path.join(self.dirs['out'],'prediction'))
+                self.out_pred_dir = os.path.join(self.dirs['out'],'prediction')
+                os.mkdir(self.out_pred_dir)
  
         # OPTIMIZER
         self.initial_lr = initial_lr
@@ -173,63 +449,6 @@ class VesNET():
         self.device = device
         self.dtype = torch.float32
         self.n_epochs = epochs
-
-    def _setup_dataloaders(self):
- 
-        if self.dirs['train']:
-            self.train_dataset = RSOMVesselDataset(self.dirs['train'],
-                                                   divs=self.divs, 
-                                                   offset=self.offset,
-                                                   transform=transforms.Compose([
-                                                       DropBlue(),
-                                                       DataAugmentation(mode='rsom'),
-                                                       PrecalcSkeleton(),
-                                                       ToTensor()]))
-
-            self.train_dataloader = DataLoader(self.train_dataset,
-                                               batch_size=self.batch_size, 
-                                               shuffle=True, 
-                                               num_workers=4, 
-                                               pin_memory=True)
-
-        if self.dirs['eval']:
-            self.eval_dataset = RSOMVesselDataset(self.dirs['eval'],
-                                               divs=self.divs,
-                                               offset=self.offset,
-                                               transform=transforms.Compose([
-                                                   DropBlue(),
-                                                   PrecalcSkeleton(),
-                                                   ToTensor()]))
-
-            self.eval_dataloader = DataLoader(self.eval_dataset,
-                                              batch_size=self.batch_size, 
-                                              shuffle=False, 
-                                              num_workers=4,
-                                              pin_memory=True)
-
-        if self.dirs['pred']:
-            self.pred_dataset = RSOMVesselDataset(self.dirs['pred'],
-                                              divs=self.divs,
-                                              offset=self.offset,
-                                              transform=transforms.Compose([
-                                                  DropBlue(),
-                                                  PrecalcSkeleton(),
-                                                  ToTensor()]))
-
-            self.pred_dataloader = DataLoader(self.pred_dataset,
-                                              batch_size=1, # easier for reconstruction 
-                                              shuffle=False, 
-                                              num_workers=4,
-                                              pin_memory=True)
-        
-        if self.dirs['train']: 
-            self.size_train = len(self.train_dataset)
-            self.size_eval = len(self.eval_dataset)
-            self.data_shape = self.train_dataset[0]['data'].shape
-        else:
-            self.data_shape = self.pred_dataset[0]['data'].shape
-        if self.dirs['pred']:
-            self.size_pred = len(self.pred_dataset)
 
     def _setup_optim(self, optimizer='Adam'):
         if hasattr(self, 'optim') or hasattr(self, 'scheduler'):
@@ -546,160 +765,6 @@ class VesNET():
         if not self.DEBUG:
             fig.savefig(os.path.join(self.dirs['out'],'thvsdice.png'))
 
-    def predict(self, use_best=True, metrics=True, adj_cutoff=True, cleanup=True):
-        '''
-        doc string missing
-        '''
-        print('Predicting..')
-        # TODO: better solution needed?
-        if use_best:
-            print('Using best model.')
-            self.model.load_state_dict(self.best_model)
-        else:
-            print('Using last model.')
-
-        iterator = iter(self.pred_dataloader) 
-        self.model.eval()
-
-        prediction_stack = []
-        index_stack = []
-
-        if metrics:
-            cl_score_stack = []
-            out_score_stack = []
-            dice_stack = []
-
-        if adj_cutoff:
-            label_stack = []
-        
-        for i in range(self.size_pred):
-            # get the next batch of the evaluation set
-            batch = next(iterator)
-            
-            data = batch['data'].to(
-                    self.device,
-                    self.dtype,
-                    non_blocking=self.non_blocking)
-            
-            if metrics:
-                label = batch['label'].to(
-                         self.device,
-                         self.dtype,
-                         non_blocking=self.non_blocking)
-            
-            
-            debug('prediction, data shape:', data.shape)
-            
-            # acutally, this does not influence memory usage
-            with torch.no_grad(): 
-                prediction = self.model(data)
-            debug(torch.cuda.max_memory_allocated()/1e6, 'MB memory used') 
-            prediction = prediction.detach()
-            # convert to probabilities
-            sigmoid = torch.nn.Sigmoid()
-            prediction = sigmoid(prediction)
-
-            # calculate metrics
-            if metrics:
-                cl_score, out_score, dice = calc_metrics(prediction >= self.ves_probability, 
-                                                         label, 
-                                                         batch['meta']['label_skeleton'])
-            
-            # otherwise can't reconstruct.
-            if i==0:
-                assert batch['meta']['index'].item() == 0
-             
-            prediction_stack.append(prediction)
-            index_stack.append(batch['meta']['index'].item())
-            if metrics:
-                del label
-            if adj_cutoff:
-                label_stack.append(batch['label'].to(self.dtype))
-            
-            if metrics:
-                cl_score_stack.append(cl_score)
-                out_score_stack.append(out_score)
-                dice_stack.append(dice)
-
-
-            # if we got all patches
-            if batch['meta']['index'] == np.prod(self.divs) - 1:
-                
-                debug('Reconstructing volume: index stack is:')
-                debug(index_stack)
-
-                assert len(prediction_stack) == np.prod(self.divs)
-                assert index_stack == list(range(np.prod(self.divs)))
-                
-                patches = (torch.stack(prediction_stack)).to('cpu').numpy()
-                prediction_stack = []
-                index_stack = []
-
-                if metrics:
-                    self.printandlog('Metrics of', batch['meta']['filename'][0])
-                    self.printandlog('  cl={:.3f}, os={:.3f}, di={:.3f}'.format(
-                        np.nanmean(cl_score_stack), 
-                        np.nanmean(out_score_stack), 
-                        np.nanmean(dice_stack)))
-                    print(cl_score_stack)
-                    print(out_score_stack)
-                    print(dice_stack)
-                    
-                    out_score_stack = []
-                    cl_score_stack = []
-                    dice_stack = []
-
-                debug('patches shape:', patches.shape)
-                patches = patches.squeeze(axis=(1,2))
-                debug('patches shape:', patches.shape)
-                
-                V = get_volume(patches, self.divs, (0,0,0))
-                V = to_numpy(V, batch['meta'], Vtype='label', dimorder='torch')
-                debug('reconstructed volume shape:', V.shape)
-
-                # TODO: binary cutoff??
-                debug('vessel probability min/max:', np.amin(V),'/', np.amax(V))
-
-                if adj_cutoff:
-                    label_patches = (torch.stack(label_stack)).numpy().squeeze(axis=(1,2))
-                    label_stack = []
-                    L = get_volume(label_patches, self.divs, (0, 0, 0))
-                    L = to_numpy(L, batch['meta'], Vtype='label', dimorder='torch')
-
-                    id_cutoff, id_dice = find_cutoff(pred=V, label=L)
-                    self.printandlog('Finding ideal p of ', batch['meta']['filename'][0])
-                    self.printandlog('Result. at p={:.5f} : dice={:.5f}'.format(
-                        id_cutoff, id_dice))
-                    Vbool = V >= id_cutoff
-                else:
-                    Vbool = V >= self.ves_probability
-
-                # save to file
-                if not self.DEBUG:
-                    if os.path.exists(self.dirs['out']):
-                        # create ../prediction directory
-                        dest_dir = os.path.join(self.dirs['out'],'prediction')
-                    
-                        fstr = batch['meta']['filename'][0].replace('.nii.gz','')  + '_pred'
-                        self.saveNII(Vbool.astype(np.uint8), dest_dir, fstr)
-                        fstr = fstr.replace('_pred', '_ppred')
-                        self.saveNII(V, dest_dir, fstr)
-                    else:
-                        print('Couldn\'t save prediction.')
-        if cleanup:
-            try:
-                print('Closing logfile..')
-                self.logfile.close()
-            except:
-                pass
-
-    @staticmethod
-    def saveNII(V, path, fstr):
-        img = nib.Nifti1Image(V, np.eye(4))
-    
-        fstr = fstr + '.nii.gz'
-        nib.save(img, os.path.join(path, fstr))
-
     def plot_loss(self, pat=''):
         fig, ax = plt.subplots()
         ax.plot(np.array(self.history['train']['epoch']),
@@ -795,16 +860,16 @@ if __name__ == '__main__':
     DEBUG = None
     # DEBUG = True
 
-    root_dir = '~/data/vesnet/synthDataset/1channel'
+    root_dir = '~/data/vesnet/synthDataset/rsom_style_noisy+refl_small/'
 
 
-    desc = ('compare synth data 1 channel and 2 channel')
-    sdesc = 'synth_1channel'
+    desc = ('new synth dataset')
+    sdesc = 'new_synth_data_test'
 
 
     model_dir = ''
             
-    os.environ["CUDA_VISIBLE_DEVICES"]='2'
+    os.environ["CUDA_VISIBLE_DEVICES"]='3'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -842,12 +907,12 @@ if __name__ == '__main__':
                   model=model,
                   dirs=dirs,
                   divs=(3,3,3),
-                  batch_size=5,
+                  batch_size=4,
                   optimizer='Adam',
                   class_weight=10,
                   initial_lr=1e-4,
                   lossfn=BCEWithLogitsLoss,
-                  epochs=75,
+                  epochs=100,
                   ves_probability=0.95,
                   _DEBUG=DEBUG
                   )
