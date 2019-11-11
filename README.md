@@ -4,14 +4,16 @@
 # current bugs / tasks
 
 ## VESNET
-* theres a bug in patch handling, for divs (1,1,1), must be fixed!!
-   was this case not tested?
 
 * major: check during eval/prediction mode if can get more memory,
          try setting requires_grad=False for input variable
          or override eval() method
+   in progress: setting a flag in DeepVesselNet for memefficient forward pass, but is slower
+
 
 * major: implement pipeline
+  in progress: need cleanup
+
 
 * major: implement grad cam for segmentation
 
@@ -21,6 +23,9 @@
 
 * pred_adj cannot handle background images, bc dice is zero, even tho this is correct
 
+* theres a bug in patch handling, for divs (1,1,1), must be fixed!!
+   was this case not tested?
+   **fixed, bug was in predict method**
 
 * choose automatic probability depending on maximum of dice overlay
 **in progress** need verification sweep that minimize_scalar does actually find the minimum
