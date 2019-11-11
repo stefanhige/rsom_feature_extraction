@@ -143,9 +143,9 @@ class RsomVisualization(RSOM):
             plt.title(str(self.file.ID))
             #plt.imshow(P, aspect = 1/4)
             plt.show()
-    
-    def save_comb_mip(self, dest, scale=2):
-        
+
+    def _rescale_mip(self, scale):
+
         self.P_overlay = self.P_overlay.astype(np.uint8)
         
         if scale != 1:
@@ -159,7 +159,16 @@ class RsomVisualization(RSOM):
             # strangely transform.rescale is not dtype consistent?
             self.P_overlay = exposure.rescale_intensity(self.P_overlay, out_range=np.uint8)
             self.P_overlay = self.P_overlay.astype(np.uint8)
+   
+    def return_mip(self, scale=2):
+
+        self._rescale_mip(scale)
+
+        return self.P, self.P_overlay
+
+    def save_comb_mip(self, dest, scale=2):
         
+        self._rescale_mip(scale)
         
         if self.P.shape[0] > self.P.shape[1]:
             axis = 1
@@ -243,54 +252,78 @@ def mip_label_overlay(file_ids, dirs, plot_epidermis=False):
         file_ids = [id_[:id_.find('_', 2)] for id_ in file_ids]
 
     for file_id in file_ids:
+        mip_label_overlay1(file_id, 
+                           dirs, 
+                           plot_epidermis=plot_epidermis, 
+                           axis=-1, 
+                           return_img=False)
 
-        matLF, matHF = get_unique_filepath(mat_dir, file_id)
-        
-        _, matLF_ = os.path.split(matLF)
-        idx_1 = matLF_.find('_')
-        idx_2 = matLF_.find('_', idx_1+1)
-        matSurf = os.path.join(mat_dir, 'Surf' + matLF_[idx_1:idx_2+1] + '.mat')
-        print('SURF file:', matSurf) 
-        
-        Obj = RsomVisualization(matLF, matHF, matSurf)
-        Obj.readMATLAB()
-        Obj.flatSURFACE()
-        
-        # z=500
-        Obj.cutDEPTH()
-        
-        seg_file_ves = get_unique_filepath(seg_dir_ves, file_id)
-        seg_file_lay = get_unique_filepath(seg_dir_lay, file_id)
-        z0 = int(re.search('(?<=_z)\d{1,3}(?=_)', seg_file_ves).group())
-        print('z0 = ', z0)
-        
+def mip_label_overlay1(file_id, dirs, plot_epidermis=False, axis=-1, return_img=False):
+    """ axis=-1 means all axes
+    """
+
+    mat_dir = dirs['in']
+    seg_dir_lay = dirs['layer']
+    seg_dir_ves = dirs['vessel']
+    out_dir = dirs['out']
+
+    matLF, matHF = get_unique_filepath(mat_dir, file_id)
+    
+    _, matLF_ = os.path.split(matLF)
+    idx_1 = matLF_.find('_')
+    idx_2 = matLF_.find('_', idx_1+1)
+    matSurf = os.path.join(mat_dir, 'Surf' + matLF_[idx_1:idx_2+1] + '.mat')
+    print('SURF file:', matSurf) 
+    
+    Obj = RsomVisualization(matLF, matHF, matSurf)
+    Obj.readMATLAB()
+    Obj.flatSURFACE()
+    
+    # z=500
+    Obj.cutDEPTH()
+    
+    seg_file_ves = get_unique_filepath(seg_dir_ves, file_id)
+    seg_file_lay = get_unique_filepath(seg_dir_lay, file_id)
+    z0 = int(re.search('(?<=_z)\d{1,3}(?=_)', seg_file_ves).group())
+    print('z0 = ', z0)
+    
+    if axis == -1 or axis == 0:
         # axis = 0
         # this is the top view
-        axis = 0
-        Obj.calcMIP(axis=axis, do_plot=False, cut_z=z0)
-        Obj.calc_mip_ves_seg(seg=seg_file_ves, axis=axis, padding=(0, 0))
+        axis_ = 0
+        Obj.calcMIP(axis=axis_, do_plot=False, cut_z=z0)
+        Obj.calc_mip_ves_seg(seg=seg_file_ves, axis=axis_, padding=(0, 0))
         Obj.merge_mip_ves(do_plot=False)
-        Obj.save_comb_mip(out_dir)
+        if return_img:
+            return Obj.return_mip()
+        else:
+            Obj.save_comb_mip(out_dir)
+    if axis == -1 or axis == 1:
         # axis = 1
-        axis = 1
-        Obj.calcMIP(axis=axis, do_plot=False, cut_z=0)
-        Obj.calc_mip_ves_seg(seg=seg_file_ves, axis=axis, padding=(z0, 0))
+        axis_ = 1
+        Obj.calcMIP(axis=axis_, do_plot=False, cut_z=0)
+        Obj.calc_mip_ves_seg(seg=seg_file_ves, axis=axis_, padding=(z0, 0))
         Obj.merge_mip_ves(do_plot=False)
         if plot_epidermis:
-            Obj.calc_mip_lay_seg(seg=seg_file_lay, axis=axis, padding=(0, 0))
+            Obj.calc_mip_lay_seg(seg=seg_file_lay, axis=axis_, padding=(0, 0))
             Obj.merge_mip_lay(do_plot=False)
-        Obj.save_comb_mip(out_dir)
-        
-        #axis =2
-        axis = 2
-        Obj.calcMIP(axis=axis, do_plot=False, cut_z=0)
-        Obj.calc_mip_ves_seg(seg=seg_file_ves, axis=axis, padding=(z0, 0))
+        if return_img:
+            return Obj.return_mip()
+        else:
+            Obj.save_comb_mip(out_dir)
+    
+    if axis == -1 or axis == 2:
+        axis_ = 2
+        Obj.calcMIP(axis=axis_, do_plot=False, cut_z=0)
+        Obj.calc_mip_ves_seg(seg=seg_file_ves, axis=axis_, padding=(z0, 0))
         Obj.merge_mip_ves(do_plot=False)
         if plot_epidermis:
-            Obj.calc_mip_lay_seg(seg=seg_file_lay, axis=axis, padding=(0, 0))
+            Obj.calc_mip_lay_seg(seg=seg_file_lay, axis=axis_, padding=(0, 0))
             Obj.merge_mip_lay(do_plot=False)
-        Obj.save_comb_mip(out_dir)
-
+        if return_img:
+            return Obj.return_mip()
+        else:
+            Obj.save_comb_mip(out_dir)
 
     
 if __name__ == '__main__':
