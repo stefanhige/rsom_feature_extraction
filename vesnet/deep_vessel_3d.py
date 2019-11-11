@@ -256,7 +256,7 @@ class DeepVesselNet(nn.Module):
 
     def forward(self, x):
         
-        if self.training or not self.save_memory():
+        if self.training or not self.save_memory:
             return self.layers(x)
         else:
             # self.layers is nested nn.Sequential
