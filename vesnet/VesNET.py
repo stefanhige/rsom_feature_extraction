@@ -497,7 +497,9 @@ class VesNET():
                     non_blocking=self.non_blocking)
             
             debug('prediction, data shape:', data.shape)
-            prediction = self.model(data)
+            # actually, this does not influence memory usage
+            with torch.no_grad():
+                prediction = self.model(data)
             prediction = prediction.detach()
             
             # convert to probabilities
@@ -585,8 +587,13 @@ class VesNET():
                          self.dtype,
                          non_blocking=self.non_blocking)
             
+            
             debug('prediction, data shape:', data.shape)
-            prediction = self.model(data)
+            
+            # acutally, this does not influence memory usage
+            with torch.no_grad(): 
+                prediction = self.model(data)
+            debug(torch.cuda.max_memory_allocated()/1e6, 'MB memory used') 
             prediction = prediction.detach()
             # convert to probabilities
             sigmoid = torch.nn.Sigmoid()

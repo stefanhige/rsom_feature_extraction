@@ -522,7 +522,7 @@ class TestPatchHandling(unittest.TestCase):
 
 # Test distribution of weights?
 # probably not needed
-class TestWeightInitialization(unittest.TestCase)
+class TestWeightInitialization(unittest.TestCase):
     def setUp(self):
         pass
 
