@@ -23,7 +23,7 @@ from laynet import LayerNetBase
 from vesnet.deep_vessel_3d import DeepVesselNet
 from vesnet.VesNET import VesNetBase, debug
 
-from visualization.vessels.mip_label_overlay import mip_label_overlay
+from visualization.vessels.mip_label_overlay import mip_label_overlay, mip_label_overlay1
 from visualization.vessels.mip_label_overlay import RsomVisualization
 from visualization.vessels.mip_label_overlay import get_unique_filepath
 
@@ -34,9 +34,12 @@ def vessel_pipeline(dirs={'input':'',
                           'vesnet_model':''},
                     laynet_depth=4,
                     vesnet_model=DeepVesselNet(),
+                    divs=(2,1,1),
                     ves_probability=0.9,
                     pattern=None,  #if list, use patterns, otherwise, use whole dir
-                    delete_tmp=False):
+                    delete_tmp=False,
+                    return_img=False,
+                    mip_overlay_axis=None):
 
 
     # dirs['input'] = '/home/stefan/Documents/RSOM/Diabetes/new_data/mat'
@@ -187,7 +190,7 @@ def vessel_pipeline(dirs={'input':'',
 
     net1 = VesNetBase(device=device,
                          dirs=_dirs,
-                         divs=(4,4,3),
+                         divs= divs,
                          model=vesnet_model,
                          ves_probability=ves_probability)
 
@@ -204,14 +207,18 @@ def vessel_pipeline(dirs={'input':'',
             'vessel': tmp_vesselseg_out,
             'out': dirs['output'] }
     
-    print('there')
-    mip_label_overlay(None, _dirs, plot_epidermis=False)
-    print('after')
+    if not return_img:
+        mip_label_overlay(None, _dirs, plot_epidermis=False)
+    elif len(pattern) == 1:
+        img = mip_label_overlay1(pattern[0], _dirs, axis=mip_overlay_axis, return_img=True)
+    else:
+        raise NotImplementedError('can return images only for one file')
+    
     if delete_tmp:
         shutil.rmtree(os.path.join(dirs['output'],'tmp'))
 
-
-
+    if return_img:
+        return img
 
 if __name__ == '__main__':
 
@@ -226,12 +233,14 @@ if __name__ == '__main__':
 
     os.environ["CUDA_VISIBLE_DEVICES"]='5'
     
-    vessel_pipeline(dirs=dirs,
+    img = vessel_pipeline(dirs=dirs,
                     laynet_depth=4,
                     vesnet_model=DeepVesselNet(),
                     ves_probability=0.9,
                     pattern=['R_20190213170831'],  #if list, use patterns, otherwise, use whole dir
-                    delete_tmp=True)
+                    delete_tmp=True,
+                    return_img=True,
+                    mip_overlay_axis=0)
 
 
 
