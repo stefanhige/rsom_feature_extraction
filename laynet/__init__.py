@@ -1,7 +1,6 @@
 # __init__
 
-# TODO: change name to LayerNet
-from .layer_net import LayerUNET, LayerNetBase
+from .layer_net import LayerNet, LayerNetBase
 
 
-__all__ = ['LayerUNET']
+__all__ = ['LayerNet']

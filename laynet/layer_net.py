@@ -209,7 +209,7 @@ class LayerNetBase():
         return label_rec
 
 
-class LayerUNET(LayerNetBase):
+class LayerNet(LayerNetBase):
     '''
     class for setting up, training and evaluating of layer segmentation
     with unet on RSOM dataset
