@@ -5,6 +5,10 @@
 
 ## VESNET
 
+* major: needs a lot of testing: cut away reflection or emptieness in vessel preparation!
+         -> this will break mip-label-overlay!
+
+
 * major: check during eval/prediction mode if can get more memory,
          try setting requires_grad=False for input variable
          or override eval() method
