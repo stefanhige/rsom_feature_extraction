@@ -146,6 +146,7 @@ def vessel_pipeline(dirs={'input':'',
             dirs={'model': dirs['laynet_model'],
                   'pred': tmp_layerseg_prep,
                   'out': tmp_layerseg_out},
+            model_depth=laynet_depth,
             device=device)
 
     LayerNetInstance.predict()
@@ -219,7 +220,7 @@ def vessel_pipeline(dirs={'input':'',
             'out': dirs['output'] }
     
     if not return_img:
-        mip_label_overlay(None, _dirs, plot_epidermis=False)
+        mip_label_overlay(None, _dirs, plot_epidermis=True)
     elif len(pattern) == 1:
         img = mip_label_overlay1(pattern[0], _dirs, axis=mip_overlay_axis, return_img=True)
     else:
@@ -233,10 +234,11 @@ def vessel_pipeline(dirs={'input':'',
 
 if __name__ == '__main__':
 
-    dirs = {'input': '~/data/pipeline/new_data/mat',
-            'laynet_model': '~/models/layerseg/test/mod_190731_depth4.pt',
+    dirs = {'input': '~/data/pipeline/selection1/mat',
+            #'laynet_model': '~/models/layerseg/test/mod_190731_depth4.pt',
+            'laynet_model': '~/models/layerseg/test/mod_191101_depth5.pt',
             'vesnet_model': '~/data/vesnet/out/191108-01-t+rt_mp_gn/mod191108-01.pt',
-            'output': '~/data/pipeline/new_data/t_rt_mp_gn'}
+            'output': '~/data/pipeline/selection1/t_rt_mp_gn_2'}
 
     dirs = {k: os.path.expanduser(v) for k, v in dirs.items()}
 
@@ -257,10 +259,10 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"]='6'
     
     img = vessel_pipeline(dirs=dirs,
-                    laynet_depth=4,
+                    laynet_depth=5,
                     vesnet_model=model,
                     ves_probability=0.944,
-                    # pattern=['R_20190213170831'],  #if list, use patterns, otherwise, use whole dir
+                    # pattern=['R_20170828155546'],  #if list, use patterns, otherwise, use whole dir
                     divs=(1,1,2),
                     delete_tmp=False,
                     return_img=False,
