@@ -34,7 +34,7 @@ def vessel_pipeline(dirs={'input':'',
                           'vesnet_model':''},
                     laynet_depth=4,
                     vesnet_model=DeepVesselNet(),
-                    divs=(2,1,1),
+                    divs=(1,1,1),
                     ves_probability=0.9,
                     pattern=None,  #if list, use patterns, otherwise, use whole dir
                     delete_tmp=False,
@@ -52,6 +52,7 @@ def vessel_pipeline(dirs={'input':'',
     tmp_layerseg_out = os.path.join(dirs['output'], 'tmp', 'layerseg_out')
     tmp_vesselseg_prep = os.path.join(dirs['output'], 'tmp', 'vesselseg_prep')
     tmp_vesselseg_out = os.path.join(dirs['output'], 'tmp', 'vesselseg_out')
+    tmp_vesselseg_prob = os.path.join(dirs['output'], 'tmp', 'vesselseg_out_prob')
 
     if not os.path.isdir(os.path.join(dirs['output'], 'tmp')):
         os.mkdir(os.path.join(dirs['output'], 'tmp'))
@@ -78,6 +79,11 @@ def vessel_pipeline(dirs={'input':'',
     else:
         print(tmp_vesselseg_out, 'does exist!')
 
+    if not os.path.isdir(tmp_vesselseg_prob):
+        os.mkdir(tmp_vesselseg_prob)
+    else:
+        print(tmp_vesselseg_prob, 'does exist!')
+    
     # mode
     print(pattern)
     if pattern == None:
@@ -197,7 +203,12 @@ def vessel_pipeline(dirs={'input':'',
     net1.predict(use_best=False, 
                  metrics=False,
                  adj_cutoff=False,
-                 save_ppred=False)
+                 save_ppred=True)
+
+    files = [f for f in os.listdir(tmp_vesselseg_out) if 'ppred' in f]
+    for f in files:
+        shutil.move(os.path.join(tmp_vesselseg_out, f), 
+                    os.path.join(tmp_vesselseg_prob, f))
     # net1.predict_adj()
     # os.remove(os.path.join(tmp_vesselseg_out,'*ppred*'))
 
@@ -224,22 +235,35 @@ if __name__ == '__main__':
 
     dirs = {'input': '~/data/pipeline/new_data/mat',
             'laynet_model': '~/models/layerseg/test/mod_190731_depth4.pt',
-            'vesnet_model': '~/data/vesnet/out/synth1ch/191107-06-synth_2channel_rt/mod191107-06.pt',
-            'output': '~/data/pipeline/new_data/test'}
+            'vesnet_model': '~/data/vesnet/out/191108-01-t+rt_mp_gn/mod191108-01.pt',
+            'output': '~/data/pipeline/new_data/t_rt_mp_gn'}
 
     dirs = {k: os.path.expanduser(v) for k, v in dirs.items()}
 
 
+    # model = DeepVesselNet(groupnorm=False)
+    # model = DeepVesselNet(groupnorm=True)
+                      # use_vblock=True,
+                      # vblock_layer=2)
 
-    os.environ["CUDA_VISIBLE_DEVICES"]='5'
+    model = DeepVesselNet(in_channels=2,
+                          channels = [2, 10, 20, 40, 80, 1],
+                          kernels = [3, 5, 5, 3, 1],
+                          depth = 5, 
+                          dropout=False,
+                          groupnorm=True,
+                          save_memory=True)
+
+    os.environ["CUDA_VISIBLE_DEVICES"]='6'
     
     img = vessel_pipeline(dirs=dirs,
                     laynet_depth=4,
-                    vesnet_model=DeepVesselNet(),
-                    ves_probability=0.9,
-                    pattern=['R_20190213170831'],  #if list, use patterns, otherwise, use whole dir
-                    delete_tmp=True,
-                    return_img=True,
+                    vesnet_model=model,
+                    ves_probability=0.944,
+                    # pattern=['R_20190213170831'],  #if list, use patterns, otherwise, use whole dir
+                    divs=(1,1,2),
+                    delete_tmp=False,
+                    return_img=False,
                     mip_overlay_axis=0)
 
 
