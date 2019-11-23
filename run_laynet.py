@@ -2,7 +2,7 @@
 import torch
 import os
 from laynet._metrics import custom_loss_1_smooth
-from laynet import LayerUNET, LayerNetBase
+from laynet import LayerNet, LayerNetBase
 
 mode = 'predict'
 
@@ -53,18 +53,18 @@ if mode == 'train':
 
 elif mode == 'predict':
 
-    os.environ["CUDA_VISIBLE_DEVICES"]='6'
+    os.environ["CUDA_VISIBLE_DEVICES"]='4'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
    
-    pred_dir = '/home/gerlstefan/data/layerunet/fullDataset/labeled/val'
-    model_dir ='/home/gerlstefan/models/layerseg/test/mod_190724_50_smooth.pt'
-    out_dir ='/home/gerlstefan/data/layerunet/prediction/smoothness_loss/depth4_smooth_loss_and_smoothing'
+    pred_dir = '/home/gerlstefan/data/pipeline/selection1/t_rt_mp_gn/tmp/layerseg_prep'
+    model_dir ='/home/gerlstefan/models/layerseg/test/mod_191101_depth5.pt'
+    out_dir ='/home/gerlstefan/data/layerunet/prediction/191123_depth5_selection1'
     net1 = LayerNetBase(
             dirs={'model': model_dir,
                   'pred': pred_dir,
                   'out': out_dir},
             device=device,
-            model_depth=4)
+            model_depth=5)
 
     net1.predict()
 

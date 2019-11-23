@@ -10,13 +10,13 @@ from deep_vessel_3d import DeepVesselNet
 DEBUG = None
 DEBUG = True
 
-pred_dir = '~/data/vesnet/annotatedDataset/eval'
+pred_dir = '~/data/vesnet/synth+annotDataset/eval'
 # pred_dir = '~/data/layerunet/for_vesnet/selection1/vessels/input'
 
 desc = ('predict only test')
 sdesc = 'rt_mp_gn'
 
-model_dir = '~/data/vesnet/out/191108-01-t+rt_mp_gn/mod191108-01t.pt'
+model_dir = '~/data/vesnet/out/191108-01-t+rt_mp_gn/mod191108-01.pt'
         
 os.environ["CUDA_VISIBLE_DEVICES"]='6'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -33,6 +33,7 @@ dirs={'train': '',
 
 dirs = {k: os.path.expanduser(v) for k, v in dirs.items()}
 
+# model = DeepVesselNet() 
 # model = DeepVesselNet(groupnorm=True) 
 
 model = DeepVesselNet(in_channels=2,
@@ -49,11 +50,11 @@ net1 = VesNET(device=device,
                      divs=(1,1,2),
                      model=model,
                      batch_size=1,
-                     ves_probability=0.99,
+                     ves_probability=0.99304,
                      _DEBUG=DEBUG)
 
 net1.save_code_status()
 
-net1.predict(use_best=False, metrics=True, adj_cutoff=True)
-# net1.predict_adj()
+# net1.predict(use_best=False, metrics=True, adj_cutoff=True)
+net1.predict_adj()
 
