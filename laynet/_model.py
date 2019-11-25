@@ -89,6 +89,9 @@ class UNet(nn.Module):
 
         return self.last(x)
 
+    def count_parameters(self):
+
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 class UNetConvBlock(nn.Module):
     def __init__(self, in_size, out_size, padding, batch_norm):
