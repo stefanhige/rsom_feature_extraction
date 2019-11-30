@@ -21,15 +21,18 @@ from utils.get_unique_filepath import get_unique_filepath
 
 origin = '/home/stefan/Documents/RSOM/Diabetes/allmat'
 # origin_layer = '/home/stefan/PYTHON/HQDatasetVesselAnnot/input_for_layerseg/manual_z_values'
-#origin_layer = '/home/stefan/Documents/RSOM/Diabetes/selection1/prediction'
-origin_layer = '/home/stefan/Documents/RSOM/Diabetes/rednoise_labels/epidermis_cutoff'
+
+origin_layer = '/home/stefan/fbserver_ssh/data/layerunet/prediction/191123_depth5_selection1'
+
+# origin_layer = '/home/stefan/Documents/RSOM/Diabetes/rednoise_labels/epidermis_cutoff'
 # origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/allmat'
 # origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
 
 
 # destination = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
 # destination = '/home/sgerl/Documents/PYTHON/TestDataset20190411/selection/other_preproccessing_tests/sliding_mip_6'
-destination = '/home/stefan/Documents/RSOM/Diabetes/rednoise_labels/out_from_prep'
+
+destination = '/home/stefan/Documents/RSOM/Diabetes/test_noise_cutaway'
 
 
 # mode
@@ -42,10 +45,13 @@ if mode=='dir':
     all_files = os.listdir()
     os.chdir(cwd)
 elif mode=='list':
-    patterns = ['R_20170724162958_PAT004_RL01',
-                'R_20170807153617_PAT014_RL01',
-                'R_20170807154050_PAT014_RL02', 
-                'R_20181124171923_VOL021_LL01']
+    patterns = ['R_20170828154106_PAT026_RL01',
+                'R_20170828155546_PAT027_RL01',
+                'R_20170906132142_PAT040_RL01',
+                'R_20170906141354_PAT042_RL01',
+                'R_20171211150527_PAT057_RL01',
+                'R_20171213135032_VOL009_RL02',
+                'R_20180409164251_VOL015_RL02']
     all_files = [os.path.basename(get_unique_filepath(origin, pat)[0]) for pat in patterns]
 
 # extract the LF.mat files,
@@ -81,19 +87,22 @@ for idx, filenameLF in enumerate(filenameLF_LIST):
     # Obj.saveSURFACE((destination + ''), fstr = 'surf')
     
     # MIP image for quick check
-    # Obj.calcMIP(do_plot = False)
-    # Obj.saveMIP(destination, fstr = 'mip')
+    Obj.calcMIP(do_plot = False)
+    Obj.saveMIP(destination, fstr = 'mip')
+    
     
     # MIP 3D for annotation
     # Obj.calcMIP3D(do_plot = False)
     #Obj.saveMIP3D(destination, fstr = 'mip3d')
     
     # cut epidermis
-    Obj.cutLAYER(origin_layer, mode='manual', fstr='manual_cutoff')
+    Obj.cutLAYER(origin_layer, mode='pred', fstr='pred.nii.gz')
     
     # VOLUME
     Obj.normINTENSITY()
     Obj.rescaleINTENSITY()
+    
+    Obj.depth_projection(dest=os.path.join(destination,'mipproj'))
     
     # debug = Obj.thresholdSEGMENTATION()
     # Obj.mathMORPH()

@@ -32,6 +32,7 @@ import nibabel as nib
 #from skimage import data
 from skimage import exposure
 from skimage import morphology
+from skimage import transform
 
 
 
@@ -571,6 +572,63 @@ class RSOM():
         B = np.zeros(np.shape(self.Vl_1))
         
         self.Vm = np.stack([self.Vl_1, self.Vh_1, B], axis = -1)
+        
+    def depth_projection(self, dest):
+        ''' 1D projection along z '''
+        
+        proj = np.sum(self.Vl_1, axis=(1,2))
+        #proj = np.concatenate(np.zeros(self.layer_end),proj)
+        #print(len(proj))
+        fig, ax = plt.subplots()
+        ax.plot(np.arange(self.layer_end,500), 
+                proj,
+                np.arange(self.layer_end,500),
+                np.gradient(proj),
+                np.arange(self.layer_end,500),
+                np.gradient(np.gradient(proj))
+                )
+        
+        # fit a polynomial
+        fitobj = np.poly1d(np.polyfit(np.arange(self.layer_end,500),proj,4))
+        x = np.arange(self.layer_end,500)
+        
+        ax.plot(x, fitobj(x))
+        
+        # gaussian filter
+        proj_gaussf = ndimage.gaussian_filter1d(proj,50)
+        
+        ax.plot(x, proj_gaussf)
+        
+        
+        
+        #ax.set(xlabel='index', ylabel='intensity')
+        ax.grid(True, which='both')
+        ax.minorticks_on()
+        ax.set_xlim(left=0,right=500)
+        ax.tick_params(axis="y",direction="in", pad=-22)
+        ax.tick_params(axis="x",direction="in", pad=-15)
+       
+        fig.tight_layout()
+        fig.canvas.draw()
+        image_from_plot = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+        image_from_plot = image_from_plot.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        
+        print(image_from_plot.shape)
+        
+        # merge with mip
+        image_from_plot = np.rot90(np.rot90(np.rot90(image_from_plot)))
+        image_from_plot = transform.resize(image_from_plot, self.P.shape
+                                           + np.array([40,0,0]))
+        
+        P = np.pad(self.P, ((20,20),(0,0),(0,0)),
+                   mode='constant',
+                   constant_values=127)
+        
+        P = np.concatenate((P.astype(np.uint8), (255*image_from_plot).astype(np.uint8)),axis=1)
+        #print(P.dtype, image_from_plot.dtype)
+        #print(P.max(), image_from_plot.max())
+        
+        imageio.imwrite(os.path.join(dest, self.file.ID + '.png'), P)
         
         
         
