@@ -580,26 +580,85 @@ class RSOM():
         #proj = np.concatenate(np.zeros(self.layer_end),proj)
         #print(len(proj))
         fig, ax = plt.subplots()
-        ax.plot(np.arange(self.layer_end,500), 
-                proj,
-                np.arange(self.layer_end,500),
-                np.gradient(proj),
-                np.arange(self.layer_end,500),
-                np.gradient(np.gradient(proj))
-                )
         
-        # fit a polynomial
-        fitobj = np.poly1d(np.polyfit(np.arange(self.layer_end,500),proj,4))
+        proj *= 1/proj.max()
+        
         x = np.arange(self.layer_end,500)
+        ax.plot(x, proj)
         
-        ax.plot(x, fitobj(x))
+        # mark where last nonzero value is
+        last_nz = np.nonzero(proj)[0][-1] + self.layer_end
+        print('last nonzero index', last_nz)
+        ax.plot([last_nz, last_nz], [-1, 1])
+        
+        proj = proj[0:last_nz+50-self.layer_end]
+        x = x[0:last_nz+50-self.layer_end]
+        
+        # TODO:
+        # dynamically adapt filter sizes
+        # verify all steps
+        
         
         # gaussian filter
-        proj_gaussf = ndimage.gaussian_filter1d(proj,50)
+        proj_f = ndimage.gaussian_filter1d(proj.copy(),50)
+        proj_f *= 1/proj_f.max()
+    
+        ax.plot(x, proj_f)
         
-        ax.plot(x, proj_gaussf)
+        d_proj_f = np.gradient(proj_f)
+        d_proj_f *= 1/np.amax(np.abs(d_proj_f))
         
+        ax.plot(x, d_proj_f)
         
+        # find the locations of d_proj_f == 0
+        ax.plot(x, np.gradient(np.sign(d_proj_f)))
+        nz_idx = np.nonzero(np.gradient(np.sign(d_proj_f).copy()))[0]
+        print('nz_idx       ', nz_idx)
+        
+        nz_idx_ = []
+        for idx in range(len(nz_idx)):
+            if not idx:
+                nz_idx_.append(nz_idx[idx])
+            else:
+                if not nz_idx[idx] == nz_idx[idx-1] + 1:
+                    nz_idx_.append(nz_idx[idx])
+                    
+        print('nz_idx_cleaned',nz_idx_)
+        
+        # TODO: check if extremum is too close to epidermis
+        
+        # we have at least 2 extremum
+        if len(nz_idx_) >= 2:
+            print('we have at least 2 extremum')
+            print(np.gradient(d_proj_f)[nz_idx_])
+            if nz_idx_[-1] < 0:
+                print('last one is a minimum, probably no noise.')
+            else:
+                proj_f_fine = ndimage.gaussian_filter1d(proj.copy(), 10)
+                
+                # maximum in "lower" part is at least 1/3 of global maximum
+                if 4 * proj_f_fine[nz_idx_[-2]:].max() >= proj_f_fine.max():
+                    print('most likely layer noise found')
+                    proj_f_fine *= 1/proj_f_fine[nz_idx_[-2]:nz_idx_[-1]].max()
+                    ax.plot(x, proj_f_fine)
+                    
+                    # cut out part of interest
+                    x_ = np.arange(self.layer_end + nz_idx_[-2], 
+                                   self.layer_end + nz_idx_[-1])
+                    proj_f_fine_ = proj_f_fine[nz_idx_[-2]:nz_idx_[1]]
+                    
+                    proj_f_fine_[proj_f_fine_ < 0.8 * proj_f_fine_.max()] = 0
+                    cutoff_idx = self.layer_end + nz_idx_[-2] + np.nonzero(proj_f_fine_)[0][0]
+                    ax.plot([cutoff_idx, cutoff_idx], [-1, 1])
+                    
+                    self.P[cutoff_idx,:] = 255
+                
+                
+                
+                
+
+        
+                    
         
         #ax.set(xlabel='index', ylabel='intensity')
         ax.grid(True, which='both')
