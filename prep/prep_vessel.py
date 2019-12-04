@@ -19,13 +19,13 @@ from utils.get_unique_filepath import get_unique_filepath
 # define folder
 
 
-origin = '/home/stefan/Documents/RSOM/Diabetes/allmat'
+#origin = '/home/stefan/Documents/RSOM/Diabetes/allmat'
 
 origin = '/home/stefan/Documents/RSOM/Diabetes/new_data/mat'
 
 # origin_layer = '/home/stefan/PYTHON/HQDatasetVesselAnnot/input_for_layerseg/manual_z_values'
 
-origin_layer = '/home/stefan/fbserver_ssh/data/layerunet/prediction/191123_depth5_selection1'
+#origin_layer = '/home/stefan/fbserver_ssh/data/layerunet/prediction/191123_depth5_selection1'
 origin_layer = '/home/stefan/fbserver_ssh/data/layerunet/prediction/191123_depth5_newdata'
 # origin_layer = '/home/stefan/Documents/RSOM/Diabetes/rednoise_labels/epidermis_cutoff'
 # origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/allmat'
@@ -48,17 +48,17 @@ if mode=='dir':
     all_files = os.listdir()
     os.chdir(cwd)
 elif mode=='list':
-    patterns = ['R_20170828154106_PAT026_RL01',
-                 'R_20180409164251_VOL015_RL02']
-    patterns = ['R_20170925155236_PAT051_RL01']
-    
 #    patterns = ['R_20170828154106_PAT026_RL01',
-#                'R_20170828155546_PAT027_RL01',
-#                'R_20170906132142_PAT040_RL01',
-#                'R_20170906141354_PAT042_RL01',
-#                'R_20171211150527_PAT057_RL01',
-#                'R_20171213135032_VOL009_RL02',
-#                'R_20180409164251_VOL015_RL02']
+#                 'R_20180409164251_VOL015_RL02']
+    #patterns = ['R_20170925155236_PAT051_RL01']
+    
+    patterns = ['R_20170828154106_PAT026_RL01',
+                'R_20170828155546_PAT027_RL01',
+                'R_20170906132142_PAT040_RL01',
+                'R_20170906141354_PAT042_RL01',
+                'R_20171211150527_PAT057_RL01',
+                'R_20171213135032_VOL009_RL02',
+                'R_20180409164251_VOL015_RL02']
     all_files = [os.path.basename(get_unique_filepath(origin, pat)[0]) for pat in patterns]
 
 # extract the LF.mat files,
@@ -105,12 +105,15 @@ for idx, filenameLF in enumerate(filenameLF_LIST):
     # cut epidermis
     Obj.cutLAYER(origin_layer, mode='pred', fstr='pred.nii.gz')
     #Obj.cutLAYER(origin_layer, mode='manual', fstr='manual')
-    
+
     # VOLUME
     Obj.normINTENSITY()
+    
+    Obj._debug_cut_empty_or_layer(dest=os.path.join(destination,'mipproj'))
+    Obj.cut_empty_or_layer()
+    
     Obj.rescaleINTENSITY()
     
-    Obj.depth_projection(dest=os.path.join(destination,'mipproj'))
     
     # debug = Obj.thresholdSEGMENTATION()
     # Obj.mathMORPH()

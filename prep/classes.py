@@ -25,6 +25,7 @@ import matplotlib.cm as cm
 #from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
 import time
+import warnings
 
 
 import nibabel as nib
@@ -573,48 +574,61 @@ class RSOM():
         
         self.Vm = np.stack([self.Vl_1, self.Vh_1, B], axis = -1)
         
-    def depth_projection(self, dest):
+    def _debug_cut_empty_or_layer(self, dest):
         ''' 1D projection along z '''
         
-        proj = np.sum(self.Vl_1, axis=(1,2))
-        #proj = np.concatenate(np.zeros(self.layer_end),proj)
-        #print(len(proj))
-        fig, ax = plt.subplots()
         
+        proj = np.sum(self.Vl_1, axis=(1,2))
         proj *= 1/proj.max()
         
+        # debug
+        fig, ax = plt.subplots()
         x = np.arange(self.layer_end,500)
         ax.plot(x, proj)
         
         # mark where last nonzero value is
-        last_nz = np.nonzero(proj)[0][-1] + self.layer_end
-        print('last nonzero index', last_nz)
-        ax.plot([last_nz, last_nz], [-1, 1])
+        last_nz = np.nonzero(proj)[0][-1]
+
+
+        # debug
+        print('last nonzero index', last_nz + self.layer_end)
+        ax.plot([last_nz + + self.layer_end, last_nz + self.layer_end], [-1, 1])
         
-        proj = proj[0:last_nz+50-self.layer_end]
-        x = x[0:last_nz+50-self.layer_end]
+        lenproj = len(proj)
         
+        proj = proj[:min(last_nz + 25, lenproj - 1)]
+        
+        #debug
+        x = x[:min(last_nz + 25, lenproj - 1)]
+        print(x.shape, proj.shape)
+        
+        filter_size = min([50, 25 + max([0, (len(proj) - 220)/7])])
+        print(filter_size)
         # TODO:
         # dynamically adapt filter sizes
         # verify all steps
         
         
         # gaussian filter
-        proj_f = ndimage.gaussian_filter1d(proj.copy(),50)
+        proj_f = ndimage.gaussian_filter1d(proj.copy(), filter_size)
         proj_f *= 1/proj_f.max()
     
+        # debug
         ax.plot(x, proj_f)
         
         d_proj_f = np.gradient(proj_f)
         d_proj_f *= 1/np.amax(np.abs(d_proj_f))
         
+        # debug
         ax.plot(x, d_proj_f)
         
         # find the locations of d_proj_f == 0
         ax.plot(x, np.gradient(np.sign(d_proj_f)))
-        nz_idx = np.nonzero(np.gradient(np.sign(d_proj_f).copy()))[0]
+        nz_idx = np.nonzero(np.gradient(np.sign(d_proj_f)))[0]
         print('nz_idx       ', nz_idx)
         
+        # extract unitary locations
+        # i.e. remove subsequent values if they have distance 1
         nz_idx_ = []
         for idx in range(len(nz_idx)):
             if not idx:
@@ -625,33 +639,49 @@ class RSOM():
                     
         print('nz_idx_cleaned',nz_idx_)
         
-        # TODO: check if extremum is too close to epidermis
-        
-        # we have at least 2 extremum
+        # check if extremum is too close to epidermis    
+        nz_idx__ = []
+        for el in nz_idx_:
+            if el <= len(proj) / 5:
+                warnings.warn('Strange distribution in z-direction detected.', UserWarning)
+            else:
+                nz_idx__.append(el)
+                
+        nz_idx_ = nz_idx__
+
+        # we have at least 2 extrema
         if len(nz_idx_) >= 2:
             print('we have at least 2 extremum')
-            print(np.gradient(d_proj_f)[nz_idx_])
-            if nz_idx_[-1] < 0:
+            dd_proj_f = np.gradient(d_proj_f)[nz_idx_]
+            if dd_proj_f[-1] > 0:
                 print('last one is a minimum, probably no noise.')
             else:
-                proj_f_fine = ndimage.gaussian_filter1d(proj.copy(), 10)
+                proj_f_fine = ndimage.gaussian_filter1d(proj.copy(), filter_size/5)
+                ax.plot(x, proj_f_fine)
                 
                 # maximum in "lower" part is at least 1/3 of global maximum
-                if 4 * proj_f_fine[nz_idx_[-2]:].max() >= proj_f_fine.max():
-                    print('most likely layer noise found')
-                    proj_f_fine *= 1/proj_f_fine[nz_idx_[-2]:nz_idx_[-1]].max()
-                    ax.plot(x, proj_f_fine)
+                if 3 * proj_f_fine[nz_idx_[-2]:].max() >= proj_f_fine.max():
+                    extremum_scale = max(proj_f[nz_idx_[-2]], proj_f[nz_idx_[-1]])
                     
-                    # cut out part of interest
-                    x_ = np.arange(self.layer_end + nz_idx_[-2], 
-                                   self.layer_end + nz_idx_[-1])
-                    proj_f_fine_ = proj_f_fine[nz_idx_[-2]:nz_idx_[1]]
-                    
-                    proj_f_fine_[proj_f_fine_ < 0.8 * proj_f_fine_.max()] = 0
-                    cutoff_idx = self.layer_end + nz_idx_[-2] + np.nonzero(proj_f_fine_)[0][0]
-                    ax.plot([cutoff_idx, cutoff_idx], [-1, 1])
-                    
-                    self.P[cutoff_idx,:] = 255
+                    if proj_f[nz_idx_[-2]]/extremum_scale < 0.9 * proj_f[nz_idx_[-1]]/extremum_scale:  
+                        
+                        print('most likely layer noise found')
+                        proj_f_fine *= 1/proj_f_fine[nz_idx_[-2]:nz_idx_[-1]].max()
+                        
+                        # cut out part of interest
+                        x_ = np.arange(self.layer_end + nz_idx_[-2], 
+                                       self.layer_end + nz_idx_[-1])
+                        proj_f_fine_ = proj_f_fine[nz_idx_[-2]:nz_idx_[1]]
+                        
+                        proj_f_fine_[proj_f_fine_ < 0.8 * proj_f_fine_.max()] = 0
+                        cutoff_idx = self.layer_end + nz_idx_[-2] + np.nonzero(proj_f_fine_)[0][0]
+                        ax.plot([cutoff_idx, cutoff_idx], [-1, 1])
+                        
+                        self.P[cutoff_idx,:] = 255
+                    else:
+                        print('extrema not significant enough')
+                else:
+                    print('intensity of last minimum too low.')
                 
                 
                 
@@ -688,6 +718,91 @@ class RSOM():
         #print(P.max(), image_from_plot.max())
         
         imageio.imwrite(os.path.join(dest, self.file.ID + '.png'), P)
+        
+
+    def cut_empty_or_layer(self):
+        ''' 1D projection along z '''
+        
+        proj = np.sum(self.Vl_1, axis=(1,2))
+        proj *= 1/proj.max()
+        
+        # mark where last nonzero value is
+        last_nz = np.nonzero(proj)[0][-1]
+        
+        # assign default cut of at last occurence of values not zero
+        cutoff_idx = last_nz
+          
+        proj = proj[:min(last_nz + 25, len(proj) - 1)]
+        
+        filter_size = min([50, 25 + max([0, (len(proj) - 220)/7])])
+
+        # gaussian filter
+        proj_f = ndimage.gaussian_filter1d(proj.copy(), filter_size)
+        proj_f *= 1/proj_f.max()
+            
+        d_proj_f = np.gradient(proj_f)
+        d_proj_f *= 1/np.amax(np.abs(d_proj_f))
+                
+        # find the locations of d_proj_f == 0
+        nz_idx = np.nonzero(np.gradient(np.sign(d_proj_f)))[0]
+
+        # extract unitary locations
+        # i.e. remove subsequent values if they have distance 1
+        nz_idx_ = []
+        for idx in range(len(nz_idx)):
+            if not idx:
+                nz_idx_.append(nz_idx[idx])
+            else:
+                if not nz_idx[idx] == nz_idx[idx-1] + 1:
+                    nz_idx_.append(nz_idx[idx])
+        
+        # check if extremum is too close to epidermis    
+        nz_idx__ = []
+        for el in nz_idx_:
+            if el <= len(proj) / 5:
+                warnings.warn('Strange distribution in z-direction detected.', UserWarning)
+            else:
+                nz_idx__.append(el)
+                
+        nz_idx_ = nz_idx__
+
+        # we have at least 2 extrema
+        if len(nz_idx_) >= 2:
+            dd_proj_f = np.gradient(d_proj_f)[nz_idx_]
+            if dd_proj_f[-1] > 0:
+                pass
+            else:
+                proj_f_fine = ndimage.gaussian_filter1d(proj.copy(), filter_size / 5)
+                
+                # maximum in "lower" part is at least 1/3 of global maximum
+                if 3 * proj_f_fine[nz_idx_[-2]:].max() >= proj_f_fine.max():
+            
+                    # extremum is significant, and not almost saddle point
+                    extremum_scale = max(proj_f[nz_idx_[-2]], proj_f[nz_idx_[-1]])
+                    if proj_f[nz_idx_[-2]]/extremum_scale < 0.9 * proj_f[nz_idx_[-1]]/extremum_scale: 
+                        proj_f_fine *= 1 / proj_f_fine[nz_idx_[-2]:nz_idx_[-1]].max()
+                        
+                        # cut out part of interest
+                        proj_f_fine_ = proj_f_fine[nz_idx_[-2]:nz_idx_[1]]
+                        
+                        proj_f_fine_[proj_f_fine_ < 0.8 * proj_f_fine_.max()] = 0
+                        
+                        # override cutoff idx
+                        cutoff_idx = nz_idx_[-2] + np.nonzero(proj_f_fine_)[0][0]
+                        print('Layer noise found!')
+                        
+        
+        # cut away
+        print('cut_empty_or_layer method, cutting at', cutoff_idx + self.layer_end)
+        
+        print(self.Vl_1.shape, cutoff_idx)
+        self.Vl_1 = self.Vl_1[:cutoff_idx + 1, :, :]
+        self.Vh_1 = self.Vh_1[:cutoff_idx + 1, :, :]
+        
+        print(self.Vl_1.shape)
+        
+        self.vessel_end = cutoff_idx + self.layer_end
+        
         
         
         
