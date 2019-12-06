@@ -20,13 +20,14 @@ from utils.get_unique_filepath import get_unique_filepath
 
 
 #origin = '/home/stefan/Documents/RSOM/Diabetes/allmat'
+#origin = '/home/stefan/Documents/RSOM/Diabetes/new_data/mat'
 
-origin = '/home/stefan/Documents/RSOM/Diabetes/new_data/mat'
+origin = '/home/stefan/PYTHON/HQDatasetVesselAnnot/mat'
 
-# origin_layer = '/home/stefan/PYTHON/HQDatasetVesselAnnot/input_for_layerseg/manual_z_values'
+origin_layer = '/home/stefan/PYTHON/HQDatasetVesselAnnot/input_for_layerseg/manual_z_values'
 
 #origin_layer = '/home/stefan/fbserver_ssh/data/layerunet/prediction/191123_depth5_selection1'
-origin_layer = '/home/stefan/fbserver_ssh/data/layerunet/prediction/191123_depth5_newdata'
+#origin_layer = '/home/stefan/fbserver_ssh/data/layerunet/prediction/191123_depth5_newdata'
 # origin_layer = '/home/stefan/Documents/RSOM/Diabetes/rednoise_labels/epidermis_cutoff'
 # origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/allmat'
 # origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
@@ -35,7 +36,8 @@ origin_layer = '/home/stefan/fbserver_ssh/data/layerunet/prediction/191123_depth
 # destination = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
 # destination = '/home/sgerl/Documents/PYTHON/TestDataset20190411/selection/other_preproccessing_tests/sliding_mip_6'
 
-destination = '/home/stefan/Documents/RSOM/Diabetes/test_noise_cutaway/newdata'
+#destination = '/home/stefan/Documents/RSOM/Diabetes/test_noise_cutaway/newdata'
+destination = '/home/stefan/PYTHON/HQDatasetVesselAnnot/vessels_tight_volume'
 
 
 # mode
@@ -103,14 +105,17 @@ for idx, filenameLF in enumerate(filenameLF_LIST):
     #Obj.saveMIP3D(destination, fstr = 'mip3d')
     
     # cut epidermis
-    Obj.cutLAYER(origin_layer, mode='pred', fstr='pred.nii.gz')
-    #Obj.cutLAYER(origin_layer, mode='manual', fstr='manual')
+    #Obj.cutLAYER(origin_layer, mode='pred', fstr='pred.nii.gz')
+    Obj.cutLAYER(origin_layer, mode='manual', fstr='manual')
 
     # VOLUME
     Obj.normINTENSITY()
     
-    Obj._debug_cut_empty_or_layer(dest=os.path.join(destination,'mipproj'))
-    Obj.cut_empty_or_layer()
+    #Obj._debug_cut_empty_or_layer(dest=os.path.join(destination,'mipproj'))
+    #Obj.cut_empty_or_layer()
+    Obj.cut_empty_or_layer_manual(
+            '/home/stefan/PYTHON/HQDatasetVesselAnnot/vessels_tight_volume/manual_z_values',
+            fstr='manual')
     
     Obj.rescaleINTENSITY()
     

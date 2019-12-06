@@ -683,13 +683,7 @@ class RSOM():
                 else:
                     print('intensity of last minimum too low.')
                 
-                
-                
-                
 
-        
-                    
-        
         #ax.set(xlabel='index', ylabel='intensity')
         ax.grid(True, which='both')
         ax.minorticks_on()
@@ -803,8 +797,37 @@ class RSOM():
         
         self.vessel_end = cutoff_idx + self.layer_end
         
+    def cut_empty_or_layer_manual(self, path, fstr='manual'):
+        '''
+        cut off the epidermis with loading corresponding segmentation mask.
+        '''
+        print('cutLayer method')
         
+        # generate path
+        filename = 'R' + self.file.DATETIME + self.file.ID + '_' + fstr
+        file = os.path.join(path, filename)
         
+        print('Loading', file)
+        f = open(file)
+        cutoff_idx = int(str(f.read()))
+        f.close()
+        
+        if cutoff_idx == -1:
+            proj = np.sum(self.Vl_1, axis=(1,2))
+            proj *= 1/proj.max()
+        
+            # mark where last nonzero value is
+            cutoff_idx = np.nonzero(proj)[0][-1]
+            
+            
+        
+        print('Cutting at', cutoff_idx)
+        
+        # cut away
+        self.Vl_1 = self.Vl_1[:cutoff_idx + 1, :, :]
+        self.Vh_1 = self.Vh_1[:cutoff_idx + 1, :, :]
+        
+        self.vessel_end = cutoff_idx + self.layer_end
         
     def cutDEPTH(self):
         ''' cut Vl and Vh to 500 x 171 x 333'''
