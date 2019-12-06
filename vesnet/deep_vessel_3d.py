@@ -329,7 +329,7 @@ class V_Block(nn.Module):
 
         self.cat = Cat()
     
-    def forward(self, x): 
+    def forward(self, x):  
         
         # print('in:',x.shape)
         bridge = self.straight(x)
@@ -351,7 +351,7 @@ class V_Block(nn.Module):
         x = self.up(x)
         x = nn.functional.pad(x, tuple(-el for el in pad))
         # print('after up:', x.shape)
-        return self.cat(x, bridge)
+        return self.cat(x, bridge)  
 
 class Cat(nn.Module):
     def __init__(self):
@@ -359,6 +359,95 @@ class Cat(nn.Module):
 
     def forward(self, x, bridge):
         return torch.cat((x, bridge), 1)
+
+
+class Res_Block(nn.Module):
+
+    def __init__(self, in_size, out_size, kernel_size, relu, groupnorm):
+        super(Res_Block, self).__init__()
+        # order is:
+        # relu - bn - conv
+        self.in_size = in_size
+        self.out_size = out_size
+        self.kernel_size = kernel_size
+        
+        block = []
+
+        if relu:
+            block.append(nn.ReLU())
+        if groupnorm:
+            block.append(nn.GroupNorm(5, in_size))
+        
+        block.append(nn.Conv3d(in_size, out_size, kernel_size))
+        
+        self.block = nn.Sequential( *block)
+
+    def forward(self, x):
+        z = nn.functional.pad(x, (-floor(self.kernel_size/2),) * 6) 
+        
+        reps = ceil(self.out_size/self.in_size)
+        z = z.repeat((1, reps, 1, 1, 1))
+        z = z[:, :self.out_size, ...]
+        return z + self.block(x)
+
+class ResVesselNet(nn.Module):
+    def __init__(self, 
+            in_channels=2,
+            channels = [2, 5, 10, 20, 50, 1],
+            kernels = [3, 5, 5, 3, 1],
+            depth = 5, 
+            groupnorm = False):
+        
+        super(ResVesselNet, self).__init__()
+       
+        # SETTINGS
+        self.in_channels = in_channels
+        self.depth = depth
+
+        # generate channels list for every layer
+        self.channels = channels
+        # override in_channels
+        self.channels[0] = in_channels
+
+        # generate kernel size list
+        self.kernels = kernels
+        
+        self.groupnorm = groupnorm
+        if groupnorm:
+            self.groupnorms = [0] + [1]*(depth-2) + [0]
+        else:
+            self.groupnorms = [0]*(depth)
+
+        assert len(self.channels) == depth + 1
+        assert len(self.kernels) == depth
+        assert len(self.groupnorms) == depth
+
+        layers = []
+
+        # deep layers
+        for i in range(depth-1):
+            if not i:
+                layers.append(nn.Conv3d(
+                    self.channels[i],
+                    self.channels[i+1],
+                    self.kernels[i]))
+            else:
+                layers.append(Res_Block(
+                    self.channels[i],
+                    self.channels[i+1],
+                    self.kernels[i],
+                    1,
+                    self.groupnorms[i-1]))
+        # last layer
+        layers.append(nn.ReLU())
+        layers.append(nn.Conv3d(self.channels[-2], self.channels[-1], self.kernels[-1])) 
+        self.layers = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.layers(x)
+
+    def count_parameters(self):
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 if __name__ == '__main__':
     
@@ -372,8 +461,12 @@ if __name__ == '__main__':
     print(m)
     print(m.count_parameters())
         
+    # test res block
+    res_block = Res_Block(2, 1, 3, 1, 0)
+    y = res_block(x)
 
-
+    m_ = ResVesselNet(groupnorm=True)
+    y = m_(x)
 
 
 
