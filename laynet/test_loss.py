@@ -15,7 +15,7 @@ import numpy as np
 # nn.CrossEntropyLoss()
 # wants shape [Batchsize x d..]
 # with entries 0, 1, 2 ... for classes
-import lossfunctions as lfs
+from _metrics import smoothness_loss
 
 # create fake inputs
 
@@ -34,7 +34,7 @@ pred_ideal = torch.from_numpy(pred_ideal)
 print(pred_ideal.shape)
 print(pred_ideal)
 
-lfs.smoothness_loss(pred_ideal)
+smoothness_loss(pred_ideal)
 
 
 

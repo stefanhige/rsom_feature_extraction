@@ -81,10 +81,12 @@
   **fixed**
 
 ##  LAYERUNET
+* find out what test_loss.py does and include it in top level run_tests.py function
 
+* there is .cuda() in _metrics.py implement optional parameter for torch.device
 
 * merge back coding style improvements from vesnet to layerunet 
-  **in progress**  
+  **done, pretty much**  
 
 * fill holes in prediction in xy direction?
   **not yet done, but probably too much work**
