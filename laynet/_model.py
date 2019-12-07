@@ -115,7 +115,6 @@ class UNetConvBlock(nn.Module):
         # print(out.shape)
         return out
 
-
 class UNetUpBlock(nn.Module):
     def __init__(self, in_size, out_size, up_mode, padding, batch_norm, dropout):
         super(UNetUpBlock, self).__init__()

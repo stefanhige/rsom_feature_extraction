@@ -627,51 +627,6 @@ class LayerNet(LayerNetBase):
             self.history['eval']['epoch'].append(epoch)
             self.history['eval']['loss'].append(epoch_loss)
            
-    def calc_weight_std(self, model):
-        '''
-        calculate the standard deviation of all weights in model_dir
-
-        '''
-        if isinstance(model, torch.nn.Module):
-            model = model.state_dict()
-        
-        all_values = np.array([])
-
-        for name, values in model.items():
-            if 'weight' in name:
-                values = values.to('cpu').numpy()
-                values = values.ravel()
-                all_values = np.concatenate((all_values, values))
-
-        stdd = np.std(all_values)
-        mean = np.mean(all_values)
-        print('model number of weights:', len(all_values))
-        print('model weights standard deviation:', stdd)
-        print('model weights mean value:        ', mean)
-
-    def jaccard_index(pred, target):
-        '''
-        calculate the jaccard index per slice and return
-        the sum of jaccard indices
-        '''
-        # TODO: implementation never used or tested
-
-        # shapes
-        # [slices, x, x]
-
-        pred_shape = pred.shape
-        print(pred.shape)
-
-        # for every slice
-        jaccard_sum = 0.0
-        for slc in range(pred_shape[0]):
-            pflat = pred[slc, :, :]
-            tflat = target[slc, :, :]
-            intersection = (pflat * tflat).sum()
-            jaccard_sum += intersection/(pflat.sum() + tflat.sum())
-            
-        return jaccard_sum
-
     def save(self):
         torch.save(self.best_model, os.path.join(self.dirs['model'], 'mod_' + self.filename + '.pt'))
         
@@ -683,55 +638,4 @@ class LayerNet(LayerNetBase):
     class helperClass():
         pass
         
-        
-# EXECUTION TEST
-# train_dir = '/home/gerlstefan/data/dataloader_dev'
-# eval_dir = train_dir
-
-# try 4 class weights
-if __name__ == '__main__':
-    N = 1
-
-
-    root_dir = '/home/gerlstefan/data/fullDataset/labeled'
-
-
-    model_name = '190808_dimswap_test'
-
-
-    model_dir = '/home/gerlstefan/models/layerseg/dimswap'
-            
-    os.environ["CUDA_VISIBLE_DEVICES"]='6'
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    for idx in range(N):
-        root_dir = root_dir
-
-        print('current model')
-        print(model_name, root_dir)
-        train_dir = os.path.join(root_dir, 'train')
-        eval_dir = os.path.join(root_dir, 'val')
-        dirs={'train':train_dir,'eval':eval_dir, 'model':model_dir, 'pred':''}
-
-        net1 = LayerUNET(device=device,
-                             model_depth=4,
-                             dataset_zshift=(-50, 200),
-                             dirs=dirs,
-                             filename=model_name,
-                             optimizer='Adam',
-                             initial_lr=1e-4,
-                             scheduler_patience=3,
-                             lossfn=lfs.custom_loss_1_smooth,
-                             lossfn_smoothness = 50,
-                             epochs=30,
-                             dropout=True,
-                             class_weight=(0.3, 0.7),
-                             )
-
-        net1.printConfiguration()
-        net1.printConfiguration('logfile')
-        print(net1.model, file=net1.logfile)
-
-        net1.train_all_epochs()
-        net1.save()
 
