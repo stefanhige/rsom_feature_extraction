@@ -849,10 +849,27 @@ class RSOM():
             
             print('New shape:', self.Vl.shape)
 
-    def saveMIP(self, destination, fstr = ''):
+    def saveMIP(self, destination, fstr = '', scale=1):
         '''
         save MIP as 2d image
         '''
+        
+        if scale != 1:
+            P = transform.rescale(self.P, scale, order=3, multichannel=True)
+            # strangely transform.rescale is not dtype consistent?
+            P = exposure.rescale_intensity(P, out_range=np.uint8)
+            P = P.astype(np.uint8)
+            
+            # this was for mip example for thesis
+            #from skimage.filters import unsharp_mask
+            #P = unsharp_mask(P, radius=10, amount=1)
+            #print(P.max())
+            #P = (P**1.1)*0.7
+            #P = P[:350*4,...]
+            #P = P.astype(np.uint8)
+        else:
+            P = self.P
+            
          # generate Path object
         destination = Path(destination)
         
@@ -866,7 +883,7 @@ class RSOM():
         print(str(img_file))
         
         
-        imageio.imwrite(img_file, self.P)
+        imageio.imwrite(img_file, P)
 
     def saveSURFACE(self, destination, fstr = ''):
         '''

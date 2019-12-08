@@ -17,17 +17,18 @@ from utils.get_unique_filepath import get_unique_filepath
 
 
 # define folder
-origin = '/home/stefan/Documents/RSOM/Diabetes/new_data/no_surf'
+#origin = '/home/stefan/Documents/RSOM/Diabetes/new_data/no_surf'
+origin = '/home/stefan/PYTHON/HQDatasetVesselAnnot/mat'
 # origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/allmat'
 # origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
 
 # destination = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
 # destination = '/home/sgerl/Documents/PYTHON/TestDataset20190411/selection/other_preproccessing_tests/sliding_mip_6'
-destination = '/home/stefan/Documents/RSOM/Diabetes/new_data/no_surf/out_from_prep'
+destination = '/home/stefan/PYTHON/HQDatasetVesselAnnot/myskin'
 
 
 # mode
-mode = 'dir'
+mode = 'list'
 
 if mode=='dir':
     cwd = os.getcwd()
@@ -36,13 +37,7 @@ if mode=='dir':
     all_files = os.listdir()
     os.chdir(cwd)
 elif mode=='list':
-    patterns = ['R_20170828154106_PAT026_RL01',
-                'R_20170828155546_PAT027_RL01',
-                'R_20170906132142_PAT040_RL01',
-                'R_20170906141354_PAT042_RL01',
-                'R_20171211150527_PAT057_RL01',
-                'R_20171213135032_VOL009_RL02',
-                'R_20180409164251_VOL015_RL02']
+    patterns = ['R_20190430164629']
     all_files = [os.path.basename(get_unique_filepath(origin, pat)[0]) for pat in patterns]
 
 
