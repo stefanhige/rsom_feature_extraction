@@ -10,20 +10,21 @@ from deep_vessel_3d import DeepVesselNet
 DEBUG = None
 # DEBUG = True
 
+# torch.backends.cudnn.benchmark=True
 
 root_dir = '~/data/vesnet/synthDataset/rsom_style_noisy'
 
 desc = ('train and retrain')
 # sdesc = 't+rt_mp_vblock2_weight_decay'
-sdesc = 't+rt_mp_gn_do'
+sdesc = 'mm_annot_synth+background'
 model_dir = ''
         
-os.environ["CUDA_VISIBLE_DEVICES"]='6'
+os.environ["CUDA_VISIBLE_DEVICES"]='0'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 train_dir = os.path.join(root_dir, 'train')
 eval_dir = os.path.join(root_dir, 'eval')
-out_dir = '/home/gerlstefan/data/vesnet/out'
+out_dir = '/home/gerlstefan/data/vesnet/out/minimal_annot_exp'
 pred_dir = '/home/gerlstefan/data/vesnet/annotatedDataset/eval'
 
 dirs={'train': train_dir,
@@ -38,17 +39,17 @@ dirs = {k: os.path.expanduser(v) for k, v in dirs.items()}
 epochs = (10, 50)
 
 if DEBUG:
-    epochs = (1, 1)
+    epochs = (0, 1)
 
-# model = DeepVesselNet(groupnorm=False,
+model = DeepVesselNet(groupnorm=True)
 #                       use_vblock=True,
 # vblock_layer=2) # default settings with group norm
-model = DeepVesselNet(in_channels=2,
-                  channels=[2, 10, 20, 40, 80, 1],
-                  kernels=[3, 5, 5, 3, 1],
-                  depth=5, 
-                  dropout=True,
-                  groupnorm=True)
+# model = DeepVesselNet(in_channels=2,
+#                   channels=[2, 10, 20, 40, 80, 1],
+#                   kernels=[3, 5, 5, 3, 1],
+#                   depth=5, 
+#                   dropout=False,
+#                   groupnorm=True)
                   # use_vblock=True,
                   # vblock_layer=1)
 
@@ -57,8 +58,8 @@ net1 = VesNET(device=device,
               sdesc=sdesc,
               model=model,
               dirs=dirs,
-              divs=(4,4,4),
-              batch_size=3,
+              divs=(3,3,3),
+              batch_size=2,
               optimizer='Adam',
               class_weight=10,
               initial_lr=1e-4,
@@ -85,16 +86,16 @@ if 1:
     # set up new variables for retraining
     net1.model.load_state_dict(net1.best_model)
     
-    root_dir = '~/data/vesnet/synth+annot+backgDataset'
+    root_dir = '~/data/vesnet/synth+Background'
     train_dir = os.path.join(root_dir, 'train')
     eval_dir = os.path.join(root_dir, 'eval')
-    pred_dir = '~/data/vesnet/synth+annot+backgDataset/eval'
+    pred_dir = '~/data/vesnet/synth+Background/.test'
 
     net1.dirs['train'] = os.path.expanduser(train_dir)
     net1.dirs['eval'] = os.path.expanduser(eval_dir)
     net1.dirs['pred'] = os.path.expanduser(pred_dir)
 
-    net1.divs=(2,3,3)
+    net1.divs=(2,2,3)
     net1.n_epochs = epochs[1]
     net1.batch_size = 1
     net1._setup_dataloaders()
