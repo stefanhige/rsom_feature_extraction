@@ -406,11 +406,11 @@ if __name__ == '__main__':
 
 
     # directory with the segmentation files
-    seg_dir_ves = '/home/stefan/fbserver_ssh/data/pipeline/processableDataset/results/tmp/vesselseg_out'
+    seg_dir_ves = '/home/stefan/Documents/RSOM/Diabetes/processableDataset/selection/threshold_segmentation'
 
     seg_dir_lay = '/home/stefan/fbserver_ssh/data/pipeline/processableDataset/results/tmp/layerseg_out'
     # where to put the mip
-    out_dir = '/home/stefan/testt'
+    out_dir = '/home/stefan/Documents/RSOM/Diabetes/processableDataset/selection/mip_threshold'
 
     dirs = {'in': mat_dir,
             'layer': seg_dir_lay,

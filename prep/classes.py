@@ -1178,11 +1178,17 @@ class RSOM_vessel(RSOM):
         Vseg = self.Vseg.astype(np.uint8)
         img = nib.Nifti1Image(Vseg, np.eye(4))
         
+        if self.layer_end is not None:
+            z_cut = '_' + 'z' + str(self.layer_end)
+        else:
+            z_cut = ''
+        
         path = os.path.join(destination,
                             'R' + 
                             self.file.DATETIME + 
                             self.file.ID +
-                            '_' +                                
+                            z_cut +
+                            '_' +                                   
                             fstr +
                             '.nii.gz')
                             
