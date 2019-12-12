@@ -5,27 +5,37 @@
 
 ## VESNET
 
+* major: huge cleanup for pipeline and stuff
+         - checkout new branch of current status
+         - continue cleanup on master
+           - clean prep, remove unused features, create wrapper methods to do all at once
+           - laynet is almost cleaned, but can remove debug output in predict function
+           - vesnet change naming conventions, clean up metrics/dice mess,
+             remove unused functions
+           - clean up pipeline to be as short as possible, ready for release
+           - for all classes and methods, write doc string!
+           after cleanup:
+           checkout release branch, and remove tons of unused scripts and utils from release branch
+ 
 * major: needs a lot of testing: cut away reflection or emptieness in vessel preparation!
          -> this will break mip-label-overlay!
+         postpone for future work, after finishing master thesis
 
+* patching is causing different prediction intensities? why? groupnorm?
+         **yes, it was the groupnorm, but we keep it anyways and try to
+           use divs=(1,1,2)**
+
+* device=torch.device('cpu') might not work, as many times in subfunctions there is .cuda() used
+
+* clean up module structure, move reused things to utils
+
+* pred_adj cannot handle background images, bc dice is zero, even tho this is correct
 
 * major: check during eval/prediction mode if can get more memory,
          try setting requires_grad=False for input variable
          or override eval() method
    in progress: setting a flag in DeepVesselNet for memefficient forward pass, but is slower
-
-
-* major: implement pipeline
-  in progress: need cleanup
-
-
-* major: implement grad cam for segmentation
-
-* patching is causing different prediction intensities? why? groupnorm?
-
-* clean up module structure, move reused things to utils
-
-* pred_adj cannot handle background images, bc dice is zero, even tho this is correct
+   **finished**
 
 * theres a bug in patch handling, for divs (1,1,1), must be fixed!!
    was this case not tested?
@@ -36,14 +46,6 @@
  plot a plot prob against dice, to see if there's one or multiple minima
  furthermore: implement function doing that for a set of volumes, and they might have multiple global minima
  **done**
- -> choose final cl_score out_score calculation to be executed with new cutoff
-
-
-* clean up lossfunctions in general. maybe move calc_metrics to utils?
-
-* loading different models directly in prediction
-
-* device=torch.device('cpu') might not work, as many times in subfunctions there is .cuda() used
 
 * major: implement possibility to pass sparsly annotated data.
   - either in different file, or mark unannotated area with label "2"
