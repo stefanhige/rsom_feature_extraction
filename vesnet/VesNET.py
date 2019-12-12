@@ -29,7 +29,7 @@ if __name__ == '__main__' or parent_module.__name__ == '__main__':
     from dataloader import RSOMVesselDataset
     from dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
     from dataloader import PrecalcSkeleton, DataAugmentation
-    from lossfunctions import BCEWithLogitsLoss, calc_metrics, find_cutoff
+    from lossfunctions import BCEWithLogitsLoss, calc_metrics, find_cutoff, _dice
     from lossfunctions import dice_loss
     from patch_handling import get_volume
 
@@ -38,7 +38,7 @@ else:
     from .dataloader import RSOMVesselDataset
     from .dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
     from .dataloader import PrecalcSkeleton, DataAugmentation
-    from .lossfunctions import BCEWithLogitsLoss, calc_metrics, find_cutoff
+    from .lossfunctions import BCEWithLogitsLoss, calc_metrics, find_cutoff, _dice
     from .lossfunctions import dice_loss
     from .patch_handling import get_volume
 
@@ -163,7 +163,8 @@ class VesNetBase():
                 metrics=True, 
                 adj_cutoff=True, 
                 cleanup=True,
-                save_ppred=True):
+                save_ppred=True,
+                calc_dice=False):
         '''
         doc string missing
         '''
@@ -186,7 +187,7 @@ class VesNetBase():
             out_score_stack = []
             dice_stack = []
 
-        if adj_cutoff:
+        if adj_cutoff or calc_dice:
             label_stack = []
         
         for i in range(self.size_pred):
@@ -230,7 +231,7 @@ class VesNetBase():
             index_stack.append(batch['meta']['index'].item())
             if metrics:
                 del label
-            if adj_cutoff:
+            if adj_cutoff or calc_dice:
                 label_stack.append(batch['label'].to(self.dtype))
             
             if metrics:
@@ -288,6 +289,14 @@ class VesNetBase():
                     self.printandlog('Result. at p={:.5f} : dice={:.5f}'.format(
                         id_cutoff, id_dice))
                     Vbool = V >= id_cutoff
+                elif calc_dice:
+                    label_patches = (torch.stack(label_stack)).numpy().squeeze(axis=(1,2))
+                    label_stack = []
+                    L = get_volume(label_patches, self.divs, (0, 0, 0))
+                    L = to_numpy(L, batch['meta'], Vtype='label', dimorder='torch')
+                    Vbool = V >= self.ves_probability
+                    self.printandlog('At p={:.5f} : dice={:.5f}'.format(
+                        self.ves_probability, _dice(Vbool, L)))
                 else:
                     Vbool = V >= self.ves_probability
 
@@ -762,7 +771,7 @@ class VesNET(VesNetBase):
 
         
         id_cutoff, id_dice, fig = find_cutoff(pred=V, label=L, plot=True)
-        self.printandlog('Finding ideal p of ', batch['meta']['filename'][0])
+        self.printandlog('Finding ideal p of all samples together...')
         self.printandlog('Result. at p={:.5f} : dice={:.5f}'.format(
                         id_cutoff, id_dice))
         if not self.DEBUG:
