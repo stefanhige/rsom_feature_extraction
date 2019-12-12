@@ -16,15 +16,15 @@ root_dir = '~/data/vesnet/synthDataset/rsom_style_noisy'
 
 desc = ('train and retrain')
 # sdesc = 't+rt_mp_vblock2_weight_decay'
-sdesc = 'mm_annot_synth+background'
+sdesc = 'final_VN+GN10'
 model_dir = ''
         
-os.environ["CUDA_VISIBLE_DEVICES"]='0'
+os.environ["CUDA_VISIBLE_DEVICES"]='4'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 train_dir = os.path.join(root_dir, 'train')
 eval_dir = os.path.join(root_dir, 'eval')
-out_dir = '/home/gerlstefan/data/vesnet/out/minimal_annot_exp'
+out_dir = '/home/gerlstefan/data/vesnet/out/final'
 pred_dir = '/home/gerlstefan/data/vesnet/annotatedDataset/eval'
 
 dirs={'train': train_dir,
@@ -86,10 +86,10 @@ if 1:
     # set up new variables for retraining
     net1.model.load_state_dict(net1.best_model)
     
-    root_dir = '~/data/vesnet/synth+Background'
+    root_dir = '~/data/vesnet/synth+annot+backgDataset'
     train_dir = os.path.join(root_dir, 'train')
     eval_dir = os.path.join(root_dir, 'eval')
-    pred_dir = '~/data/vesnet/synth+Background/.test'
+    pred_dir = '~/data/vesnet/synth+annot+backgDataset/eval'
 
     net1.dirs['train'] = os.path.expanduser(train_dir)
     net1.dirs['eval'] = os.path.expanduser(eval_dir)

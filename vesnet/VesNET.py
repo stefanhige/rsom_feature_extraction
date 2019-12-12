@@ -25,7 +25,7 @@ from datetime import date
 # MY MODULES
 parent_module = sys.modules['.'.join(__name__.split('.')[:-1]) or '__main__']
 if __name__ == '__main__' or parent_module.__name__ == '__main__':
-    from deep_vessel_3d import DeepVesselNet
+    from deep_vessel_3d import DeepVesselNet, ResVesselNet
     from dataloader import RSOMVesselDataset
     from dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
     from dataloader import PrecalcSkeleton, DataAugmentation
@@ -34,7 +34,7 @@ if __name__ == '__main__' or parent_module.__name__ == '__main__':
     from patch_handling import get_volume
 
 else:
-    from .deep_vessel_3d import DeepVesselNet
+    from .deep_vessel_3d import DeepVesselNet, ResVesselNet
     from .dataloader import RSOMVesselDataset
     from .dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
     from .dataloader import PrecalcSkeleton, DataAugmentation
@@ -762,6 +762,9 @@ class VesNET(VesNetBase):
 
         
         id_cutoff, id_dice, fig = find_cutoff(pred=V, label=L, plot=True)
+        self.printandlog('Finding ideal p of ', batch['meta']['filename'][0])
+        self.printandlog('Result. at p={:.5f} : dice={:.5f}'.format(
+                        id_cutoff, id_dice))
         if not self.DEBUG:
             fig.savefig(os.path.join(self.dirs['out'],'thvsdice.png'))
 
@@ -860,23 +863,23 @@ if __name__ == '__main__':
     DEBUG = None
     # DEBUG = True
 
-    root_dir = '~/data/vesnet/synthDataset/rsom_style_noisy+refl_small/'
+    root_dir = '~/data/vesnet/synthDataset/rsom_style_noisy'
 
 
-    desc = ('new synth dataset')
-    sdesc = 'new_synth_data_test'
+    desc = ('test res ves net')
+    sdesc = 'mm_annot_synth'
 
 
     model_dir = ''
             
-    os.environ["CUDA_VISIBLE_DEVICES"]='3'
+    os.environ["CUDA_VISIBLE_DEVICES"]='7'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
     train_dir = os.path.join(root_dir, 'train')
     eval_dir = os.path.join(root_dir, 'eval')
-    out_dir = '/home/gerlstefan/data/vesnet/out'
-    pred_dir = '/home/gerlstefan/data/vesnet/annotatedDataset/eval'
+    out_dir = '/home/gerlstefan/data/vesnet/out/minimal_annot_exp'
+    pred_dir = '/home/gerlstefan/data/vesnet/annotatedDataset/.test'
 
     dirs={'train': train_dir,
           'eval': eval_dir, 
@@ -886,9 +889,13 @@ if __name__ == '__main__':
 
     dirs = {k: os.path.expanduser(v) for k, v in dirs.items()}
 
-    model = DeepVesselNet()
+    # model = ResVesselNet(in_channels=2,
+    #         channels=[2, 6, 12, 24, 48, 1],
+    #         kernels=[3, 5, 5, 3, 1],
+    #         depth=5, 
+    #         groupnorm=False)
     
-    # model = DeepVesselNet(groupnorm=False,
+    model = DeepVesselNet(groupnorm=True)
                           # use_vblock=True,
                           # vblock_layer=2) # default settings with group norm
 
@@ -907,12 +914,12 @@ if __name__ == '__main__':
                   model=model,
                   dirs=dirs,
                   divs=(3,3,3),
-                  batch_size=4,
+                  batch_size=2,
                   optimizer='Adam',
                   class_weight=10,
                   initial_lr=1e-4,
                   lossfn=BCEWithLogitsLoss,
-                  epochs=100,
+                  epochs=15,
                   ves_probability=0.95,
                   _DEBUG=DEBUG
                   )
