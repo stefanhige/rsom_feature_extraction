@@ -13,7 +13,7 @@ import torch.nn.functional as F
 import shutil
 
 from prep.classes import RSOM, RSOM_vessel
-from prep.utils.get_unique_filepath import get_unique_filepath
+from utils.get_unique_filepath import get_unique_filepath
 
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
@@ -25,7 +25,7 @@ from vesnet.VesNET import VesNetBase, debug
 
 from visualization.vessels.mip_label_overlay import mip_label_overlay, mip_label_overlay1
 from visualization.vessels.mip_label_overlay import RsomVisualization
-from visualization.vessels.mip_label_overlay import get_unique_filepath
+# from visualization.vessels.mip_label_overlay import get_unique_filepath
 
 # define folder
 def vessel_pipeline(dirs={'input':'',
@@ -88,7 +88,6 @@ def vessel_pipeline(dirs={'input':'',
     print(pattern)
     if pattern == None:
         cwd = os.getcwd()
-        # change directory to origin, and get a list of all files
         os.chdir(dirs['input'])
         all_files = os.listdir()
         os.chdir(cwd)
@@ -96,21 +95,10 @@ def vessel_pipeline(dirs={'input':'',
         print('here')
         if isinstance(pattern, str):
             pattern = [pattern]
-        # pattern = ['R_20170828154106_PAT026_RL01',
-        #             'R_20170828155546_PAT027_RL01',
-        #             'R_20170906132142_PAT040_RL01',
-        #             'R_20170906141354_PAT042_RL01',
-        #             'R_20171211150527_PAT057_RL01',
-        #             'R_20171213135032_VOL009_RL02',
-        #             'R_20180409164251_VOL015_RL02']
         all_files = [os.path.basename(get_unique_filepath(dirs['input'], pat)[0]) for pat in pattern]
 
     # ***** PREPROCESSING FOR LAYER SEGMENTATION *****
-    # extract the LF.mat files,
     filenameLF_LIST = [el for el in all_files if el[-6:] == 'LF.mat']
-
-    # TODO: HACK
-    # filenameLF_LIST = [filenameLF_LIST[0]]
 
     for idx, filenameLF in enumerate(filenameLF_LIST):
         # the other ones will be automatically defined
@@ -187,14 +175,6 @@ def vessel_pipeline(dirs={'input':'',
           'pred': tmp_vesselseg_prep,
           'out': tmp_vesselseg_out}
 
-    # model = DeepVesselNet(groupnorm=True) # default settings with group norm
-    # model = DeepVesselNet(in_channels=2,
-    #                       channels = [2, 10, 20, 40, 80, 1],
-    #                       kernels = [3, 5, 5, 3, 1],
-    #                       depth = 5, 
-    #                       dropout=False,
-    #                       groupnorm=True)
-
     net1 = VesNetBase(device=device,
                          dirs=_dirs,
                          divs= divs,
@@ -207,11 +187,10 @@ def vessel_pipeline(dirs={'input':'',
                  save_ppred=True)
 
     files = [f for f in os.listdir(tmp_vesselseg_out) if 'ppred' in f]
+    
     for f in files:
         shutil.move(os.path.join(tmp_vesselseg_out, f), 
                     os.path.join(tmp_vesselseg_prob, f))
-    # net1.predict_adj()
-    # os.remove(os.path.join(tmp_vesselseg_out,'*ppred*'))
 
     # ***** VISUALIZATION *****
     _dirs = {'in': dirs['input'],
@@ -234,39 +213,36 @@ def vessel_pipeline(dirs={'input':'',
 
 if __name__ == '__main__':
 
-    dirs = {'input': '~/data/pipeline/selection1/mat',
+    dirs = {'input': '~/data/pipeline/processableDataset/mat',
             #'laynet_model': '~/models/layerseg/test/mod_190731_depth4.pt',
             'laynet_model': '~/models/layerseg/test/mod_191101_depth5.pt',
-            'vesnet_model': '~/data/vesnet/out/191108-01-t+rt_mp_gn/mod191108-01.pt',
-            'output': '~/data/pipeline/selection1/t_rt_mp_gn_2'}
+            'vesnet_model': '~/data/vesnet/out/final/191211-01-final_VN+GN!/mod191211-01.pt',
+            'output': '~/data/pipeline/processableDataset/results'}
 
     dirs = {k: os.path.expanduser(v) for k, v in dirs.items()}
 
 
     # model = DeepVesselNet(groupnorm=False)
-    # model = DeepVesselNet(groupnorm=True)
-                      # use_vblock=True,
-                      # vblock_layer=2)
+    model = DeepVesselNet(groupnorm=True)
 
-    model = DeepVesselNet(in_channels=2,
-                          channels = [2, 10, 20, 40, 80, 1],
-                          kernels = [3, 5, 5, 3, 1],
-                          depth = 5, 
-                          dropout=False,
-                          groupnorm=True,
-                          save_memory=True)
+    # model = DeepVesselNet(in_channels=2,
+    #                       channels = [2, 10, 20, 40, 80, 1],
+    #                       kernels = [3, 5, 5, 3, 1],
+    #                       depth = 5, 
+    #                       dropout=False,
+    #                       groupnorm=True,
+                          # save_memory=True)
 
-    os.environ["CUDA_VISIBLE_DEVICES"]='6'
+    os.environ["CUDA_VISIBLE_DEVICES"]='0'
     
     img = vessel_pipeline(dirs=dirs,
                     laynet_depth=5,
                     vesnet_model=model,
-                    ves_probability=0.944,
+                    ves_probability=0.96973,
                     # pattern=['R_20170828155546'],  #if list, use patterns, otherwise, use whole dir
                     divs=(1,1,2),
                     delete_tmp=False,
-                    return_img=False,
-                    mip_overlay_axis=0)
+                    return_img=False)
 
 
 

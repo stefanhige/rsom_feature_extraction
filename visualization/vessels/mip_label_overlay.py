@@ -247,22 +247,22 @@ def get_unique_filepath(path, pattern):
         
 class RsomVisualization_white(RsomVisualization):
     
-    def merge_mip_ves(self, do_plot=True):
-        '''
-        merge MIP and MIP of segmentation with feeding into blue channel
-        '''
+    #def merge_mip_ves(self, do_plot=True):
+    #    '''
+    #    merge MIP and MIP of segmentation with feeding into blue channel
+    #    '''
         
-        self.P_overlay = _overlay(self.P, self.P_seg.astype(np.float32),
-                                  alpha=0.6)
+    #    self.P_overlay = _overlay(self.P, self.P_seg.astype(np.float32),
+    #                              alpha=0.6)
         
-        self.P_overlay[self.P>255] = 255
+    #    self.P_overlay[self.P>255] = 255
         
-        if do_plot:
-            plt.figure()
-            plt.imshow(self.P)
-            plt.title(str(self.file.ID))
-            #plt.imshow(P, aspect = 1/4)
-            plt.show()
+    #    if do_plot:
+    #        plt.figure()
+    #        plt.imshow(self.P)
+    #        plt.title(str(self.file.ID))
+    #        #plt.imshow(P, aspect = 1/4)
+    #        plt.show()
     
     def merge_mip_lay(self, do_plot=True):
         '''
