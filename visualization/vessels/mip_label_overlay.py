@@ -25,6 +25,20 @@ if __name__ == '__main__':
     sys.path.append('../../')
 from prep.classes import RSOM
 
+def _overlay(data, seg, alpha=0.5, colour=[255,255,255]):
+    seg_mask = seg.copy()
+    seg_mask = np.dstack((seg_mask, seg_mask, seg_mask)).astype(np.bool)
+    seg_rgb = np.dstack((colour[0]*seg, colour[1]*seg, colour[2]*seg))
+   
+    ol = (alpha * seg_mask.astype(np.uint8) * data) + \
+              (np.logical_not(seg_mask).astype(np.uint8) * data) + \
+              (1-alpha) * seg_rgb
+          
+    ol[ol>255] = 255
+    ol[ol<0] = 0
+    ol = ol.astype(np.uint8)
+    return ol
+
 class RsomVisualization(RSOM):
     '''
     subclass of RSOM
@@ -229,6 +243,44 @@ def get_unique_filepath(path, pattern):
                 return os.path.join(path, occurrences[0])
     else:
         raise Exception('No file found for \'{}\' in {}'.format(pattern, path))
+        
+        
+class RsomVisualization_white(RsomVisualization):
+    
+    def merge_mip_ves(self, do_plot=True):
+        '''
+        merge MIP and MIP of segmentation with feeding into blue channel
+        '''
+        
+        self.P_overlay = _overlay(self.P, self.P_seg.astype(np.float32),
+                                  alpha=0.6)
+        
+        self.P_overlay[self.P>255] = 255
+        
+        if do_plot:
+            plt.figure()
+            plt.imshow(self.P)
+            plt.title(str(self.file.ID))
+            #plt.imshow(P, aspect = 1/4)
+            plt.show()
+    
+    def merge_mip_lay(self, do_plot=True):
+        '''
+        merge MIP and MIP of segmentation with feeding into blue channel
+        '''
+        self.P_overlay = _overlay(self.P_overlay, self.P_seg.astype(np.float32),
+                                  alpha=0.5)
+        
+        self.P_overlay[self.P>255] = 255
+        
+        if do_plot:
+            plt.figure()
+            plt.imshow(self.P)
+            plt.title(str(self.file.ID))
+            #plt.imshow(P, aspect = 1/4)
+            plt.show()
+    
+
 
 
 
@@ -275,7 +327,7 @@ def mip_label_overlay1(file_id, dirs, plot_epidermis=False, axis=-1, return_img=
     matSurf = os.path.join(mat_dir, 'Surf' + matLF_[idx_1:idx_2+1] + '.mat')
     print('SURF file:', matSurf) 
     
-    Obj = RsomVisualization(matLF, matHF, matSurf)
+    Obj = RsomVisualization_white(matLF, matHF, matSurf)
     Obj.readMATLAB()
     Obj.flatSURFACE()
     
@@ -328,12 +380,7 @@ def mip_label_overlay1(file_id, dirs, plot_epidermis=False, axis=-1, return_img=
     
 if __name__ == '__main__':
 
-    file_ids = ['R_20170828154106_',
-                'R_20170906132142_',
-                'R_20170906141354_',
-                'R_20171211150527_',
-                'R_20171213135032_',
-                'R_20180409164251_']  # enough string to identify an unique file
+    file_ids = ['R_20170828154106_']  # enough string to identify an unique file
 
     # directory with the raw matlab files
     mat_dir = '/home/stefan/Documents/RSOM/Diabetes/allmat'
@@ -345,15 +392,12 @@ vessels/191023-01-rt_bg/prediction/only_segmentation'
 
     seg_dir_lay = '/home/stefan/data/layerunet/for_vesnet/selection1/prediction'
     # where to put the mip
-    out_dir = '/home/stefan/testtt'
+    out_dir = '/home/stefan/testt'
 
     dirs = {'in': mat_dir,
             'layer': seg_dir_lay,
             'vessel': seg_dir_ves,
             'out': out_dir }
 
-    plot_epidermis = False
-
-
-    mip_label_overlay(file_ids, dirs, plot_epidermis=False)
+    mip_label_overlay(file_ids, dirs, plot_epidermis=True)
 
