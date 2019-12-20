@@ -9,7 +9,6 @@ from pathlib import Path
 
 import os
 
-
 import scipy.io as sio
 from scipy import interpolate
 from scipy import ndimage
@@ -21,16 +20,12 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-#from mpl_toolkits.mplot3d import Axes3D
-#from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
 import time
 import warnings
 
-
 import nibabel as nib
 
-#from skimage import data
 from skimage import exposure
 from skimage import morphology
 from skimage import transform
@@ -44,7 +39,7 @@ class RSOM():
     """
     def __init__(self, filepathLF, filepathHF, filepathSURF='none'):
         """
-        create empty instance of RSOM
+        Create empty instance of RSOM
         """
         # if the filepaths are strings, generate PosixPath objects
         filepathLF = Path(filepathLF)
@@ -63,23 +58,19 @@ class RSOM():
         if idxID == -1:
             idxID = filepathLF.name.find('VOL')
 
-            
         if idxID is not -1:
             ID = filepathLF.name[idxID:idxID+11]
         else:
             # ID is different, extract string between Second "_" and third "_"
-            # usually its 6 characters long
+            # usually it is 6 characters long
             idx_3 = filepathLF.name.find('_', idx_2+1)
             ID = filepathLF.name[idx_2+1:idx_3]
-
-
         
         self.layer_end = None
         
-        
         self.file = self.FileStruct(filepathLF, filepathHF, filepathSURF, ID, DATETIME)
         
-    def readMATLAB(self):
+    def read_matlab(self):
         '''
         read .mat files
         '''
@@ -103,7 +94,7 @@ class RSOM():
                    'surface file. Method flatSURFACE is not going to be applied!!'))
             self.matfileSURF = None
         
-    def flatSURFACE(self, override = True):
+    def flat_surface(self):
         '''
         modify volumetric data in order to get a flat skin surface
         options:
@@ -139,20 +130,13 @@ class RSOM():
             fn = interpolate.RectBivariateSpline(xSurf, ySurf, S)
             Sip = fn(xVol, yVol)
             
-            # subtract mean
             Sip -= np.mean(Sip)
             
             # flip, to fit the grid
             Sip = Sip.transpose()
             
-            # save to Obj
             self.Sip = Sip
             
-            if not override:
-                # create copy 
-                self.Vl_notflat = self.Vl.copy()
-                self.Vh_notflat = self.Vh.copy()
-        
             # for every surface element, calculate the offset
             # and shift volume elements perpendicular to surface
             for i in np.arange(np.size(self.Vl, 1)):
@@ -160,7 +144,6 @@ class RSOM():
                     
                     offs = int(-np.around(Sip[i, j]/2))
                     
-                    # TODO: why not replace with zeros?
                     self.Vl[:, i, j] = np.roll(self.Vl[:, i, j], offs);
                     self.Vh[:, i, j] = np.roll(self.Vh[:, i, j], offs);
                     
@@ -169,10 +152,10 @@ class RSOM():
                         self.Vl[offs:, i, j] = 0
                         self.Vh[offs:, i, j] = 0
         
-    def plotSURFACE(self):
+    def plot_surface(self):
         '''
         plot the surfaceData used for the normalization
-        It's called "surfSmooth and extracted from the MATLAB data
+        mainly for debugging purposes
         '''
         
         fig = plt.figure()
@@ -183,7 +166,6 @@ class RSOM():
         dx = self.matfileSURF['dx']
         dy = self.matfileSURF['dy']
         
-        # create meshgrid for surface data
         xSurf = np.arange(0, np.size(S, 0)) * dx
         ySurf = np.arange(0, np.size(S, 1)) * dy
         xSurf -= np.mean(xSurf)
@@ -192,146 +174,38 @@ class RSOM():
         
         S = S - np.amin(S)
 
-
-        # Plot the surface.
         surf = ax.plot_surface(xxSurf, yySurf, S.transpose(), cmap=cm.coolwarm,
-                   linewidth=0, antialiased=False)
-        # Customize the z axis.
-        #ax.set_zlim(-1.01, 1.01)
-        #ax.zaxis.set_major_locator(LinearLocator(10))
-        #ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-        
-        # Add a color bar which maps values to colors.
         fig.colorbar(surf, shrink=0.5, aspect=5)
 
         plt.show()
-    
-    def rescaleVOLUME(self):
-        '''
-        rescale the volumetric data Vl, Vh in order to get 
-        uniform grid spacing
-        '''
-        # interpolationOrder
-        # ipo = 1 means linear interpolation
-        ipo = 1
-                
-        # in reconPARAMS GRID_DZ = 3, GRID_DS = 12
-        # in order to get uniform grid spacing, need to scale x and y by 4
-        # or scale z, y, x by 0.5, 2, 2
-        z = 0.5
-        x = 2
-        y = 2
-    
-        self.Vl = ndimage.zoom(self.Vl, (z, y, x), order = ipo)
-        self.Vh = ndimage.zoom(self.Vh, (z, y, x), order = ipo)
         
-        # only if the variable exists
-        # adjust the size of V*_notflat
-        try:
-            self.Vl_notflat = ndimage.zoom(self.Vl_notflat, (z, y, x), order = ipo)
-            self.Vh_notflat = ndimage.zoom(self.Vh_notflat, (z, y, x), order = ipo)
-        except AttributeError:
-            # donothing
-            nothing = False
-                
-        # can't keep the old values, uses too much memory
-        self.OverrideV = True
-        
-    def normINTENSITY(self, ignore_neg = True, sliding_max = False):
+    def norm_intensity(self):
         '''
         normalize intensities to [0 1]
-        options:
-            ignore_neg = True. Cut negative intensities.
-            sliding_max = False. Use adaptive maximum filter.
         '''
         
-        # use a sliding maximum filter
-        if sliding_max:
-            self.Vl_1 = self.labelNormalization(self.Vl)
-            self.Vh_1 = self.labelNormalization(self.Vh)
-        else:
-            self.Vl_1 = np.true_divide(self.Vl, np.amax(self.Vl))
-            self.Vh_1 = np.true_divide(self.Vh, np.amax(self.Vh))
+        self.Vl_1 = np.true_divide(self.Vl, np.amax(self.Vl))
+        self.Vh_1 = np.true_divide(self.Vh, np.amax(self.Vh))
             
-            
-        # there might be still some values >1, due to boundary problems of
-        # labelNormalization
-        # cut above 1
         self.Vl_1[self.Vl_1 > 1] = 1
         self.Vh_1[self.Vh_1 > 1] = 1
-        # delete negative values
-        if ignore_neg:
-            self.Vl_1[self.Vl_1 < 0] = 0
-            self.Vh_1[self.Vh_1 < 0] = 0
-        else:
-            # cap below -1
-            self.Vl_1[self.Vl_1 < -1] = -1
-            self.Vh_1[self.Vh_1 < -1] = -1
-            # move to positive values
-            self.Vl_1 += 1
-            self.Vh_1 += 1
-            # scale to unity
-            self.Vl_1 = self.Vl_1 / 2
-            self.Vh_1 = self.Vh_1 / 2
+        self.Vl_1[self.Vl_1 < 0] = 0
+        self.Vh_1[self.Vh_1 < 0] = 0
         
-    def rescaleINTENSITY(self, dynamic_rescale = False):
+    def rescale_intensity(self, dynamic_rescale = False):
         '''
-        rescale intensities, quadratic, crop
+        rescale intensities, quadratic transform, crop values
         '''
+        self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0, 0.2))
+        self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0, 0.1))
         
+        self.Vl_1 = self.Vl_1**2
+        self.Vh_1 = self.Vh_1**2
         
-        if dynamic_rescale:
-            #rescale intensity
-            val = np.quantile(self.Vl_1, (0, 0.99))
-            print('quantile Vl', val)
-            self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (val[0], val[1]))
-            
-            
-            val = np.quantile(self.Vh_1, (0, 0.99))
-            print('quantile Vh', val)
-            self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (val[0], val[1]))
-            
-            self.Vl_1 = self.Vl_1**2
-            self.Vh_1 = self.Vh_1**2
-            
-            
-            val = np.quantile(self.Vl_1, (0.8, 1))
-            print('quantile Vl', val)
-            self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (val[0], val[1]))
-            
-            
-            val = np.quantile(self.Vh_1, (0.8, 1))
-            print('quantile Vh', val)
-            self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (val[0], val[1]))
-            
-        else:
-            #static
-            
-            # first dataset has these settings:
-            
-#            self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0, 0.2))
-#            self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0, 0.1))
-#            
-#            self.Vl_1 = self.Vl_1**2
-#            self.Vh_1 = self.Vh_1**2
-#            
-#            self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0.05, 1))
-#            self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0.02, 1))
-            
-            self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0, 0.2))
-            self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0, 0.1))
-            
-            self.Vl_1 = self.Vl_1**2
-            self.Vh_1 = self.Vh_1**2
-            
-            self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0.05, 1))
-            self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0.02, 1))
-            
-
-        #print('min:', np.amin(self.Vl_1))
-        #print('max:', np.amax(self.Vl_1))
+        self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0.05, 1))
+        self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0.02, 1))
         
-    def calcMIP(self, axis = 1, do_plot = True, cut_z=0):
+    def calc_mip(self, axis = 1, do_plot = True, cut_z=0):
         '''
         plot maximum intensity projection along specified axis
         options:
@@ -341,7 +215,6 @@ class RSOM():
                       needed for on top view without epidermis
             
         '''
-        
         axis = int(axis)
         if axis > 2:
             axis = 2
@@ -367,144 +240,15 @@ class RSOM():
         # rescale intensity
         val = np.quantile(self.P, (0.8, 0.9925))
         
-        #print("Quantile", val[0], val[1], 'fixed values', round(0.03*255), 0.3*255)
-        
-        self.P = exposure.rescale_intensity(self.P, in_range = (val[0], val[1]), out_range = np.uint8)
-        
+        self.P = exposure.rescale_intensity(self.P, 
+                                            in_range = (val[0], val[1]), 
+                                            out_range = np.uint8)
         if do_plot:
             plt.figure()
             plt.imshow(self.P)
             plt.title(str(self.file.ID))
-            #plt.imshow(P, aspect = 1/4)
             plt.show()
     
-    def slidingMIP(self, axis=1):
-        '''
-        generate volume of mip's in a sliding fashion
-        on the basis of Vl_1 and Vh_1
-        '''
-        axis = int(axis)
-        if axis > 2:
-            axis = 2
-        if axis < 0:
-            axis = 0
-        
-        shp = self.Vl_1.shape
-        # print('shape before', self.Vl_1.shape, self.Vh_1.shape)
-        
-        window = 6
-        
-        assert not window % 2, 'window should be even, otherwise strange things may happen'
-        
-        if axis == 1:
-            Pl = np.zeros((shp[0], 0, shp[2]))
-            Ph = np.zeros((shp[0], 0, shp[2]))
-        elif axis == 0:
-            Pl = np.zeros((0, shp[1], shp[2]))
-            Ph = np.zeros((0, shp[1], shp[2]))
-        # todo:extend till end
-        for i in range(shp[axis]):
-            if axis == 1:
-                
-                # at the beginning
-                if i < (window/2):
-                    
-                    subVl = self.Vl_1[:, :i+int(window/2), :]
-                    subVh = self.Vh_1[:, :i+int(window/2), :]
-            
-                # at the end  
-                elif i > (shp[axis] - 1) - (window/2):
-                    subVl = self.Vl_1[:, i-int(window/2):, :]
-                    subVh = self.Vh_1[:, i-int(window/2):, :]
-                
-                # otherwise
-                else:
-                    subVl = self.Vl_1[:, i-int(window/2):i+int(window/2), :]
-                    subVh = self.Vh_1[:, i-int(window/2):i+int(window/2), :]
-            
-            # print(subVl.shape, subVh.shape)
-            # elif axis == 0:
-            #    subVl = self.Vl_1[i:i+window, :, :]
-            #    subVh = self.Vh_1[i:i+window, :, :]
-                
-            #print(Pl.shape)
-            #print(subVl.shape)
-            
-            maxVl = (np.amax(subVl, axis = axis, keepdims=True))
-            
-            #print(maxx.shape)
-            
-            #print('axis', axis)
-            
-            #print(Ph.shape)
-            Pl = np.concatenate((Pl, maxVl), axis=axis)
-            Ph = np.concatenate((Ph, np.amax(subVh, axis=axis, keepdims=True)), axis=axis)
-            
-        self.Vl_1 = Pl
-        self.Vh_1 = Ph
-        # print('shape after', self.Vl_1.shape, self.Vh_1.shape)
-        
-    def slidingMIP_old(self, axis=1):
-        '''
-        generate volume of mip's in a sliding fashion
-        '''
-        axis = int(axis)
-        if axis > 2:
-            axis = 2
-        if axis < 0:
-            axis = 0
-        
-        shp = self.Vl.shape
-        
-        window = 10
-        
-        if axis == 1:
-            Pl = np.zeros((shp[0],0,shp[2]))
-            Ph = np.zeros((shp[0],0,shp[2]))
-        elif axis == 0:
-            Pl = np.zeros((0, shp[1], shp[2]))
-            Ph = np.zeros((0, shp[1], shp[2]))
-                
-        for i in range(shp[axis]-int(window)):
-            if axis == 1:
-                subVl = self.Vl[:, i:i+window, :]
-                subVh = self.Vh[:, i:i+window, :]
-            elif axis == 0:
-                subVl = self.Vl[i:i+window, :, :]
-                subVh = self.Vh[i:i+window, :, :]
-                
-            #print(Pl.shape)
-            #print(subVl.shape)
-            
-            maxx = (np.amax(subVl, axis = axis, keepdims=True))
-            
-            #print(maxx.shape)
-            
-            #print('axis', axis)
-            
-            #print(Ph.shape)
-            Pl = np.concatenate((maxx, Pl), axis=axis)
-            Ph = np.concatenate((np.amax(subVh, axis=axis, keepdims=True), Ph), axis=axis)
-            #Pl[i] = np.amax(subVl, axis = axis)
-            #Ph[i] = np.amax(subVh, axis = axis)
-        
-        alpha = 16
-        
-        # RGB stack
-        P = np.stack([Pl, alpha * Ph, np.zeros(Ph.shape)], axis = -1)
-        
-        P[P < 0] = 0
-        P = exposure.rescale_intensity(P, out_range = np.uint8)
-        P = P.astype(dtype=np.uint8)
-        
-        # rescale intensity
-        val = np.quantile(P,(0.8, 0.9925))
-        #print("Quantile", val[0], val[1], 'fixed values', round(0.03*255), 0.2*255, 'up to', 0.3*255)
-        
-        P = exposure.rescale_intensity(P, in_range = (val[0], val[1]), out_range = np.uint8)
-        
-        return P
-        
     def calc_alpha(self, alpha):
         '''
         MIP helper function
@@ -517,7 +261,7 @@ class RSOM():
         '''
         return np.sum(np.square(self.Vl_split - alpha * self.Vh_split))
     
-    def calcMIP3D(self, do_plot = True):
+    def calc_mip3d(self, do_plot = True):
         '''
         plot maximum intensity projection along second axis
         options:
@@ -541,10 +285,10 @@ class RSOM():
         res = minimize_scalar(self.calc_alpha_3d, bounds=(0, 100), method='bounded')
         alpha = res.x
         
-        #print(alpha)
-        
         # RGB stack
-        self.P_sliced = np.stack([self.Vl_split, alpha * self.Vh_split, np.zeros(self.Vl_split.shape)], axis = -1)
+        self.P_sliced = np.stack([self.Vl_split, 
+                                  alpha * self.Vh_split, 
+                                  np.zeros(self.Vl_split.shape)], axis = -1)
         
         self.P_sliced[self.P_sliced < 0] = 0
         self.P_sliced = exposure.rescale_intensity(self.P_sliced, out_range = np.uint8)
@@ -552,10 +296,10 @@ class RSOM():
         
         # rescale intensity
         val = np.quantile(self.P_sliced,(0.8, 0.9925))
-        #print("Quantile", val[0], val[1], 'fixed values', round(0.03*255), 0.2*255, 'up to', 0.3*255)
         
-        self.P_sliced = exposure.rescale_intensity(self.P_sliced, in_range = (val[0], val[1]), out_range = np.uint8)
-    
+        self.P_sliced = exposure.rescale_intensity(self.P_sliced, 
+                                                  in_range = (val[0], val[1]), 
+                                                  out_range = np.uint8)
         if do_plot:
             shp = self.P_sliced.shape
             P_ = self.P_sliced.copy()
@@ -565,7 +309,7 @@ class RSOM():
             plt.title(str(self.file.ID))
             plt.show()
         
-    def mergeVOLUME_RGB(self):
+    def merge_volume_rgb(self):
         '''
         merge low frequency and high frequency data feeding into different
         colour channels
@@ -712,7 +456,6 @@ class RSOM():
         #print(P.max(), image_from_plot.max())
         
         imageio.imwrite(os.path.join(dest, self.file.ID + '.png'), P)
-        
 
     def cut_empty_or_layer(self):
         ''' 1D projection along z '''
@@ -829,9 +572,10 @@ class RSOM():
         
         self.vessel_end = cutoff_idx + self.layer_end
         
-    def cutDEPTH(self):
-        ''' cut Vl and Vh to 500 x 171 x 333'''
-        
+    def cut_depth(self):
+        '''
+        cut Vl and Vh to 500 x 171 x 333
+        '''
         zmax = 500
         
         # extract shape
@@ -997,7 +741,6 @@ class RSOM():
     def loadNII(path):
         img = nib.load(path)
         return img.get_fdata()
- 
 
 class RSOM_vessel(RSOM):
     '''
