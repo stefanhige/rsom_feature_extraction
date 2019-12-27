@@ -593,7 +593,7 @@ class RSOM():
             
             print('New shape:', self.Vl.shape)
 
-    def saveMIP(self, destination, fstr = '', scale=1):
+    def save_mip(self, destination, fstr = '', scale=1):
         '''
         save MIP as 2d image
         '''
@@ -629,7 +629,8 @@ class RSOM():
         
         imageio.imwrite(img_file, P)
 
-    def saveSURFACE(self, destination, fstr = ''):
+    def save_surface(self, destination, fstr = ''):
+
         '''
         save surface as 2d image with colorbar?
         '''
@@ -665,7 +666,7 @@ class RSOM():
         
         #imageio.imwrite(img_file, self.Sip)
         
-    def saveMIP3D(self, destination, fstr = ''):
+    def save_mip3d(self, destination, fstr = ''):
         ''' save rgb maximum intensity projection volume'''
         
         # Vm is a 4-d numpy array, with the last dim holding RGB
@@ -688,7 +689,7 @@ class RSOM():
         print(str(nii_file))
         nib.save(img, str(nii_file))
         
-    def saveVOLUME(self, destination, fstr = ''):
+    def save_volume(self, destination, fstr = ''):
         '''
         save rgb volume
         '''
@@ -727,9 +728,6 @@ class RSOM():
         nib.save(img, str(nii_file))
         
     class FileStruct():
-        '''
-        helper class for data management
-        '''
         def __init__(self, filepathLF, filepathHF, filepathSURF, ID, DATETIME):
             self.LF = filepathLF
             self.HF = filepathHF
@@ -748,11 +746,10 @@ class RSOM_vessel(RSOM):
     e.g. cut away epidermis
     '''
     
-    def cutLAYER(self, path, mode='pred', fstr='layer_pred.nii.gz'):
+    def cut_layer(self, path, mode='pred', fstr='layer_pred.nii.gz'):
         '''
         cut off the epidermis with loading corresponding segmentation mask.
         '''
-        print('cutLayer method')
         
         # generate path
         filename = 'R' + self.file.DATETIME + self.file.ID + '_' + fstr
@@ -808,22 +805,14 @@ class RSOM_vessel(RSOM):
             f.close()
         else:
             raise NotImplementedError
-            
         
         print('Cutting at', layer_end)
-        # replace with zeros
-        #self.Vl[:layer_end,:,:] = 0
-        #self.Vh[:layer_end,:,:] = 0
         
         # cut away
         self.Vl = self.Vl[layer_end:, :, :]
         self.Vh = self.Vh[layer_end:, :, :]
         
         self.layer_end = layer_end
-
-        
-        
-        # keep meta information?
 
     def backgroundAnnot_replaceVessel(self, path, mode='manual', fstr='ves_cutoff'):
         '''
@@ -861,7 +850,7 @@ class RSOM_vessel(RSOM):
         #self.Vl_1 = self.Vl_1[cut:, :, :]
         #self.Vh_1 = self.Vh_1[cut:, :, :]
         
-    def rescaleINTENSITY(self):
+    def rescale_intensity(self):
         '''
         overrides method in class RSOM, because vessel segmentation needs 
         different rescalé
@@ -877,7 +866,7 @@ class RSOM_vessel(RSOM):
         self.Vl_1 = exposure.rescale_intensity(self.Vl_1, in_range = (0.05, 1))
         self.Vh_1 = exposure.rescale_intensity(self.Vh_1, in_range = (0.05, 1))
         
-    def thresholdSEGMENTATION(self):
+    def threshold_segmentation(self):
         
         self.Vseg = np.logical_or(np.logical_or((self.Vh_1 + self.Vl_1) >= 1, 
                                                 self.Vl_1 > 0.3),
@@ -887,7 +876,7 @@ class RSOM_vessel(RSOM):
         # self.Vseg = np.zeros_like(self.Vh_1)
         return self.Vseg
         
-    def mathMORPH(self):
+    def math_morph(self):
         
         # TODO PADDING AND REMOVE 
         # probably the problem is in binary_closing??
@@ -913,7 +902,7 @@ class RSOM_vessel(RSOM):
         # 30 seems a good value, tested from 10 to 40
         self.Vseg = morphology.remove_small_objects(self.Vseg, 30)
         
-    def saveSEGMENTATION(self, destination, fstr='th'):
+    def save_segmentation(self, destination, fstr='th'):
         '''
         save rgb volume
         '''
@@ -938,7 +927,7 @@ class RSOM_vessel(RSOM):
         
         nib.save(img, path)
         
-    def saveVOLUME_float(self, destination, fstr = ''):
+    def save_volume_float(self, destination, fstr = ''):
         '''
         override method from RSOM class
         save rgb volume
