@@ -30,8 +30,6 @@ from skimage import exposure
 from skimage import morphology
 from skimage import transform
 
-
-
 # CLASS FOR ONE DATASET
 class RSOM():
     """
@@ -69,7 +67,16 @@ class RSOM():
         self.layer_end = None
         
         self.file = self.FileStruct(filepathLF, filepathHF, filepathSURF, ID, DATETIME)
-        
+
+    def prepare(self):
+
+        self.read_matlab()
+        self.flat_surface()
+        self.cut_depth()
+        self.norm_intensity()
+        self.rescale_intensity()
+        self.merge_volume_rgb()
+
     def read_matlab(self):
         '''
         read .mat files
@@ -175,6 +182,7 @@ class RSOM():
         S = S - np.amin(S)
 
         surf = ax.plot_surface(xxSurf, yySurf, S.transpose(), cmap=cm.coolwarm,
+                linewidth=0, antialiased=False)
         fig.colorbar(surf, shrink=0.5, aspect=5)
 
         plt.show()
@@ -745,6 +753,15 @@ class RSOM_vessel(RSOM):
     additional methods for preparing RSOM data for vessel segmentation,
     e.g. cut away epidermis
     '''
+
+    def prepare(self, path, mode='pred', fstr='pred.nii.gz'):
+        self.read_matlab()
+        self.flat_surface()
+        self.cut_depth()
+        self.cut_layer(path, mode=mode, fstr=fstr)
+        self.norm_intensity()
+        self.rescale_intensity()
+        self.merge_volume_rgb()
     
     def cut_layer(self, path, mode='pred', fstr='layer_pred.nii.gz'):
         '''

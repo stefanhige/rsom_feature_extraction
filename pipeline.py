@@ -92,7 +92,6 @@ def vessel_pipeline(dirs={'input':'',
         all_files = os.listdir()
         os.chdir(cwd)
     else:
-        print('here')
         if isinstance(pattern, str):
             pattern = [pattern]
         all_files = [os.path.basename(get_unique_filepath(dirs['input'], pat)[0]) for pat in pattern]
@@ -115,16 +114,18 @@ def vessel_pipeline(dirs={'input':'',
         fullpathSurf = os.path.join(dirs['input'], filenameSurf)
         
         Obj = RSOM(fullpathLF, fullpathHF, fullpathSurf)
+
+        Obj.prepare()
+
+        # Obj.readMATLAB()
+        # Obj.flatSURFACE()
+        # Obj.cutDEPTH()
         
-        Obj.readMATLAB()
-        Obj.flatSURFACE()
-        Obj.cutDEPTH()
-        
-        # VOLUME
-        Obj.normINTENSITY()
-        Obj.rescaleINTENSITY(dynamic_rescale = False)
-        Obj.mergeVOLUME_RGB()
-        Obj.saveVOLUME(tmp_layerseg_prep, fstr = 'rgb')
+        # # VOLUME
+        # Obj.normINTENSITY()
+        # Obj.rescaleINTENSITY(dynamic_rescale = False)
+        # Obj.mergeVOLUME_RGB()
+        Obj.save_volume(tmp_layerseg_prep, fstr = 'rgb')
         print('Processing file', idx+1, 'of', len(filenameLF_LIST))
 
     # ***** LAYER SEGMENTATION *****
@@ -155,16 +156,18 @@ def vessel_pipeline(dirs={'input':'',
         fullpathSurf = os.path.join(dirs['input'], filenameSurf)
         
         Obj = RSOM_vessel(fullpathLF, fullpathHF, fullpathSurf)
-        Obj.readMATLAB()
-        Obj.flatSURFACE()
-        Obj.cutDEPTH()
-        # cut epidermis
-        Obj.cutLAYER(tmp_layerseg_out, mode='pred', fstr='pred.nii.gz')
-        # VOLUME
-        Obj.normINTENSITY()
-        Obj.rescaleINTENSITY()
-        Obj.mergeVOLUME_RGB()
-        Obj.saveVOLUME(tmp_vesselseg_prep, fstr = 'v_rgb')
+        
+        Obj.prepare(tmp_layerseg_out, mode='pred', fstr='pred.nii.gz')
+# Obj.readMATLAB()
+        # Obj.flatSURFACE()
+        # Obj.cutDEPTH()
+        # # cut epidermis
+        # Obj.cutLAYER(tmp_layerseg_out, mode='pred', fstr='pred.nii.gz')
+        # # VOLUME
+        # Obj.normINTENSITY()
+        # Obj.rescaleINTENSITY()
+        # Obj.mergeVOLUME_RGB()
+        Obj.save_volume(tmp_vesselseg_prep, fstr = 'v_rgb')
         
         print('Processing file', idx+1, 'of', len(filenameLF_LIST))
         
@@ -213,11 +216,11 @@ def vessel_pipeline(dirs={'input':'',
 
 if __name__ == '__main__':
 
-    dirs = {'input': '~/data/pipeline/processableDataset/mat',
+    dirs = {'input': '~/data/pipeline/selection1/mat',
             #'laynet_model': '~/models/layerseg/test/mod_190731_depth4.pt',
             'laynet_model': '~/models/layerseg/test/mod_191101_depth5.pt',
             'vesnet_model': '~/data/vesnet/out/final/191211-01-final_VN+GN!/mod191211-01.pt',
-            'output': '~/data/pipeline/processableDataset/results'}
+            'output': '~/data/pipeline/selection1/refactoring-test'}
 
     dirs = {k: os.path.expanduser(v) for k, v in dirs.items()}
 
@@ -233,16 +236,13 @@ if __name__ == '__main__':
     #                       groupnorm=True,
                           # save_memory=True)
 
-    os.environ["CUDA_VISIBLE_DEVICES"]='0'
+    os.environ["CUDA_VISIBLE_DEVICES"]='3'
     
     img = vessel_pipeline(dirs=dirs,
                     laynet_depth=5,
                     vesnet_model=model,
                     ves_probability=0.96973,
-                    # pattern=['R_20170828155546'],  #if list, use patterns, otherwise, use whole dir
+                     pattern=['R_20170828155546'],  #if list, use patterns, otherwise, use whole dir
                     divs=(1,1,2),
                     delete_tmp=False,
                     return_img=False)
-
-
-

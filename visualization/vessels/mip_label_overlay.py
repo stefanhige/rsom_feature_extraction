@@ -328,11 +328,11 @@ def mip_label_overlay1(file_id, dirs, plot_epidermis=False, axis=-1, return_img=
     print('SURF file:', matSurf) 
     
     Obj = RsomVisualization_white(matLF, matHF, matSurf)
-    Obj.readMATLAB()
-    Obj.flatSURFACE()
+    Obj.read_matlab()
+    Obj.flat_surface()
     
     # z=500
-    Obj.cutDEPTH()
+    Obj.cut_depth()
     
     seg_file_ves = get_unique_filepath(seg_dir_ves, file_id)
     seg_file_lay = get_unique_filepath(seg_dir_lay, file_id)
@@ -343,7 +343,7 @@ def mip_label_overlay1(file_id, dirs, plot_epidermis=False, axis=-1, return_img=
         # axis = 0
         # this is the top view
         axis_ = 0
-        Obj.calcMIP(axis=axis_, do_plot=False, cut_z=z0)
+        Obj.calc_mip(axis=axis_, do_plot=False, cut_z=z0)
         Obj.calc_mip_ves_seg(seg=seg_file_ves, axis=axis_, padding=(0, 0))
         Obj.merge_mip_ves(do_plot=False)
         if return_img:
@@ -353,7 +353,7 @@ def mip_label_overlay1(file_id, dirs, plot_epidermis=False, axis=-1, return_img=
     if axis == -1 or axis == 1:
         # axis = 1
         axis_ = 1
-        Obj.calcMIP(axis=axis_, do_plot=False, cut_z=0)
+        Obj.calc_mip(axis=axis_, do_plot=False, cut_z=0)
         Obj.calc_mip_ves_seg(seg=seg_file_ves, axis=axis_, padding=(z0, 0))
         Obj.merge_mip_ves(do_plot=False)
         if plot_epidermis:
@@ -366,7 +366,7 @@ def mip_label_overlay1(file_id, dirs, plot_epidermis=False, axis=-1, return_img=
     
     if axis == -1 or axis == 2:
         axis_ = 2
-        Obj.calcMIP(axis=axis_, do_plot=False, cut_z=0)
+        Obj.calc_mip(axis=axis_, do_plot=False, cut_z=0)
         Obj.calc_mip_ves_seg(seg=seg_file_ves, axis=axis_, padding=(z0, 0))
         Obj.merge_mip_ves(do_plot=False)
         if plot_epidermis:
