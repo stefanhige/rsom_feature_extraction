@@ -1,18 +1,14 @@
+
 import torch
 import numpy as np
 from skimage.morphology import skeletonize_3d
 
 import os
 import copy
-import sys
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 
-parent_module = sys.modules['.'.join(__name__.split('.')[:-1]) or '__main__']
-if __name__ == '__main__' or parent_module.__name__ == '__main__':
-    from patch_handling import get_patch
-else:
-    from .patch_handling import get_patch
+from .patch_handling import get_patch
 
 import nibabel as nib
 import warnings

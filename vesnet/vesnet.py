@@ -22,24 +22,12 @@ import matplotlib.pyplot as plt
 from timeit import default_timer as timer
 from datetime import date
 
-# MY MODULES
-parent_module = sys.modules['.'.join(__name__.split('.')[:-1]) or '__main__']
-if __name__ == '__main__' or parent_module.__name__ == '__main__':
-    from _model import DeepVesselNet, ResVesselNet
-    from _dataset import RSOMVesselDataset, \
-            DropBlue, AddDuplicateDim, ToTensor, to_numpy, \
-            PrecalcSkeleton, DataAugmentation
-    from _metrics import BCEWithLogitsLoss, calc_metrics, find_cutoff, _dice
-    from patch_handling import get_volume
-
-else:
-
-    from ._model import DeepVesselNet, ResVesselNet
-    from ._dataset import RSOMVesselDataset, \
-            DropBlue, AddDuplicateDim, ToTensor, to_numpy, \
-            PrecalcSkeleton, DataAugmentation
-    from ._metrics import BCEWithLogitsLoss, calc_metrics, find_cutoff, _dice
-    from .patch_handling import get_volume
+from ._model import DeepVesselNet, ResVesselNet
+from ._dataset import RSOMVesselDataset, \
+        DropBlue, AddDuplicateDim, ToTensor, to_numpy, \
+        PrecalcSkeleton, DataAugmentation
+from ._metrics import BCEWithLogitsLoss, calc_metrics, find_cutoff, _dice
+from .patch_handling import get_volume
 
 class VesNetBase():
     """
@@ -156,6 +144,7 @@ class VesNetBase():
             self.data_shape = self.pred_dataset[0]['data'].shape
         if self.dirs['pred']:
             self.size_pred = len(self.pred_dataset)
+
     def predict(self, 
                 use_best=True, 
                 metrics=True, 
@@ -325,6 +314,7 @@ class VesNetBase():
 
     def printandlog(self, *msg):
         print(*msg)
+
 class VesNet(VesNetBase):
     '''
     class for setting up, training of vessel segmentation with deep vessel net 3d on RSOM dataset
@@ -517,11 +507,8 @@ class VesNet(VesNetBase):
                     self.device, 
                     dtype=self.dtype, 
                     non_blocking=self.non_blocking)
-            # debug('data shape:', data.shape)
-            # debug('label shape:', label.shape)
-            # debug(batch['meta']['filename'])
+            
             prediction = self.model(data)
-            # debug('prediction shape:', prediction.shape)
 
             loss = self.lossfn(pred=prediction, target=label, weight=self.class_weight)
             debug('current loss:', loss.item())
@@ -822,17 +809,12 @@ class VesNet(VesNetBase):
             print('               divs:', self.divs, file=where)
             print('             offset:', self.offset, file=where)
             print('         batch size:', self.batch_size, file=where)
-
-
             print('EPOCHS:', self.n_epochs, file=where)
             print('OPTIMIZER:', self.optimizer, file=where)
             print('initial lr:', self.initial_lr, file=where)
             print('LOSS: fn', self.lossfn, file=where)
             print('class_weight', self.class_weight, file=where)
-            # print('      smoothnes param', self.lossfn_smoothness, file=where)
             print('CNN:  ', self.model, file=where)
-            # if self.model gets too long, eg unet
-            #print('CNN:  ', self.model.__class__.__name__, file=where)
             if self.dirs['pred']:
                 print('PRED:  pred dataset:', self.dirs['pred'], file=where)
                 print('             length:', self.size_pred, file=where)
