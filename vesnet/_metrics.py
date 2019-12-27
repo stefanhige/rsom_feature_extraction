@@ -28,8 +28,6 @@ def BCEWithLogitsLoss(pred, target, weight=None):
     
     return loss
 
-
-
 def dice_loss(pred, target, eps=1e-7, weight=None):
     """Computes the Sørensen–Dice loss.
     from:
@@ -228,9 +226,6 @@ def calc_metrics(pred, target, skel):
 
     return cl_score, out_score.item(), dice
 
-
-
-
 class _softcl(nn.Module):
     def __init__(self, k=2):
         super(_softcl, self).__init__()
@@ -250,7 +245,6 @@ class _softcl(nn.Module):
 
             self.cl += F.relu(x-x_)
         return self.cl
-    
     
 def minpool(x):
     return -F.max_pool3d(-x, kernel_size=3, stride=1, padding=1, dilation=1)

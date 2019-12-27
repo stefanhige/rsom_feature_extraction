@@ -20,8 +20,8 @@ from torchvision import transforms, utils
 
 from laynet import LayerNetBase
 
-from vesnet.deep_vessel_3d import DeepVesselNet
-from vesnet.VesNET import VesNetBase, debug
+from vesnet._model import DeepVesselNet
+from vesnet import VesNetBase
 
 from visualization.vessels.mip_label_overlay import mip_label_overlay, mip_label_overlay1
 from visualization.vessels.mip_label_overlay import RsomVisualization

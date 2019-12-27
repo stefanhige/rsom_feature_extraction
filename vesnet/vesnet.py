@@ -25,23 +25,21 @@ from datetime import date
 # MY MODULES
 parent_module = sys.modules['.'.join(__name__.split('.')[:-1]) or '__main__']
 if __name__ == '__main__' or parent_module.__name__ == '__main__':
-    from deep_vessel_3d import DeepVesselNet, ResVesselNet
-    from dataloader import RSOMVesselDataset
-    from dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
-    from dataloader import PrecalcSkeleton, DataAugmentation
-    from lossfunctions import BCEWithLogitsLoss, calc_metrics, find_cutoff, _dice
-    from lossfunctions import dice_loss
+    from _model import DeepVesselNet, ResVesselNet
+    from _dataset import RSOMVesselDataset, \
+            DropBlue, AddDuplicateDim, ToTensor, to_numpy, \
+            PrecalcSkeleton, DataAugmentation
+    from _metrics import BCEWithLogitsLoss, calc_metrics, find_cutoff, _dice
     from patch_handling import get_volume
 
 else:
-    from .deep_vessel_3d import DeepVesselNet, ResVesselNet
-    from .dataloader import RSOMVesselDataset
-    from .dataloader import DropBlue, AddDuplicateDim, ToTensor, to_numpy
-    from .dataloader import PrecalcSkeleton, DataAugmentation
-    from .lossfunctions import BCEWithLogitsLoss, calc_metrics, find_cutoff, _dice
-    from .lossfunctions import dice_loss
-    from .patch_handling import get_volume
 
+    from ._model import DeepVesselNet, ResVesselNet
+    from ._dataset import RSOMVesselDataset, \
+            DropBlue, AddDuplicateDim, ToTensor, to_numpy, \
+            PrecalcSkeleton, DataAugmentation
+    from ._metrics import BCEWithLogitsLoss, calc_metrics, find_cutoff, _dice
+    from .patch_handling import get_volume
 
 class VesNetBase():
     """
@@ -327,7 +325,7 @@ class VesNetBase():
 
     def printandlog(self, *msg):
         print(*msg)
-class VesNET(VesNetBase):
+class VesNet(VesNetBase):
     '''
     class for setting up, training of vessel segmentation with deep vessel net 3d on RSOM dataset
     Args:
