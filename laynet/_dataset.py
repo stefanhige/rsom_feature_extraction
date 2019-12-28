@@ -466,7 +466,6 @@ def to_numpy(V, meta):
     # [Z x X x Y] [500 x 171 x 333]
     
     # here: we only need to backtransform labels
-    print(V.shape)
     if not isinstance(V, np.ndarray):
         assert isinstance(V, torch.Tensor)
         V = V.numpy()
@@ -481,14 +480,14 @@ def to_numpy(V, meta):
     # parse label crop
     b = (meta['lcrop']['begin']).numpy().squeeze()
     e = (meta['lcrop']['end']).numpy().squeeze()
-    print('b, e')
-    print(b, e)
-    print(b.shape, e.shape)
+    # print('b, e')
+    # print(b, e)
+    # print(b.shape, e.shape)
     
     pad_width = ((b[0], e[0]), (b[1], e[1]), (b[2], e[2]))
-    print(V.shape)
+    # print(V.shape)
     
     V = np.pad(V, pad_width, 'edge')
 
-    print(V.shape)
+    # print(V.shape)
     return V

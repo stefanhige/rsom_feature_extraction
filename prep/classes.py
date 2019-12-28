@@ -1159,3 +1159,216 @@ class RSOM_mip_interp():
     
         # RESULT: in dim 0: ascending index: label order: 4 3 2 1 0
         
+
+class RsomVisualization(RSOM):
+    '''
+    subclass of RSOM
+    for various visualization tasks
+    '''
+
+    def load_seg(self, filename):
+        '''
+        load segmentation file (can be labeled our predicted)
+
+        '''
+        return (self.loadNII(filename)).astype(np.uint8)
+
+    def calc_mip_ves_seg(self, seg, axis=1, padding=(0, 0)):
+        '''
+        calculate pseudo-mip of boolean segmentation
+        '''
+        seg = self.load_seg(seg)
+
+        mip = np.sum(seg, axis=axis) >= 1
+
+        # probably need some further adjustment on mip.shape[-1]
+        print('seg mip shape:', mip.shape)
+        mip = np.concatenate((np.zeros((padding[0], mip.shape[-1]), dtype=np.bool), 
+                              mip.astype(np.bool),
+                              np.zeros((padding[1], mip.shape[-1]), dtype=np.bool)), axis=0)
+        # naming convention self.P is normal MIP 
+        self.axis_P = axis
+        self.P_seg = mip
+
+    def calc_mip_lay_seg(self, seg, axis=1, padding=(0, 0)):
+
+        seg = self.load_seg(seg)
+
+        mip = np.sum(seg, axis=axis) >= 1
+
+        print('seg mip shape:', mip.shape)
+        mip = np.concatenate((np.zeros((padding[0], mip.shape[-1]), dtype=np.bool), 
+                              mip.astype(np.bool),
+                              np.zeros((padding[1], mip.shape[-1]), dtype=np.bool)), axis=0)
+        # naming convention self.P is normal MIP 
+        self.axis_P = axis
+        self.P_seg = mip
+
+    def merge_mip_ves(self, do_plot=True):
+        '''
+        merge MIP and MIP of segmentation with feeding into blue channel
+        '''
+
+        P_seg = self.P_seg.astype(np.float32)
+        P_seg_edge = filters.sobel(P_seg)
+        P_seg_edge = P_seg_edge/np.amax(P_seg_edge)
+
+        # feed into blue channel
+        # blue = 150 * P_seg + 200 * P_seg_edge
+        # very light edge
+        blue = 150 * P_seg + 30 * P_seg_edge
+        
+        self.P_overlay = self.P.copy().astype(np.float32)
+        self.P_overlay[:, :, 2] += blue
+        self.P_overlay[self.P>255] = 255
+
+        # test, white background
+        # P = self.P.astype(np.int64)
+        # P += 100*np.ones(P.shape, dtype=np.int64)
+
+        # print(np.amax(P
+        # A = np.array([[scale, 0, 0], [0, scale, 0], [0, 0, scale]])
+        # self.P = ndimage.affine_transform(self.P, A)
+
+        # self.P[np.where((self.P == [0,0,0]).all(axis = 2))] = [255,255,255]   
+        if do_plot:
+            plt.figure()
+            plt.imshow(self.P)
+            plt.title(str(self.file.ID))
+            #plt.imshow(P, aspect = 1/4)
+            plt.show()
+    
+    def merge_mip_lay(self, do_plot=True):
+        '''
+        merge MIP and MIP of segmentation with feeding into blue channel
+        '''
+
+        P_seg = self.P_seg.astype(np.float32)
+        P_seg_edge = filters.sobel(P_seg)
+        P_seg_edge = P_seg_edge/np.amax(P_seg_edge)
+        P_seg_edge = morphology.binary_dilation(P_seg_edge)
+           
+
+        # feed into blue channel
+        # blue = 150 * P_seg + 200 * P_seg_edge
+        # very light edge
+        blue = 150 * P_seg + 30 * P_seg_edge
+        blue[blue>255] = 255
+       
+        # P_seg_edge_ma = np.ma.masked_array(P_seg_edge,mask=P_seg_edge==0)
+                
+        self.P_overlay[:, :, 2] += 255*P_seg_edge
+        self.P_overlay[:, :, 0] += 100*P_seg_edge
+        self.P_overlay[:, :, 1] += 100*P_seg_edge
+        self.P_overlay[self.P>255] = 255
+
+
+        # test, white background
+        # P = self.P.astype(np.int64)
+        # P += 100*np.ones(P.shape, dtype=np.int64)
+
+        # print(np.amax(P
+        # A = np.array([[scale, 0, 0], [0, scale, 0], [0, 0, scale]])
+        # self.P = ndimage.affine_transform(self.P, A)
+
+        # self.P[np.where((self.P == [0,0,0]).all(axis = 2))] = [255,255,255]   
+        if do_plot:
+            plt.figure()
+            plt.imshow(self.P)
+            plt.title(str(self.file.ID))
+            #plt.imshow(P, aspect = 1/4)
+            plt.show()
+
+    def _rescale_mip(self, scale):
+
+        self.P_overlay = self.P_overlay.astype(np.uint8)
+        
+        if scale != 1:
+            
+            self.P = transform.rescale(self.P, scale, order=3, multichannel=True)
+            # strangely transform.rescale is not dtype consistent?
+            self.P = exposure.rescale_intensity(self.P, out_range=np.uint8)
+            self.P = self.P.astype(np.uint8)
+            
+            self.P_overlay = transform.rescale(self.P_overlay, scale, order=3, multichannel=True)
+            # strangely transform.rescale is not dtype consistent?
+            self.P_overlay = exposure.rescale_intensity(self.P_overlay, out_range=np.uint8)
+            self.P_overlay = self.P_overlay.astype(np.uint8)
+   
+    def return_mip(self, scale=2):
+
+        self._rescale_mip(scale)
+
+        return self.P, self.P_overlay
+
+    def save_comb_mip(self, dest, scale=2):
+        
+        self._rescale_mip(scale)
+        
+        if self.P.shape[0] > self.P.shape[1]:
+            axis = 1
+        else:
+            axis = 0
+        
+        grey = 50
+        
+        img = np.concatenate((np.pad(self.P, 
+                                     ((2, 2),(2, 2),(0, 0)), 
+                                     mode='constant', 
+                                     constant_values=grey),
+                             np.pad(self.P_overlay, 
+                                    ((2, 2),(2, 2),(0, 0)), 
+                                    mode='constant',
+                                     constant_values=grey)),
+                             axis=axis)
+        img = np.pad(img, 
+                     ((2, 2),(2, 2),(0, 0)), 
+                     mode='constant', 
+                     constant_values=grey)
+        
+        img_file = os.path.join(dest, 'R' + 
+                                   self.file.DATETIME + 
+                                   self.file.ID +
+                                   '_' +
+                                   'combMIP_ax' +
+                                   str(self.axis_P) + 
+                                   '.png')
+        print(str(img_file))
+        
+        
+        imageio.imwrite(img_file, img)
+
+class RsomVisualization_white(RsomVisualization):
+    
+    #def merge_mip_ves(self, do_plot=True):
+    #    '''
+    #    merge MIP and MIP of segmentation with feeding into blue channel
+    #    '''
+        
+    #    self.P_overlay = _overlay(self.P, self.P_seg.astype(np.float32),
+    #                              alpha=0.6)
+        
+    #    self.P_overlay[self.P>255] = 255
+        
+    #    if do_plot:
+    #        plt.figure()
+    #        plt.imshow(self.P)
+    #        plt.title(str(self.file.ID))
+    #        #plt.imshow(P, aspect = 1/4)
+    #        plt.show()
+    
+    def merge_mip_lay(self, do_plot=True):
+        '''
+        merge MIP and MIP of segmentation with feeding into blue channel
+        '''
+        self.P_overlay = _overlay(self.P_overlay, self.P_seg.astype(np.float32),
+                                  alpha=0.5)
+        
+        self.P_overlay[self.P>255] = 255
+        
+        if do_plot:
+            plt.figure()
+            plt.imshow(self.P)
+            plt.title(str(self.file.ID))
+            #plt.imshow(P, aspect = 1/4)
+            plt.show()

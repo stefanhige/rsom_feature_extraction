@@ -23,7 +23,7 @@ from vesnet._model import DeepVesselNet
 from vesnet import VesNetBase
 
 from visualization.vessels.mip_label_overlay import mip_label_overlay, mip_label_overlay1
-from visualization.vessels.mip_label_overlay import RsomVisualization
+# from visualization.vessels.mip_label_overlay import RsomVisualization
 # from visualization.vessels.mip_label_overlay import get_unique_filepath
 
 # define folder
