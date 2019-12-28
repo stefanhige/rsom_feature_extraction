@@ -8,8 +8,7 @@ from scipy import ndimage
 import nibabel as nib
 import copy
 import torch
-from torch import nn
-import torch.nn.functional as F
+
 import shutil
 
 from prep.classes import RSOM, RSOM_vessel
@@ -40,13 +39,6 @@ def vessel_pipeline(dirs={'input':'',
                     delete_tmp=False,
                     return_img=False,
                     mip_overlay_axis=None):
-
-
-    # dirs['input'] = '/home/stefan/Documents/RSOM/Diabetes/new_data/mat'
-    # dirs['laynet_model'] = '/home/stefan/models/layerseg/test/mod_190731_depth4.pt'
-    # dirs['vesnet_model'] = '/home/stefan/data/vesnet/out/191017-00-rt_+backg_bce_gn/mod191017-00.pt'
-    # dirs['output'] = '/home/stefan/Documents/RSOM/Diabetes/new_data/out'
-
 
     tmp_layerseg_prep = os.path.join(dirs['output'], 'tmp', 'layerseg_prep')
     tmp_layerseg_out = os.path.join(dirs['output'], 'tmp', 'layerseg_out')
@@ -85,7 +77,6 @@ def vessel_pipeline(dirs={'input':'',
         print(tmp_vesselseg_prob, 'does exist!')
     
     # mode
-    print(pattern)
     if pattern == None:
         cwd = os.getcwd()
         os.chdir(dirs['input'])
@@ -117,14 +108,6 @@ def vessel_pipeline(dirs={'input':'',
 
         Obj.prepare()
 
-        # Obj.readMATLAB()
-        # Obj.flatSURFACE()
-        # Obj.cutDEPTH()
-        
-        # # VOLUME
-        # Obj.normINTENSITY()
-        # Obj.rescaleINTENSITY(dynamic_rescale = False)
-        # Obj.mergeVOLUME_RGB()
         Obj.save_volume(tmp_layerseg_prep, fstr = 'rgb')
         print('Processing file', idx+1, 'of', len(filenameLF_LIST))
 
@@ -158,15 +141,6 @@ def vessel_pipeline(dirs={'input':'',
         Obj = RSOM_vessel(fullpathLF, fullpathHF, fullpathSurf)
         
         Obj.prepare(tmp_layerseg_out, mode='pred', fstr='pred.nii.gz')
-# Obj.readMATLAB()
-        # Obj.flatSURFACE()
-        # Obj.cutDEPTH()
-        # # cut epidermis
-        # Obj.cutLAYER(tmp_layerseg_out, mode='pred', fstr='pred.nii.gz')
-        # # VOLUME
-        # Obj.normINTENSITY()
-        # Obj.rescaleINTENSITY()
-        # Obj.mergeVOLUME_RGB()
         Obj.save_volume(tmp_vesselseg_prep, fstr = 'v_rgb')
         
         print('Processing file', idx+1, 'of', len(filenameLF_LIST))
