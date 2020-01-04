@@ -5,6 +5,8 @@
 
 ## VESNET
 
+* on release branch / github version: pep8 mistakes
+
 * major: huge cleanup for pipeline and stuff
          - checkout new branch of current status
          - continue cleanup on master
