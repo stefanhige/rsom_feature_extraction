@@ -10,9 +10,9 @@ import scipy.io as sio
 
 # VOL018_RL02
 
-fileHF = '/home/stefan/Documents/RSOM/Diabetes/allmat/R_20180409171854_VOL018_RL02_100p_RSOM50_wl1_corrHF.mat'
-fileLF = '/home/stefan/Documents/RSOM/Diabetes/allmat/R_20180409171854_VOL018_RL02_100p_RSOM50_wl1_corrLF.mat'
-fileSURF = '/home/stefan/Documents/RSOM/Diabetes/allmat/Surf_20180409171854_.mat'
+fileHF = '/home/stefan/PYTHON/HQDatasetVesselAnnot/mat/R_20190430164629_Stefan_LeftVolarArterialCuff_off_1_RSOM50_wl1_corrHF.mat'
+fileLF = '/home/stefan/PYTHON/HQDatasetVesselAnnot/mat/R_20190430164629_Stefan_LeftVolarArterialCuff_off_1_RSOM50_wl1_corrLF.mat'
+fileSURF = '/home/stefan/PYTHON/HQDatasetVesselAnnot/mat/Surf_20190430164629_.mat'
 
 # load HF data
 matfileHF = sio.loadmat(fileHF)
