@@ -64,7 +64,7 @@ class LayerNetBase():
         self.dtype = torch.float32
         
         self.model = UNet(in_channels=2,
-                          n_classes=2,
+                          n_classes=1,
                           depth=self.model_depth,
                           wf=6,
                           padding=True,
@@ -298,13 +298,13 @@ class LayerNet(LayerNetBase):
         
         # MODEL
         self.model = UNet(in_channels=2,
-             n_classes=2,
-             depth=model_depth,
-             wf=6,
-             padding=True,
-             batch_norm=True,
-             up_mode='upconv',
-             dropout=dropout)
+                         n_classes=1,
+                         depth=model_depth,
+                         wf=6,
+                         padding=True,
+                         batch_norm=True,
+                         up_mode='upconv',
+                         dropout=dropout)
         self.model_dropout = dropout
         
         self.model = self.model.to(device)
@@ -566,6 +566,9 @@ class LayerNet(LayerNetBase):
                 data = torch.squeeze(data, dim=0)
                 label = torch.squeeze(label, dim=0)
                 weight = torch.squeeze(weight, dim=0)
+                
+                label = torch.unsqueeze(label, dim=1)
+                weight = torch.unsqueeze(weight, dim=1)
                 
                 prediction = self.model(data)
             

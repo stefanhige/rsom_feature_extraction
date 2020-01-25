@@ -33,6 +33,8 @@ def custom_loss_1_smooth(pred, target, spatial_weight, class_weight=None, smooth
     
     # add smoothness loss
     more =  smoothness_weight*smoothness_loss(pred)
+    
+    print('H_', loss, 'S_', more)
     loss += more
     
     return loss 
@@ -42,7 +44,10 @@ def bce_and_smooth(pred, target, spatial_weight, class_weight=None, smoothness_w
     # CROSS ENTROPY PART
     f_H = torch.nn.BCEWithLogitsLoss(reduction='none',
                                      pos_weight=class_weight[1]/class_weight[0])
-    
+
+    # print('Pred', pred.shape)
+    # print('Target', target.shape)
+    # print('spatial_weight', spatial_weight.shape)
     H = f_H(pred, target)
 
     # scale with spatial weight
@@ -50,28 +55,61 @@ def bce_and_smooth(pred, target, spatial_weight, class_weight=None, smoothness_w
 
     H = torch.sum(H)
 
-    return H
     # SMOOTHNESS PART
-    # f_S = torch.nn.Sigmoid()
+    f_S = torch.nn.Sigmoid()
 
-    # S = f_S(pred)
+    S = f_S(pred)
 
-    # S = smoothness_weight * smoothness_loss_new(S)
+    S = smoothness_weight * smoothness_loss_new(S)
+    # print('H', H, 'S', S)
+    return H + S
 
-    # return H + S
+def smoothness_loss_new(S, window=5):
+    
+    # print('S minmax', S.min(), S.max())
+    # print('S.shape', S.shape) 
+    
+    pred_shape = S.shape 
+    
+    S = S.view(-1)
+   
+    # add 2 extra dimensions
+    # conv1d needs input of shape
+    # [minibatch x in_channels x iW]
+    label = torch.unsqueeze(S, 0)
+    label = torch.unsqueeze(label, 0)
 
-def smoothness_loss_new(S):
-    pass
+    # weights of the convolutions are simply 1, and divided by the window size
+    weight = torch.ones(1, 1, window).float().to('cuda') / window
 
-def scalingfn(l):
-    '''
-    l is length
-    '''
-    # linear, starting at 1
-    y = torch.arange(l) + 1
-    return y
+    label_conv = torch.nn.functional.conv1d(input=label, 
+            weight=weight,
+            padding=int(math.floor(window/2)))
+    
+    label_conv = torch.squeeze(label_conv)
+    label = torch.squeeze(label)
+    
+    # for perfectly smooth label, this value is zero
+    # e.g. if label_conv[i] = label[i], -> 1/1 - 1 = 0
+    label_smoothness =torch.abs(((label_conv + 1) / (label + 1)) - 1)
+    
+    # edge correction, steps at the boundaries do not count as unsmooth,
+    # therefore corresponding entries of label_smoothness are zeroed out
+    edge_corr = torch.zeros((pred_shape[3])).to('cuda')
+    edge_corr[int(math.floor(window/2)):-int(math.floor(window/2))] = 1
+    edge_corr = edge_corr.repeat(pred_shape[0]*pred_shape[2])
 
-def smoothness_loss(pred):
+    label_smoothness *= edge_corr
+   
+    # print('after smooth', label_smoothness.shape)
+    # print('min max', label_smoothness.min(), label_smoothness.max())
+    # target shape
+    # [minibatch x Z x X]
+    
+    # return some loss measure, as the sum of all smoothness losses
+    return torch.sum(label_smoothness)    
+    
+def smoothness_loss(pred, window=5):
     '''
     smoothness loss x-y plane, ie. perfect label
     separation in z-direction will cause zero loss
@@ -86,8 +124,6 @@ def smoothness_loss(pred):
     label = torch.nn.functional.relu(label)
 
     label = label.view(-1)
-
-    window = 5
 
     # add 2 extra dimensions
     # conv1d needs input of shape

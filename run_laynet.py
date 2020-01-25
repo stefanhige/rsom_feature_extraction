@@ -1,7 +1,7 @@
 
 import torch
 import os
-from laynet._metrics import custom_loss_1_smooth
+from laynet._metrics import custom_loss_1_smooth, bce_and_smooth
 from laynet import LayerNet, LayerNetBase
 
 mode = 'train'
@@ -26,14 +26,14 @@ if mode == 'train':
 
         net1 = LayerNet(device=device,
                         sdesc='test',
-                        model_depth=3,
+                        model_depth=5,
                         dataset_zshift=(-50, 200),
                         dirs=dirs,
                         optimizer='Adam',
                         initial_lr=1e-4,
                         scheduler_patience=3,
-                        lossfn=custom_loss_1_smooth,
-                        lossfn_smoothness=50,
+                        lossfn=bce_and_smooth,
+                        lossfn_smoothness=100,
                         epochs=1,
                         dropout=True,
                         class_weight=(0.3, 0.7),
@@ -46,7 +46,6 @@ if mode == 'train':
         net1.train_all_epochs()
         net1.save_code_status()
         net1.save_model()
-        # net1.save()
 
 
 elif mode == 'predict':
