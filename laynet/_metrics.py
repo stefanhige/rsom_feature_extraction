@@ -4,50 +4,6 @@ import warnings
 import copy 
 import numpy as np
 import math
-def cross_entropy_2d(pred, target, weight):
-    '''
-    doc string
-    '''
-    fn = torch.nn.CrossEntropyLoss()
-    
-    ps = pred.shape
-    ts = target.shape
-
-    assert ps[0] == ts[0], 'Batch sizes incorrect.'
-
-    # in case of incorrect padding, d1 and d2 
-    # of pred and target may be different
-    if (ps[2] != ts[1]) or ps[3] != ts[2]:
-        warnings.warn("Shapes of Prediction and Target do not match.",
-                'Pred', ps, 'Target', ts)
-        p_d1 = ps[2]
-        p_d2 = ps[3]
-        t_d1 = ps[1]
-        t_d2 = ps[2]
-
-        # half of prediction
-        # TODO: implement symmetric cutting
-        target = target[:,:p_d1,:p_d2]
-
-    # typecast
-    pred = pred.float()
-    target = target.long()
-
-    # pred shape is
-    # [N x C x d1 x d2]
-    # N: batch size
-    # C: number of Classes (here: 2)
-    # d1 d2: spatial dimensions
-    # dtype: float
-
-    # target shape is
-    # [N x d1 x d2]
-    # with N[,,,] = 0...C-1 (here: either 0 or 1)
-    # entries are class labels
-    # dtype: long
-    loss = fn(pred, target)
-
-    return loss
 
 def custom_loss_1(pred, target, spatial_weight, class_weight=None):
     '''
@@ -80,7 +36,33 @@ def custom_loss_1_smooth(pred, target, spatial_weight, class_weight=None, smooth
     loss += more
     
     return loss 
- 
+
+def bce_and_smooth(pred, target, spatial_weight, class_weight=None, smoothness_weight=100):
+    
+    # CROSS ENTROPY PART
+    f_H = torch.nn.BCEWithLogitsLoss(reduction='none',
+                                     pos_weight=class_weight[1]/class_weight[0])
+    
+    H = f_H(pred, target)
+
+    # scale with spatial weight
+    H = spatial_weight.float() * H
+
+    H = torch.sum(H)
+
+    return H
+    # SMOOTHNESS PART
+    # f_S = torch.nn.Sigmoid()
+
+    # S = f_S(pred)
+
+    # S = smoothness_weight * smoothness_loss_new(S)
+
+    # return H + S
+
+def smoothness_loss_new(S):
+    pass
+
 def scalingfn(l):
     '''
     l is length

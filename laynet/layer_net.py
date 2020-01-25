@@ -7,6 +7,7 @@ import json
 import warnings
 from timeit import default_timer as timer
 
+from datetime import date
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
@@ -119,6 +120,7 @@ class LayerNetBase():
             
             
             # transform -> labels
+            prediction_stack = torch.nn.functional.sigmoid(prediction_stack)
             label = (prediction_stack[:,1,:,:] > prediction_stack[:,0,:,:]) 
 
             m = batch['meta']
@@ -130,8 +132,22 @@ class LayerNetBase():
             label = self.smooth_pred(label, filename)
 
             print('Saving', filename)
-            save_nii(label, self.dirs['out'], filename + 'pred')
+            save_nii(label.astype(np.uint8), self.dirs['out'], filename + 'pred')
             
+            if 1:
+                print('MIN MAX', 
+                        prediction_stack[:,1,:,:].min(), 
+                        prediction_stack[:,1,:,:].max())
+                foreground = prediction_stack[:,1,:,:]
+                background = prediction_stack[:,0,:,:]
+
+                save_nii(to_numpy(foreground, m),
+                        self.dirs['out'], 
+                        filename + 'ppred_fg')
+                save_nii(to_numpy(background, m),
+                        self.dirs['out'], 
+                        filename + 'ppred_bg')
+
 
             # compare to ground truth
             if 0:
@@ -228,10 +244,10 @@ class LayerNet(LayerNetBase):
     '''
     def __init__(self,
                  device=torch.device('cuda'),
+                 sdesc='',
                  model_depth=3,
                  dataset_zshift=0,
-                 dirs={'train':'','eval':'', 'model':'', 'pred':''},
-                 filename = '',
+                 dirs={'train':'','eval':'', 'model':'', 'pred':'', 'out':''},
                  optimizer = 'Adam',
                  initial_lr = 1e-4,
                  scheduler_patience = 3,
@@ -239,16 +255,46 @@ class LayerNet(LayerNetBase):
                  lossfn_smoothness = 0,
                  class_weight = None,
                  epochs = 30,
-                 dropout = False
+                 dropout = False,
+                 DEBUG = False,
                  ):
+        self.sdesc = sdesc 
+
+        self.DEBUG = DEBUG
+        self.LOG = True
+        if DEBUG:
+            print('DEBUG MODE')
+#
+        out_root_list = os.listdir(dirs['out'])
+
+        today = date.today().strftime('%y%m%d')
+        today_existing = [el for el in out_root_list if today in el]
+        if today_existing:
+            nr = max([int(el[7:9]) for el in today_existing]) + 1
+        else:
+            nr = 0
+
+        self.dirs = dirs
         
+        self.today_id = today + '-{:02d}'.format(nr)
+        self.dirs['out'] = os.path.join(self.dirs['out'], self.today_id)
+        if self.sdesc:
+            self.dirs['out'] += '-' + self.sdesc
+
+        self.debug('Output directory string:', self.dirs['out'])
+
+
         # PROCESS LOGGING
-        self.filename = filename
-        try:
-            self.logfile = open(os.path.join(dirs['model'], 'log_' + filename), 'x')
-        except:
-            self.logfile = open(os.path.join(dirs['model'], 'log_' + filename), 'a')
-            warnings.warn('logfile already exists! appending to existing file..', UserWarning) 
+        if not self.DEBUG: 
+            os.mkdir(self.dirs['out'])
+            if self.LOG:
+                try:
+                    self.logfile = open(os.path.join(self.dirs['out'], 
+                        'log' + self.today_id), 'x')
+                except:
+                    print('Couldn\'n open logfile')
+            else:
+                self.logfile=None
         
         # MODEL
         self.model = UNet(in_channels=2,
@@ -277,11 +323,6 @@ class LayerNet(LayerNetBase):
             self.class_weight = None
 
         self.lossfn_smoothness = lossfn_smoothness
-        
-        
-        # DIRECTORIES
-        # Dictionary with entries 'train' 'eval' 'model' 'pred'
-        self.dirs = dirs
 
         
         # DATASET
@@ -290,7 +331,6 @@ class LayerNet(LayerNetBase):
         self.train_dataset = RSOMLayerDataset(self.dirs['train'],
             transform=transforms.Compose([RandomZShift(dataset_zshift),
                                           ZeroCenter(),
-                                          # SwapDim(),
                                           CropToEven(network_depth=self.model_depth),
                                           DropBlue(),
                                           ToTensor(),
@@ -308,7 +348,6 @@ class LayerNet(LayerNetBase):
         self.eval_dataset = RSOMLayerDataset(self.dirs['eval'],
             transform=transforms.Compose([RandomZShift(),
                                           ZeroCenter(),
-                                          # SwapDim(),
                                           CropToEven(network_depth=self.model_depth),
                                           DropBlue(),
                                           ToTensor(),
@@ -362,31 +401,39 @@ class LayerNet(LayerNetBase):
         self.args.non_blocking = True
         self.args.n_epochs = epochs
         self.args.data_dim = self.eval_dataset[0]['data'].shape
-        
+       
+    def debug(self, *msg):
+        if self.DEBUG:
+            print(*msg)
     def printConfiguration(self, destination='stdout'):
         if destination == 'stdout':
             where = sys.stdout
-        elif destination == 'logfile':
+        elif destination == 'logfile' and not self.DEBUG:
             where = self.logfile
         
-        print('LayerUNET configuration:',file=where)
-        print('DATA: train dataset loc:', self.dirs['train'], file=where)
-        print('      train dataset len:', self.args.size_train, file=where)
-        print('      eval dataset loc:', self.dirs['eval'], file=where)
-        print('      eval dataset len:', self.args.size_eval, file=where)
-        print('      shape:', self.args.data_dim, file=where)
-        print('      zshift:', self.train_dataset_zshift)
-        print('EPOCHS:', self.args.n_epochs, file=where)
-        print('OPTIMIZER:', self.optimizer, file=where)
-        print('initial lr:', self.initial_lr, file=where)
-        print('LOSS: fn', self.lossfn, file=where)
-        print('      class_weight', self.class_weight, file=where)
-        print('      smoothnes param', self.lossfn_smoothness, file=where)
-        print('CNN:  unet', file=where)
-        print('      depth', self.model_depth, file=where)
-        print('      dropout?', self.model_dropout, file=where)
-        print('OUT:  model:', self.dirs['model'], file=where)
-        print('      pred:', self.dirs['pred'], file=where)
+        if destination=='logfile' and self.DEBUG:
+            pass
+        else:
+            print('LayerUNET configuration:',file=where)
+            print('DATA: train dataset loc:', self.dirs['train'], file=where)
+            print('      train dataset len:', self.args.size_train, file=where)
+            print('      eval dataset loc:', self.dirs['eval'], file=where)
+            print('      eval dataset len:', self.args.size_eval, file=where)
+            print('      shape:', self.args.data_dim, file=where)
+            print('      zshift:', self.train_dataset_zshift)
+            print('EPOCHS:', self.args.n_epochs, file=where)
+            print('OPTIMIZER:', self.optimizer, file=where)
+            print('initial lr:', self.initial_lr, file=where)
+            print('LOSS: fn', self.lossfn, file=where)
+            print('      class_weight', self.class_weight, file=where)
+            print('      smoothnes param', self.lossfn_smoothness, file=where)
+            print('CNN:  unet', file=where)
+            print('      depth', self.model_depth, file=where)
+            print('      dropout?', self.model_dropout, file=where)
+            print('OUT:  model:', self.dirs['model'], file=where)
+            print('      pred:', self.dirs['pred'], file=where)
+            print('')
+            print(self.model, file=where)
 
     def train_all_epochs(self):  
         self.best_model = copy.deepcopy(self.model.state_dict())
@@ -444,12 +491,16 @@ class LayerNet(LayerNetBase):
                 found_nb = ''
         
             print('Epoch {:d} of {:d}: lr={:.0e}, Lt={:.2e}, Le={:.2e}'.format(
-                curr_epoch+1, self.args.n_epochs, curr_lr, train_loss, curr_loss), found_nb)
-            print('Epoch {:d} of {:d}: lr={:.0e}, Lt={:.2e}, Le={:.2e}'.format(
-                curr_epoch+1, self.args.n_epochs, curr_lr, train_loss, curr_loss), found_nb, file=self.logfile)
+                curr_epoch+1, 
+                self.args.n_epochs, curr_lr, train_loss, curr_loss), found_nb)
+            if not self.DEBUG:
+                print('Epoch {:d} of {:d}: lr={:.0e}, Lt={:.2e}, Le={:.2e}'.format(
+                    curr_epoch+1, 
+                    self.args.n_epochs, curr_lr, train_loss, curr_loss), found_nb, file=self.logfile)
     
-        print('finished. saving model')
-        self.logfile.close()
+        print('finished training. saving model')
+        if not self.DEBUG:
+            self.logfile.close()
     
     def train(self, iterator, epoch):
         '''
@@ -626,14 +677,30 @@ class LayerNet(LayerNetBase):
             epoch_loss = running_loss / (self.args.size_eval*batch['data'].shape[1])
             self.history['eval']['epoch'].append(epoch)
             self.history['eval']['loss'].append(epoch_loss)
-           
-    def save(self):
-        torch.save(self.best_model, os.path.join(self.dirs['model'], 'mod_' + self.filename + '.pt'))
-        
-        json_f = json.dumps(self.history)
-        f = open(os.path.join(self.dirs['model'],'hist_' + self.filename + '.json'),'w')
-        f.write(json_f)
-        f.close()
+    
+    def save_code_status(self):
+        if not self.DEBUG:
+            try:
+                path = os.path.join(self.dirs['out'],'git')
+                os.system('git log -1 | head -n 1 > {:s}.diff'.format(path))
+                os.system('echo /"\n/" >> {:s}.diff'.format(path))
+                os.system('git diff >> {:s}.diff'.format(path))
+            except:
+                self.printandlog('Saving git diff FAILED!')
+    
+    def save_model(self, model='best', pat=''):
+        if not self.DEBUG:
+            if model=='best':
+                save_this = self.best_model
+            elif model=='last':
+                save_this = self.last_model
+            
+            torch.save(save_this, os.path.join(self.dirs['out'],'mod' + self.today_id + pat + '.pt'))
+            
+            json_f = json.dumps(self.history)
+            f = open(os.path.join(self.dirs['out'],'hist_' + self.today_id + pat + '.json'),'w')
+            f.write(json_f)
+            f.close()
             
     class helperClass():
         pass
