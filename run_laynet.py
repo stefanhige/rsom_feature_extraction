@@ -7,12 +7,21 @@ from laynet import LayerNet, LayerNetBase
 mode = 'train'
 
 if mode == 'train':
-    N = 1
+    N = 4
+
+    sdesc = ['s=0',
+             's=1',
+             's=100',
+             's=10000']
+
+    s = [0, 1, 100, 10000]
+
     root_dir = '/home/gerlstefan/data/layerunet/fullDataset/labeled'
 
     DEBUG = False
 
     out_dir = '/home/gerlstefan/data/layerunet/miccai'
+    pred_dir = '/home/gerlstefan/data/pipeline/selection1/t_rt_mp_gn/tmp/layerseg_prep'
             
     os.environ["CUDA_VISIBLE_DEVICES"]='4'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -20,12 +29,13 @@ if mode == 'train':
     for idx in range(N):
         root_dir = root_dir
 
+        # train_dir = eval_dir = '/home/gerlstefan/data/layerunet/dataloader_dev'
         train_dir = os.path.join(root_dir, 'train')
         eval_dir = os.path.join(root_dir, 'val')
-        dirs={'train':train_dir,'eval':eval_dir, 'model':'', 'pred':'', 'out': out_dir}
+        dirs={'train':train_dir,'eval':eval_dir, 'model':'', 'pred':pred_dir, 'out': out_dir}
 
         net1 = LayerNet(device=device,
-                        sdesc='test',
+                        sdesc=sdec[idx],
                         model_depth=5,
                         dataset_zshift=(-50, 200),
                         dirs=dirs,
@@ -33,11 +43,12 @@ if mode == 'train':
                         initial_lr=1e-4,
                         scheduler_patience=3,
                         lossfn=bce_and_smooth,
-                        lossfn_smoothness=100,
-                        epochs=1,
+                        lossfn_smoothness=s[idx],
+                        epochs=40,
                         dropout=True,
                         class_weight=(0.3, 0.7),
-                        DEBUG=DEBUG
+                        DEBUG=DEBUG,
+                        probability=0.5
                          )
 
         net1.printConfiguration()
@@ -46,6 +57,7 @@ if mode == 'train':
         net1.train_all_epochs()
         net1.save_code_status()
         net1.save_model()
+        net1.predict()
 
 
 elif mode == 'predict':

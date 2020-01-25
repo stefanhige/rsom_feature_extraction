@@ -35,10 +35,12 @@ class LayerNetBase():
                  dirs={'train':'', 'eval':'', 'pred':'', 'model':'', 'out':''},
                  device=torch.device('cuda'),
                  model_depth=4
+                 probability=0.5
                  ):
 
         self.model_depth = model_depth
         self.dirs = dirs
+        self.probability = probability
 
         self.pred_dataset = RSOMLayerDatasetUnlabeled(
                 dirs['pred'],
@@ -97,7 +99,7 @@ class LayerNetBase():
             # init empty prediction stack
             shp = batch['data'].shape
             # [0 x 2 x 500 x 332]
-            prediction_stack = torch.zeros((0, 2, shp[3], shp[4]),
+            prediction_stack = torch.zeros((0, 1, shp[3], shp[4]),
                     dtype=self.dtype,
                     requires_grad=False
                     )
@@ -120,35 +122,28 @@ class LayerNetBase():
             
             
             # transform -> labels
-            prediction_stack = torch.nn.functional.sigmoid(prediction_stack)
-            label = (prediction_stack[:,1,:,:] > prediction_stack[:,0,:,:]) 
+            prediction_stack = torch.sigmoid(prediction_stack)
+
+            label = prediction_stack >= self.probability
 
             m = batch['meta']
-
+            
+            label = label.squeeze()
             label = to_numpy(label, m)
 
             filename = batch['meta']['filename'][0]
             filename = filename.replace('rgb.nii.gz','')
-            label = self.smooth_pred(label, filename)
+            
+            if 0:
+                label = self.smooth_pred(label, filename)
 
             print('Saving', filename)
             save_nii(label.astype(np.uint8), self.dirs['out'], filename + 'pred')
             
             if 1:
-                print('MIN MAX', 
-                        prediction_stack[:,1,:,:].min(), 
-                        prediction_stack[:,1,:,:].max())
-                foreground = prediction_stack[:,1,:,:]
-                background = prediction_stack[:,0,:,:]
-
-                save_nii(to_numpy(foreground, m),
+                save_nii(to_numpy(prediction_stack.squeeze(), m),
                         self.dirs['out'], 
-                        filename + 'ppred_fg')
-                save_nii(to_numpy(background, m),
-                        self.dirs['out'], 
-                        filename + 'ppred_bg')
-
-
+                        filename + 'ppred')
             # compare to ground truth
             if 0:
                 label_gt = batch['label']
@@ -257,6 +252,7 @@ class LayerNet(LayerNetBase):
                  epochs = 30,
                  dropout = False,
                  DEBUG = False,
+                 probability=0.5
                  ):
         self.sdesc = sdesc 
 
@@ -357,7 +353,24 @@ class LayerNet(LayerNetBase):
                                           shuffle=False, 
                                           num_workers=4, 
                                           pin_memory=True)
-        
+        if dirs['pred']: 
+            self.pred_dataset = RSOMLayerDatasetUnlabeled(
+                    dirs['pred'],
+                    transform=transforms.Compose([
+                        ZeroCenter(), 
+                        CropToEven(network_depth=self.model_depth),
+                        DropBlue(),
+                        ToTensor()])
+                    )
+
+            self.pred_dataloader = DataLoader(
+                self.pred_dataset,
+                batch_size=1, 
+                shuffle=False, 
+                num_workers=4, 
+                pin_memory=True)
+
+        self.probability = probability 
         
         # OPTIMIZER
         self.initial_lr = initial_lr
@@ -393,11 +406,15 @@ class LayerNet(LayerNetBase):
         # ADDITIONAL ARGS
         self.args = self.helperClass()
         
+        self.size_pred = len(self.pred_dataset)
         self.args.size_train = len(self.train_dataset)
         self.args.size_eval = len(self.eval_dataset)
         self.args.minibatch_size = 5
+        self.minibatch_size = self.args.minibatch_size
         self.args.device = device
+        self.device = device
         self.args.dtype = torch.float32
+        self.dtype = self.args.dtype
         self.args.non_blocking = True
         self.args.n_epochs = epochs
         self.args.data_dim = self.eval_dataset[0]['data'].shape
@@ -651,9 +668,12 @@ class LayerNet(LayerNetBase):
                 label = torch.squeeze(label, dim=0)
                 weight = torch.squeeze(weight, dim=0)
                 
+                label = torch.unsqueeze(label, dim=1)
+                weight = torch.unsqueeze(weight, dim=1)
+                
                 prediction = self.model(data)
-        
                 # prediction = prediction.to('cpu')
+                
                 loss = self.lossfn(
                         pred=prediction, 
                         target=label,
