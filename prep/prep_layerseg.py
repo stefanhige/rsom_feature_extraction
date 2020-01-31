@@ -10,25 +10,28 @@ Created on Thu Apr 11 19:08:29 2019
 from pathlib import Path
 
 import os
+import sys
 
 from classes import RSOM
 
-from utils.get_unique_filepath import get_unique_filepath
+if __name__ == '__main__':
+    sys.path.append('../')
 
+from utils.get_unique_filepath import get_unique_filepath
 
 # define folder
 #origin = '/home/stefan/Documents/RSOM/Diabetes/new_data/no_surf'
-origin = '/home/stefan/PYTHON/HQDatasetVesselAnnot/mat'
+origin = '/home/stefan/Documents/RSOM/Diabetes/miccai/epidermis-relabel/mat'
 # origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/allmat'
 # origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
 
 # destination = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/'
 # destination = '/home/sgerl/Documents/PYTHON/TestDataset20190411/selection/other_preproccessing_tests/sliding_mip_6'
-destination = '/home/stefan/PYTHON/HQDatasetVesselAnnot/myskin'
+destination = '/home/stefan/Documents/RSOM/Diabetes/miccai/epidermis-relabel/rgb'
 
 
 # mode
-mode = 'list'
+mode = 'dir'
 
 if mode=='dir':
     cwd = os.getcwd()
@@ -37,7 +40,7 @@ if mode=='dir':
     all_files = os.listdir()
     os.chdir(cwd)
 elif mode=='list':
-    patterns = ['R_20190430164629']
+    patterns = ['PAT052']
     all_files = [os.path.basename(get_unique_filepath(origin, pat)[0]) for pat in patterns]
 
 
@@ -62,29 +65,29 @@ for idx, filenameLF in enumerate(filenameLF_LIST):
     
     Obj = RSOM(fullpathLF, fullpathHF, fullpathSurf)
     
-    Obj.readMATLAB()
+    Obj.read_matlab()
     
-    Obj.flatSURFACE()
-    Obj.cutDEPTH()
+    Obj.flat_surface()
+    Obj.cut_depth()
     
     # surface for quick check
     #Obj.saveSURFACE((destination + ''), fstr = 'surf')
     
     # MIP image for quick check
-    Obj.calcMIP(do_plot = False)
-    Obj.saveMIP(destination, fstr = 'mip')
+    #Obj.calcMIP(do_plot = False)
+    #Obj.saveMIP(destination, fstr = 'mip')
     
     # MIP 3D for annotation
-    # Obj.calcMIP3D(do_plot = False)
-    #Obj.saveMIP3D(destination, fstr = 'mip3d')
+    #Obj.calc_mip3d(do_plot = False)
+    #Obj.save_mip3d(destination, fstr = 'mip3d')
     
     # VOLUME
-    Obj.normINTENSITY()
-    Obj.rescaleINTENSITY(dynamic_rescale = False)
-    Obj.mergeVOLUME_RGB()
-    Obj.saveVOLUME(destination, fstr = 'rgb')
+    Obj.norm_intensity()
+    Obj.rescale_intensity(dynamic_rescale = False)
+    Obj.merge_volume_rgb()
+    Obj.save_volume(destination, fstr = 'rgb')
     
-    print('Processing file', idx+1, 'of', len(filenameLF_LIST))
+    #print('Processing file', idx+1, 'of', len(filenameLF_LIST))
 
 
 

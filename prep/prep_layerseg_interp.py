@@ -30,19 +30,17 @@ from skimage import exposure
 from classes import RSOM_mip_interp
  
 # define filenames
-filename_LIST = ['R_20170724150057_PAT001_RL01_mip3d_l.nii.gz']
+#filename_LIST = ['R_20170724150057_PAT001_RL01_mip3d_l.nii.gz']
 
 
-origin = '/home/sgerl/Documents/RSOM/Diabetes/fullDataset/layer_seg'
+origin = '/home/stefan/Documents/RSOM/Diabetes/miccai/epidermis-relabel/mips'
 #origin = '/media/nas_ads_mwn/AG-Ntziachristos/RSOM_Data/RSOM_Diabetes/Stefan/allmat'
-destination = '/home/sgerl/Documents/RSOM/Diabetes/fullDataset/layer_seg'
+destination = '/home/stefan/Documents/RSOM/Diabetes/miccai/epidermis-relabel/rgb'
 
 cwd = os.getcwd()
 
 # change directory to origin, and get a list of all files
-os.chdir(origin)
-all_files = os.listdir()
-os.chdir(cwd)
+all_files = os.listdir(origin)
 
 # extract the _mip_3d_l files
 rstr = 'mip3d_l.nii.gz'
