@@ -39,7 +39,13 @@ def custom_loss_1_smooth(pred, target, spatial_weight, class_weight=None, smooth
     
     return loss 
 
-def bce_and_smooth(pred, target, spatial_weight, class_weight=None, smoothness_weight=100):
+def bce_and_smooth(pred, 
+                  target, 
+                  spatial_weight, 
+                  class_weight=None, 
+                  smoothness_weight=100, 
+                  spatial_weight_scale=True,
+                  window=5):
     
     # CROSS ENTROPY PART
     f_H = torch.nn.BCEWithLogitsLoss(reduction='none',
@@ -51,7 +57,8 @@ def bce_and_smooth(pred, target, spatial_weight, class_weight=None, smoothness_w
     H = f_H(pred, target)
 
     # scale with spatial weight
-    H = spatial_weight.float() * H
+    if spatial_weight_scale:
+        H = spatial_weight.float() * H
 
     H = torch.sum(H)
 
@@ -60,7 +67,7 @@ def bce_and_smooth(pred, target, spatial_weight, class_weight=None, smoothness_w
 
     S = f_S(pred)
 
-    S = smoothness_weight * smoothness_loss_new(S)
+    S = smoothness_weight * smoothness_loss_new(S, window=window)
     # print('H', H, 'S', S)
     return H + S
 

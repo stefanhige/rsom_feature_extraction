@@ -7,21 +7,19 @@ from laynet import LayerNet, LayerNetBase
 mode = 'train'
 
 if mode == 'train':
-    N = 4
+    N = 2
 
-    sdesc = ['s=0',
-             's=1',
-             's=100',
-             's=10000']
+    # sdesc = ['s100-w3','s1000-w3','s10000-w3']
+    sdesc = ['sw_cw2.33', 'sw_cw1']
+    cw = [(0.3, 0.7), (1, 1)]
 
-    s = [0, 1, 100, 10000]
-
-    root_dir = '/home/gerlstefan/data/layerunet/fullDataset/labeled'
+    root_dir = '/home/gerlstefan/data/layerunet/fullDataset/miccai/crossval/0'
 
     DEBUG = False
+    # DEBUG = True
 
     out_dir = '/home/gerlstefan/data/layerunet/miccai'
-    pred_dir = '/home/gerlstefan/data/pipeline/selection1/t_rt_mp_gn/tmp/layerseg_prep'
+    # pred_dir = '/home/gerlstefan/data/pipeline/selection1/t_rt_mp_gn/tmp/layerseg_prep'
             
     os.environ["CUDA_VISIBLE_DEVICES"]='4'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -32,10 +30,11 @@ if mode == 'train':
         # train_dir = eval_dir = '/home/gerlstefan/data/layerunet/dataloader_dev'
         train_dir = os.path.join(root_dir, 'train')
         eval_dir = os.path.join(root_dir, 'val')
+        pred_dir = '/home/gerlstefan/data/layerunet/fullDataset/labeled/val'
         dirs={'train':train_dir,'eval':eval_dir, 'model':'', 'pred':pred_dir, 'out': out_dir}
 
         net1 = LayerNet(device=device,
-                        sdesc=sdec[idx],
+                        sdesc=sdesc[idx],
                         model_depth=5,
                         dataset_zshift=(-50, 200),
                         dirs=dirs,
@@ -43,39 +42,42 @@ if mode == 'train':
                         initial_lr=1e-4,
                         scheduler_patience=3,
                         lossfn=bce_and_smooth,
-                        lossfn_smoothness=s[idx],
+                        lossfn_smoothness=100,
+                        lossfn_window=5,
+                        lossfn_spatial_weight_scale=True,
                         epochs=40,
                         dropout=True,
-                        class_weight=(0.3, 0.7),
+                        class_weight=cw[idx],
                         DEBUG=DEBUG,
-                        probability=0.5
+                        probability=0.5,
+                        slice_wise=True
                          )
 
         net1.printConfiguration()
         net1.printConfiguration('logfile')
 
-        net1.train_all_epochs()
         net1.save_code_status()
+        net1.train_all_epochs()
         net1.save_model()
         net1.predict()
 
 
 elif mode == 'predict':
 
-    os.environ["CUDA_VISIBLE_DEVICES"]='4'
+    os.environ["CUDA_VISIBLE_DEVICES"]='6'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
    
-    pred_dir = '/home/gerlstefan/data/pipeline/selection1/t_rt_mp_gn/tmp/layerseg_prep'
+    pred_dir = '/home/gerlstefan/data/layerunet/fullDataset/labeled/val'
     # model_dir ='/home/gerlstefan/models/layerseg/test/mod_191101_depth5.pt'
-    model_dir ='/home/gerlstefan/models/layerseg/test/mod_191102_depth4.pt'
-    out_dir ='/home/gerlstefan/data/layerunet/prediction/200123_test/withsmoothness'
+    model_dir ='/home/gerlstefan/data/layerunet/miccai/200126-00-s1000/mod200126-00.pt'
+    out_dir ='/home/gerlstefan/data/layerunet/miccai/dataset-cleanup/eval'
+    
     net1 = LayerNetBase(
             dirs={'model': model_dir,
                   'pred': pred_dir,
                   'out': out_dir},
             device=device,
-            model_depth=4)
-
+            model_depth=5)
     net1.predict()
 
 

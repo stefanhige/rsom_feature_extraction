@@ -24,7 +24,8 @@ class RSOMLayerDataset(Dataset):
     def __init__(self, 
                  root_dir, 
                  data_str='_rgb.nii.gz', 
-                 label_str='_l.nii.gz', 
+                 label_str='_l.nii.gz',
+                 slice_wise=False,
                  transform=None):
 
         assert os.path.exists(root_dir) and os.path.isdir(root_dir), \
@@ -38,18 +39,38 @@ class RSOMLayerDataset(Dataset):
         
         self.data_str = data_str
         self.label_str = label_str
+        self.slice_wise = slice_wise
         
         # get all files in root_dir
         all_files = os.listdir(path = root_dir)
         # extract the  data files
         self.data = [el for el in all_files if el[-len(data_str):] == data_str]
+
+        if self.slice_wise:
+            data_path = os.path.join(self.root_dir, 
+                                     self.data[0])
+            label_path = os.path.join(self.root_dir, 
+                                      self.data[0].replace(self.data_str, self.label_str))
+        
+            # read data
+            data = self._readNII(data_path)
+            data = np.stack([data['R'], data['G'], data['B']], axis=-1)
+            self.data_array = data.astype(np.float32)
+        
+            # read label
+            label = self._readNII(label_path)
+            self.label_array = label.astype(np.float32)
+
         
         assert len(self.data) == \
             len([el for el in all_files if el[-len(label_str):] == label_str]), \
             'Amount of data and label files not equal.'
 
     def __len__(self):
-        return len(self.data)
+        if not self.slice_wise:
+            return len(self.data)
+        else:
+            return self.data_array.shape[1]
     
     @staticmethod
     def _readNII(rpath):
@@ -66,10 +87,16 @@ class RSOMLayerDataset(Dataset):
         return img.get_data()
 
     def __getitem__(self, idx):
+        if not self.slice_wise:
+            return self.getvolume(idx)
+        else:
+            return self.getslice(idx)
+    
+    def getvolume(self, idx):
         data_path = os.path.join(self.root_dir, 
-                            self.data[idx])
+                                 self.data[idx])
         label_path = os.path.join(self.root_dir, 
-                                   self.data[idx].replace(self.data_str, self.label_str))
+                                  self.data[idx].replace(self.data_str, self.label_str))
         
         # read data
         data = self._readNII(data_path)
@@ -92,6 +119,27 @@ class RSOMLayerDataset(Dataset):
             sample = self.transform(sample)
 
         return sample
+
+    def getslice(self,idx):
+        data = self.data_array[:,idx,...]
+        data = np.expand_dims(data,1)
+        
+        label = self.label_array[:,idx,...]
+        label = np.expand_dims(label,1)
+        # add meta information
+        meta = {'filename': self.data[0] + " slice_wise " + str(idx),
+                'dcrop':{'begin': None, 'end': None},
+                'lcrop':{'begin': None, 'end': None},
+                'weight': 0}
+
+        sample = {'data': data, 'label': label, 'meta': meta}
+
+        if self.transform:
+            sample = self.transform(sample)
+
+        return sample
+
+
 
 class RSOMLayerDatasetUnlabeled(RSOMLayerDataset):
     """
@@ -116,7 +164,7 @@ class RSOMLayerDatasetUnlabeled(RSOMLayerDataset):
         
         self.data_str = data_str
         # self.label_str = ''
-        
+        self.slice_wise = False        
         # get all files in root_dir
         all_files = os.listdir(path = root_dir)
         # extract the  data files
@@ -186,9 +234,13 @@ class ToTensor(object):
         # [X x Z x Y] [171 x 500 x 333]
         label = label.transpose((1, 0, 2))
         
+        # hack for slice_wise
 
-        return {'data': torch.from_numpy(data),
-                'label': torch.from_numpy(label),
+        data = torch.from_numpy(data)
+        label = torch.from_numpy(label)
+
+        return {'data': data.contiguous(),
+                'label': label.contiguous(),
                 'meta': meta}
 
 class RandomZShift(object):
@@ -372,7 +424,7 @@ class CropToEven(object):
         data, label, meta = sample['data'], sample['label'], sample['meta']
         assert isinstance(data, np.ndarray)
         assert isinstance(label, np.ndarray)
-        
+       
         # for backward compatibility
         # easy version: first crop to even, crop rest afterwards, if necessary
         initial_dshape = data.shape
@@ -380,12 +432,14 @@ class CropToEven(object):
 
         IsOdd = np.mod(data.shape[:-1], 2)
         
+        # hack, don't need to crop along what will be batch dimension later on
+        IsOdd[1] = 0
+
         data = data[IsOdd[0]:, IsOdd[1]:, IsOdd[2]:, : ]
         label = label[IsOdd[0]:, IsOdd[1]:, IsOdd[2]:]
 
         if not isinstance(meta['weight'], int):
             raise NotImplementedError('Weight was calulated before. Cropping implementation missing')
-            
         
         # save, how much data was cropped
         # using torch tensor, because dataloader will convert anyways
