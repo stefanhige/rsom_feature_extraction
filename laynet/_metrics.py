@@ -165,4 +165,66 @@ def smoothness_loss(pred, window=5):
     
     # return some loss measure, as the sum of all smoothness losses
     return torch.sum(label_smoothness)    
+
+
+def calc_recall(label, pred):
+    label = label.astype(np.bool)
+    pred = pred.astype(np.bool)
+    TP = np.sum(np.logical_and(label, pred))
+    FN = np.sum(np.logical_and(label, np.logical_not(pred)))
     
+    R = TP / (TP + FN)
+    return R
+
+def calc_precision(label, pred):
+    label = label.astype(np.bool)
+    pred = pred.astype(np.bool)
+    TP = np.sum(np.logical_and(label, pred))
+    FP = np.sum(np.logical_and(pred, np.logical_not(label)))
+    
+    P = TP / (TP + FP) 
+    return P
+
+def calc_dice(a, b):
+    return _dice(a,b)
+
+
+def _dice(x, y):
+    '''
+    do the test in numpy
+    '''
+    if isinstance(x, torch.Tensor):
+        x = x.cpu().numpy()
+    if isinstance(y, torch.Tensor):
+        y = y.cpu().numpy()
+
+    x = x.astype(np.bool)
+    y = y.astype(np.bool)
+
+    i = np.logical_and(x,y)
+
+    if x.sum() + y.sum() == 0:
+        print('Dice No True values!')
+        return 1.
+
+    return (2. * i.sum()) / (x.sum() + y.sum())
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

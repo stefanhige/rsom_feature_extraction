@@ -4,14 +4,14 @@ import os
 from laynet._metrics import custom_loss_1_smooth, bce_and_smooth
 from laynet import LayerNet, LayerNetBase
 
-torch.backends.cudnn.benchmark = True
+# torch.backends.cudnn.benchmark = True
 mode = 'train'
 
 if mode == 'train':
     N = 1
 
     # sdesc = ['s100-w3','s1000-w3','s10000-w3']
-    sdesc = ['bce']
+    sdesc = ['BCE']
 
     root_dir = '/home/gerlstefan/data/layerunet/fullDataset/miccai/crossval/0'
 
@@ -31,7 +31,7 @@ if mode == 'train':
         # eval_dir = '/home/gerlstefan/data/layerunet/dataloader_dev/2'
         train_dir = os.path.join(root_dir, 'train')
         eval_dir = os.path.join(root_dir, 'val')
-        pred_dir = '/home/gerlstefan/data/layerunet/fullDataset/labeled/val'
+        pred_dir = eval_dir
         dirs={'train':train_dir,'eval':eval_dir, 'model':'', 'pred':pred_dir, 'out': out_dir}
 
         net1 = LayerNet(device=device,
@@ -46,12 +46,12 @@ if mode == 'train':
                         lossfn_smoothness=0,
                         lossfn_window=5,
                         lossfn_spatial_weight_scale=False,
-                        epochs=40,
+                        epochs=1,
                         dropout=True,
                         class_weight=None,
                         DEBUG=DEBUG,
                         probability=0.5,
-                        slice_wise=True
+                        slice_wise=False
                          )
 
         net1.printConfiguration()
@@ -59,8 +59,8 @@ if mode == 'train':
 
         net1.save_code_status()
         net1.train_all_epochs()
+        net1.predict_calc()
         net1.save_model()
-        net1.predict()
 
 
 elif mode == 'predict':

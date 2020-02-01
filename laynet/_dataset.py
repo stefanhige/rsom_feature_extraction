@@ -205,7 +205,8 @@ class RSOMLayerDatasetUnlabeled(RSOMLayerDataset):
 
 class ToTensor(object):
     """Convert ndarrays in sample to Tensors."""
-
+    def __init__(self, shuffle=False):
+        self.shuffle = shuffle
     def __call__(self, sample):
         data, label, meta = sample['data'], sample['label'], sample['meta']
         
@@ -234,7 +235,17 @@ class ToTensor(object):
         # [X x Z x Y] [171 x 500 x 333]
         label = label.transpose((1, 0, 2))
         
-        # hack for slice_wise
+        if data.shape[0] > 1 and self.shuffle:
+           ds = data.shape
+           ls = label.shape
+           idx = torch.randperm(data.shape[0]).numpy()
+           data = data[idx]
+           label = label[idx]
+           data = np.ascontiguousarray(data)
+           label = np.ascontiguousarray(label)
+           assert ds == data.shape
+           assert ls == label.shape
+
 
         data = torch.from_numpy(data)
         label = torch.from_numpy(label)
@@ -309,11 +320,11 @@ class ZeroCenter(object):
         assert data.shape[3] == 3
         
         # compute for all x,y,z mean for every color channel
-        rgb_mean = np.around(np.mean(data, axis=(0, 1, 2))).astype(np.int16)
-        meanvec = np.tile(rgb_mean, (data.shape[:-1] + (1,)))
+        # rgb_mean = np.around(np.mean(data, axis=(0, 1, 2))).astype(np.int16)
+        # meanvec = np.tile(rgb_mean, (data.shape[:-1] + (1,)))
        
         # how to zero center??
-        data -= 127
+        # data -= 127
         
         return {'data': data, 'label': label, 'meta': meta}
     
