@@ -273,7 +273,7 @@ class RandomZShift(object):
         # generate random dz offset
         dz = int(round((self.max_shift[1] - self.max_shift[0]) * torch.rand(1).item() + self.max_shift[0]))
         assert (dz >= self.max_shift[0] and dz <= self.max_shift[1])
-        
+         
         if dz:
             shift_data = np.zeros(((abs(dz), ) + data.shape[1:]), dtype = np.uint8)
             shift_label = np.zeros(((abs(dz), ) + label.shape[1:]), dtype = np.uint8)
@@ -293,7 +293,8 @@ class RandomZShift(object):
 
             # should be the same...
             assert (data_ishape == data.shape and label_ishape == label.shape)
-        
+            data = np.ascontiguousarray(data)
+            label = np.ascontiguousarray(label)
         return {'data': data, 'label': label, 'meta': meta}
     
 class ZeroCenter(object):

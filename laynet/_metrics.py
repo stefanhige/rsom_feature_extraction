@@ -49,7 +49,7 @@ def bce_and_smooth(pred,
     
     # CROSS ENTROPY PART
     f_H = torch.nn.BCEWithLogitsLoss(reduction='none',
-                                     pos_weight=class_weight[1]/class_weight[0])
+                                     pos_weight=class_weight)
 
     # print('Pred', pred.shape)
     # print('Target', target.shape)

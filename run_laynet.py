@@ -4,14 +4,14 @@ import os
 from laynet._metrics import custom_loss_1_smooth, bce_and_smooth
 from laynet import LayerNet, LayerNetBase
 
+torch.backends.cudnn.benchmark = True
 mode = 'train'
 
 if mode == 'train':
-    N = 2
+    N = 1
 
     # sdesc = ['s100-w3','s1000-w3','s10000-w3']
-    sdesc = ['sw_cw2.33', 'sw_cw1']
-    cw = [(0.3, 0.7), (1, 1)]
+    sdesc = ['bce']
 
     root_dir = '/home/gerlstefan/data/layerunet/fullDataset/miccai/crossval/0'
 
@@ -27,7 +27,8 @@ if mode == 'train':
     for idx in range(N):
         root_dir = root_dir
 
-        # train_dir = eval_dir = '/home/gerlstefan/data/layerunet/dataloader_dev'
+        # train_dir = '/home/gerlstefan/data/layerunet/dataloader_dev/1'
+        # eval_dir = '/home/gerlstefan/data/layerunet/dataloader_dev/2'
         train_dir = os.path.join(root_dir, 'train')
         eval_dir = os.path.join(root_dir, 'val')
         pred_dir = '/home/gerlstefan/data/layerunet/fullDataset/labeled/val'
@@ -42,12 +43,12 @@ if mode == 'train':
                         initial_lr=1e-4,
                         scheduler_patience=3,
                         lossfn=bce_and_smooth,
-                        lossfn_smoothness=100,
+                        lossfn_smoothness=0,
                         lossfn_window=5,
-                        lossfn_spatial_weight_scale=True,
+                        lossfn_spatial_weight_scale=False,
                         epochs=40,
                         dropout=True,
-                        class_weight=cw[idx],
+                        class_weight=None,
                         DEBUG=DEBUG,
                         probability=0.5,
                         slice_wise=True

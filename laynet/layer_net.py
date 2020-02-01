@@ -260,9 +260,11 @@ class LayerNet(LayerNetBase):
                  ):
         self.slice_wise = slice_wise
         if not slice_wise:
-            self.batch_size = 1
+            self.eval_batch_size = 1
+            self.train_batch_size = 1
         else:
-            self.batch_size = 5
+            self.eval_batch_size = 5
+            self.train_batch_size = 5
         
         self.sdesc = sdesc 
 
@@ -349,10 +351,10 @@ class LayerNet(LayerNetBase):
                                           ]))
         
         self.train_dataloader = DataLoader(self.train_dataset,
-                                           batch_size=self.batch_size+4, 
+                                           batch_size=self.train_batch_size, 
                                            shuffle=True, 
-                                           drop_last=False,
-                                           num_workers=5, 
+                                           drop_last=True,
+                                           num_workers=3, 
                                            pin_memory=True)
 
 
@@ -367,10 +369,10 @@ class LayerNet(LayerNetBase):
                                           ToTensor(),
                                           precalcLossWeight()]))
         self.eval_dataloader = DataLoader(self.eval_dataset,
-                                          batch_size=self.batch_size, 
-                                          shuffle=False,
-                                          drop_last=False,
-                                          num_workers=0, 
+                                          batch_size=self.eval_batch_size, 
+                                          shuffle=True,
+                                          drop_last=True,
+                                          num_workers=3, 
                                           pin_memory=True)
         if dirs['pred']: 
             self.pred_dataset = RSOMLayerDatasetUnlabeled(
@@ -482,8 +484,8 @@ class LayerNet(LayerNetBase):
         for curr_epoch in range(self.args.n_epochs): 
             # in every epoch, generate iterators
             train_iterator = iter(self.train_dataloader)
+           
             eval_iterator = iter(self.eval_dataloader)
-            self.train_iter = train_iterator
             
             curr_lr = self.optimizer.state_dict()['param_groups'][0]['lr']
         
@@ -500,7 +502,7 @@ class LayerNet(LayerNetBase):
             self.debug('eval') 
             self.eval(iterator=eval_iterator, epoch=curr_epoch)
         
-            torch.cuda.empty_cache()
+            # torch.cuda.empty_cache()
             if curr_epoch == 1:
                 toc = timer()
                 print('Evaluation took:', toc - tic)
@@ -510,8 +512,10 @@ class LayerNet(LayerNetBase):
             le_idx = self.history['train']['epoch'].index(curr_epoch)
             le_losses = self.history['train']['loss'][le_idx:]
             # divide by batch size (170) times dataset size
-            train_loss = sum(le_losses) / (self.args.data_dim[0]*self.args.size_train)
-            
+            if not self.slice_wise:
+                train_loss = sum(le_losses) / (self.args.data_dim[0]*self.args.size_train)
+            else:
+                train_loss = sum(le_losses) / (self.args.size_train)
             # extract most recent eval loss
             curr_loss = self.history['eval']['loss'][-1]
             
@@ -539,17 +543,8 @@ class LayerNet(LayerNetBase):
         if not self.DEBUG:
             self.logfile.close()
     
-    
     def train(self, iterator, epoch):
         '''
-        train one epoch
-        Args:   model
-                iterator
-                optimizer
-                history
-                epoch
-                lossfn
-                args 
         '''
         # PARSE
         # model = self.model
@@ -560,18 +555,13 @@ class LayerNet(LayerNetBase):
         
         self.model.train()
         
-        for i in range(int(np.ceil(self.args.size_train/self.batch_size))):
+        for i in range(int(np.ceil(self.args.size_train/self.train_batch_size))):
             # get the next batch of training data
             try:
                 batch = next(iterator)
             except StopIteration:
+                print('Iterators wrong')
                 break
-            # print(i) 
-            # label_ = batch['label']
-            # print(label_.shape)
-            
-            # print(label_[:,:,0,:].sum().item())
-            # print(label_[:,:,-1,:].sum().item())
                     
             batch['label'] = batch['label'].to(
                     self.args.device, 
@@ -620,8 +610,8 @@ class LayerNet(LayerNetBase):
                             spatial_weight=weight,
                             class_weight=self.class_weight,
                             smoothness_weight=self.lossfn_smoothness,
-                            window=self.lossfn_windowm,
-                            lossfn_spatial_weight_scale=self.lossfn_spatial_weight_scale)
+                            window=self.lossfn_window,
+                            spatial_weight_scale=self.lossfn_spatial_weight_scale)
                     
                     self.optimizer.zero_grad()
                     loss.backward()
@@ -631,7 +621,6 @@ class LayerNet(LayerNetBase):
                             i/self.args.size_train +\
                             i2/(self.args.size_train * minibatches.size)
                     
-                    # print(epoch, i/args.size_train, i2/minibatches.size)
                     self.history['train']['epoch'].append(frac_epoch)
                     self.history['train']['loss'].append(loss.data.item())
                 
@@ -642,38 +631,30 @@ class LayerNet(LayerNetBase):
                 weight = batch['meta']['weight']
 
                 data = torch.squeeze(data, dim=1)
-                self.debug('train iter', i)
-                # label = torch.squeeze(label, dim=1)
-                # weight = torch.squeeze(weight, dim=1)
-                
-                
-                # label = torch.unsqueeze(label, dim=1)
-                # weight = torch.unsqueeze(weight, dim=1)
                 
                 # self.debug('DATA shape', data.shape)
                 # self.debug('LABEL shape', label.shape)
                 
                 prediction = self.model(data)
             
-                # move back to save memory
-                # prediction = prediction.to('cpu')
                 loss = self.lossfn(
                         pred=prediction, 
                         target=label,
                         spatial_weight=weight,
                         class_weight=self.class_weight,
                         smoothness_weight=self.lossfn_smoothness,
-                        window=self.lossfn_window)
+                        window=self.lossfn_window,
+                        spatial_weight_scale=self.lossfn_spatial_weight_scale)
                 
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+                current_loss = loss.data.item()
         
-                frac_epoch = epoch + i/self.args.size_train
-                
-                # print(epoch, i/args.size_train, i2/minibatches.size)
+                frac_epoch = epoch + i/int(np.ceil(self.args.size_train/self.train_batch_size))
+                self.debug('train', i,'current loss', current_loss, 'batch', data.shape[0]) 
                 self.history['train']['epoch'].append(frac_epoch)
-                self.history['train']['loss'].append(loss.data.item())
+                self.history['train']['loss'].append(current_loss)
 
     def eval(self, iterator, epoch):
         '''
@@ -696,11 +677,12 @@ class LayerNet(LayerNetBase):
         self.model.eval()
         running_loss = 0.0
         
-        for i in range(int(np.ceil(self.args.size_train/self.batch_size))):
+        for i in range(int(np.ceil(self.args.size_train/self.eval_batch_size))):
             # get the next batch of the testset
             try:
                 batch = next(iterator)
             except StopIteration:
+                print('Iterators wrong')
                 break
             
             batch['label'] = batch['label'].to(
@@ -749,28 +731,16 @@ class LayerNet(LayerNetBase):
                             spatial_weight=weight,
                             class_weight=self.class_weight,
                             smoothness_weight=self.lossfn_smoothness,
-                            lossfn_spatial_weight_scale=self.lossfn_spatial_weight_scale)
-                    
+                            window=self.lossfn_window,
+                            spatial_weight_scale=self.lossfn_spatial_weight_scale)
                     # loss running variable
-                    # TODO: check if this works
                     # add value for every minibatch
                     # this should scale linearly with minibatch size
                     # have to verify!
                     running_loss += loss.data.item()
                     
-                    # adds up all the dice coeeficients of all samples
-                    # processes each slice individually
-                    # in the end need to divide by number of samples*number of slices per sample
-                    # in the end it needs to divided by the number of iterations
-                    # running_dice += self.dice_coeff(pred=prediction,
-                    #                     target=label)
-                #running_loss adds up loss for every batch and minibatch,
-                # divide by size of testset*size of each batch
-                epoch_loss = running_loss / (self.args.size_eval*batch['data'].shape[1])
-                self.history['eval']['epoch'].append(epoch)
-                self.history['eval']['loss'].append(epoch_loss)
+
             else:
-    
                 data = batch['data']
                 label = batch['label']
                 weight = batch['meta']['weight']
@@ -779,32 +749,33 @@ class LayerNet(LayerNetBase):
                 
                 prediction = self.model(data)
                     
-                self.debug('eval iter', i)
                 loss = self.lossfn(
                         pred=prediction, 
                         target=label,
                         spatial_weight=weight,
                         class_weight=self.class_weight,
-                        smoothness_weight=self.lossfn_smoothness)
+                        smoothness_weight=self.lossfn_smoothness,
+                        window=self.lossfn_window,
+                        spatial_weight_scale=self.lossfn_spatial_weight_scale)
                 
                 # loss running variable
                 # TODO: check if this works
                 # add value for every minibatch
                 # this should scale linearly with minibatch size
                 # have to verify!
-                running_loss += loss.data.item()
-                # adds up all the dice coeeficients of all samples
-                # processes each slice individually
-                # in the end need to divide by number of samples*number of slices per sample
-                # in the end it needs to divided by the number of iterations
-                # running_dice += self.dice_coeff(pred=prediction,
-                #                     target=label)
-                #running_loss adds up loss for every batch and minibatch,
-                # divide by size of testset*size of each batch
-                epoch_loss = running_loss / (self.args.size_eval*data.shape[0])
-                self.history['eval']['epoch'].append(epoch)
-                self.history['eval']['loss'].append(epoch_loss)
+                current_loss = loss.data.item()
 
+                running_loss += current_loss
+                self.debug('eval', i,'current loss', current_loss, 'batch', data.shape[0]) 
+
+        if self.slice_wise: 
+            epoch_loss = running_loss / (self.args.size_eval)
+        else:
+            epoch_loss = running_loss / (self.args.size_eval*batch['data'].shape[1])
+        
+        self.history['eval']['epoch'].append(epoch)
+        self.history['eval']['loss'].append(epoch_loss)
+ 
     def save_code_status(self):
         if not self.DEBUG:
             try:
