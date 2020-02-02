@@ -43,7 +43,7 @@ class LayerNetBase():
         self.out_pred_dir = dirs['out']
         self.probability = probability
 
-        self.pred_dataset = RSOMLayerDatasetUnlabeled(
+        self.pred_dataset = RSOMLayerDataset(
                 dirs['pred'],
                 transform=transforms.Compose([
                     ZeroCenter(), 
@@ -77,6 +77,23 @@ class LayerNetBase():
         if self.dirs['model']:
             self.model.load_state_dict(torch.load(self.dirs['model']))
         
+    def printandlog(self, *msg):
+        if 1:
+            print(*msg)
+            try:
+                print(*msg, file=self.logfile)
+            except:
+                pass
+    def calc_metrics(self, ground_truth, label):
+        print(ground_truth.shape)
+        prec = []
+        recall = []
+        dice = []
+        for i in range(ground_truth.shape[1]):
+            prec.append(lfs.calc_precision(ground_truth[:,i,...], label[:,i,...]))
+            recall.append(lfs.calc_recall(ground_truth[:,i,...], label[:,i,...]))
+            dice.append(lfs.calc_dice(ground_truth[:,i,...], label[:,i,...]))
+        return prec, recall, dice
 
     def predict(self):
         self.model.eval()
@@ -157,6 +174,104 @@ class LayerNetBase():
                 # label_diff = label != label_gt
                 save_nii(label_diff, self.out_pred_dir, filename + 'dpred')
 
+    def predict_calc(self):
+        self.model.eval()
+        iterator = iter(self.pred_dataloader) 
+        prec = []
+        recall = []
+        dice = []
+        for i in range(self.size_pred):
+            # get the next volume to evaluate 
+            batch = next(iterator)
+            
+            m = batch['meta']
+            
+            batch['data'] = batch['data'].to(
+                    self.device,
+                    self.dtype,
+                    non_blocking=True
+                    )
+            
+            # divide into minibatches
+            minibatches = np.arange(batch['data'].shape[1],
+                                    step=self.minibatch_size)
+            # init empty prediction stack
+            shp = batch['data'].shape
+            # [0 x 2 x 500 x 332]
+            prediction_stack = torch.zeros((0, 1, shp[3], shp[4]),
+                    dtype=self.dtype,
+                    requires_grad=False
+                    )
+            prediction_stack = prediction_stack.to(self.device)
+
+            for i2, idx in enumerate(minibatches):
+                if idx + self.minibatch_size < batch['data'].shape[1]:
+                    data = batch['data'][:, idx:idx+self.minibatch_size, :, :]
+                else:
+                    data = batch['data'][:, idx:, :, :]
+     
+                data = torch.squeeze(data, dim=0)
+
+                prediction = self.model(data)
+
+                prediction = prediction.detach() 
+                prediction_stack = torch.cat((prediction_stack, prediction), dim=0) 
+            
+            prediction_stack = prediction_stack.to('cpu')
+            
+            
+            # transform -> labels
+            prediction_stack = torch.sigmoid(prediction_stack)
+
+            label = prediction_stack >= self.probability
+
+            m = batch['meta']
+            
+            label = label.squeeze()
+            label = to_numpy(label, m)
+            
+            print('in pred: max label', batch['label'].max())
+            ground_truth = batch['label']
+            print('gt shape', ground_truth.shape)
+            ground_truth = ground_truth.squeeze()
+            ground_truth = to_numpy(ground_truth, m)
+
+            assert label.shape == ground_truth.shape
+            p, r, d = self.calc_metrics(ground_truth=ground_truth, label=label)
+            prec.append(p)
+            recall.append(r)
+            dice.append(d)
+
+            filename = batch['meta']['filename'][0]
+            filename = filename.replace('rgb.nii.gz','')
+            
+            if 0:
+                label = self.smooth_pred(label, filename)
+
+            print('Saving', filename)
+            if 1:
+                save_nii(label.astype(np.uint8), self.out_pred_dir, filename + 'pred')
+            
+            if 1:
+                save_nii(to_numpy(prediction_stack.squeeze(), m),
+                        self.out_pred_dir, 
+                        filename + 'ppred')
+            # compare to ground truth
+            if 0:
+                label_gt = batch['label']
+          
+                label_gt = torch.squeeze(label_gt, dim=0)
+                label_gt = to_numpy(label_gt, m)
+
+                label_diff = (label > label_gt).astype(np.uint8)
+                label_diff += 2*(label < label_gt).astype(np.uint8)
+                # label_diff = label != label_gt
+                save_nii(label_diff, self.out_pred_dir, filename + 'dpred')
+        
+        self.printandlog('Metrics:')
+        self.printandlog('Precision: mean {:.5f} std {:.5f}'.format(np.nanmean(prec), np.nanstd(prec)))
+        self.printandlog('Recall:    mean {:.5f} std {:.5f}'.format(np.nanmean(recall), np.nanstd(recall)))
+        self.printandlog('Dice:      mean {:.5f} std {:.5f}'.format(np.nanmean(dice), np.nanstd(dice)))
     @staticmethod
     def smooth_pred(label, filename):
         '''
@@ -899,13 +1014,6 @@ class LayerNet(LayerNetBase):
             f.write(json_f)
             f.close()
             
-    def printandlog(self, *msg):
-        if 1:
-            print(*msg)
-            try:
-                print(*msg, file=self.logfile)
-            except:
-                pass
     class helperClass():
         pass
         

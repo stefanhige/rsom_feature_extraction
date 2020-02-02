@@ -10,9 +10,9 @@ mode = 'train'
 if mode == 'train':
     N = 1
 
-    # sdesc = ['s100-w3','s1000-w3','s10000-w3']
-    sdesc = ['BCE']
-
+    sdesc = ['BCE_S_10000']
+    # sdesc = ['BCE_S_1', 'BCE_S_10', 'BCE_S_100', 'BCE_S_1000']
+    s = [10000]
     root_dir = '/home/gerlstefan/data/layerunet/fullDataset/miccai/crossval/0'
 
     DEBUG = False
@@ -21,7 +21,7 @@ if mode == 'train':
     out_dir = '/home/gerlstefan/data/layerunet/miccai'
     # pred_dir = '/home/gerlstefan/data/pipeline/selection1/t_rt_mp_gn/tmp/layerseg_prep'
             
-    os.environ["CUDA_VISIBLE_DEVICES"]='4'
+    os.environ["CUDA_VISIBLE_DEVICES"]='6'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     for idx in range(N):
@@ -43,10 +43,10 @@ if mode == 'train':
                         initial_lr=1e-4,
                         scheduler_patience=3,
                         lossfn=bce_and_smooth,
-                        lossfn_smoothness=0,
+                        lossfn_smoothness=s[idx],
                         lossfn_window=5,
                         lossfn_spatial_weight_scale=False,
-                        epochs=1,
+                        epochs=40,
                         dropout=True,
                         class_weight=None,
                         DEBUG=DEBUG,
@@ -68,10 +68,10 @@ elif mode == 'predict':
     os.environ["CUDA_VISIBLE_DEVICES"]='6'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
    
-    pred_dir = '/home/gerlstefan/data/layerunet/fullDataset/labeled/val'
+    pred_dir = '/home/gerlstefan/data/layerunet/fullDataset/miccai/default/.test'
     # model_dir ='/home/gerlstefan/models/layerseg/test/mod_191101_depth5.pt'
-    model_dir ='/home/gerlstefan/data/layerunet/miccai/200126-00-s1000/mod200126-00.pt'
-    out_dir ='/home/gerlstefan/data/layerunet/miccai/dataset-cleanup/eval'
+    model_dir ='/home/gerlstefan/data/layerunet/miccai/200202-04-BCE_S_100/mod200202-04.pt'
+    out_dir ='/home/gerlstefan/data/layerunet/miccai/200202-04-BCE_S_100'
     
     net1 = LayerNetBase(
             dirs={'model': model_dir,
@@ -79,7 +79,7 @@ elif mode == 'predict':
                   'out': out_dir},
             device=device,
             model_depth=5)
-    net1.predict()
+    net1.predict_calc()
 
 
 

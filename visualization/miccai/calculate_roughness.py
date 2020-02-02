@@ -11,8 +11,9 @@ import matplotlib
 import matplotlib.pyplot as plt
 import torch
 import os
+# from mpl_toolkits.mplot3d import Axes3D
 
-
+import matplotlib.cm as cm
 from scipy.ndimage.filters import gaussian_filter1d 
 
 from scipy.ndimage.filters import uniform_filter1d
@@ -39,156 +40,131 @@ def save_nii(V, path, fstr=None):
     img = nib.Nifti1Image(V, np.eye(4))
     nib.save(img, path)
     
-def smoothness_measure(vec, mode='abs'):
-    vec = np.gradient(vec)
-    if mode=='square':
-        vec_ = np.power(vec,2)
-    elif mode=='abs':
-        vec_ = np.abs(vec)
-    
-    return np.sum(vec_)
-    
-def moving_avg(file):    
-    P = load_seg(file)
+def extract_surf(P):    
     Pproj = np.sum(P, axis=2)
-    
-    
-    #fig, ax = plt.subplots()
     
     Pproj_ = gaussian_filter1d(Pproj, sigma=7, axis=1)
     
-    #ax.plot(Pproj[:,100])
-    #ax.plot(Pproj_[:,100])
-    
     Maxima = np.argmax(Pproj_, axis=0)
-    
     surf1 = np.zeros((P.shape[1], P.shape[2]))
     surf2 = np.zeros_like(surf1)
     
-    offs=50
-    #print(P.shape)
-    
+    zerorough=0
     for y in np.arange(P.shape[1]):
         for x in np.arange(P.shape[2]):
-            nz = np.nonzero(P[Maxima[y]-offs:, y, x])
+            nz = np.nonzero(P[:, y, x])
             nz = nz[0]
             #print(nz)
             # only valid if we captured the whole thing
-            if len(nz) == 0:
-                #print('no epidermis')
-                if np.sum(P[:,y,x]) == 0:
-                    surf1[y,x] = offs
-                    surf2[y,x] = offs
-                    
-                    # surf1[y,:] = 0
-                    # surf2[y,:] = 0
-                    # TODO: what to put in these values!
-                    # maybe the problem will solve itself when we have better
-                    # network
-                    #print(file[-100:], 'really no epidermis')
+            if len(nz) == 0:    
+                surf1[y,x] = Maxima[y] #+ int(np.random.normal(scale=3))
+                surf2[y,x] = Maxima[y] #+ int(np.random.normal(scale=3))
+                zerorough += 1
+                # surf1[y,x] = np.nan
+                # surf2[y,x] = np.nan
+                # print('no epidermis, value at', x, y, 'set to', Maxima[y])
             else:
                 if nz[0] == 0:
-                    print('inside the layer!')
+                    print('inside the layer!',x,y)
+                    surf1[y,x] = Maxima[y] #+ int(np.random.normal(scale=3))
+                    surf2[y,x] = Maxima[y] #+ int(np.random.normal(scale=3))
                     pass
                 else:
                     # TODO check if holes
-                    surf1[y,x] = nz[0]
-                    surf2[y,x] = nz[-1]
-                    
+                    cutoff = 15
+                    if np.any(np.diff(nz)>cutoff):
+                        nzidx = np.nonzero((np.diff(nz)>cutoff -1).astype(np.bool))
+                        nzidx = nzidx[0]
+                        if len(nzidx) > 1:
+                            #TODO these cases are ignored 
+                            start = nz[0]
+                            end = nz[-1]
+                            # print(nz)
+                            # print(nzidx)
+                        elif nzidx < 0.2*len(nz):
+                            # print('take last part')
+                            # print(nz)
+                            # print(nzidx)
+                            start = nz[nzidx+1]
+                            end = nz[-1]
+                            # print(start, end)
+                        elif nzidx > 0.8*len(nz):
+                            # print('take first part')
+                            # print(nz)
+                            # print(nzidx)
+                            start = nz[0]
+                            end = nz[nzidx]
+                            # print(start, end)
+                        else:
+                            start = nz[0]
+                            end = nz[-1]
+                    else:
+                        start = nz[0]
+                        end = nz[-1]
+                    surf1[y,x] = start
+                    surf2[y,x] = end
+                    # surf1[y,x] = nz[0]
+                    # surf2[y,x] = nz[-1]
+    return surf1, surf2, zerorough                 
     
-    # surf1 = surf1 - (np.mean(surf1, axis=1, keepdims=True))    
+def rms_roughness(surf, window=5):
+    mv_avg_surf = uniform_filter1d(surf, window, axis=1)
     
-    mv_avg = uniform_filter1d(surf1, 5, axis=1)
-    # print(surf1.shape, mv_avg.shape)    
-    res = np.sqrt(np.mean(np.power(surf1 - mv_avg, 2),axis=1))
-    # print(res.shape)
-    return np.mean(res)
+
+    # res_surf = np.sqrt(np.mean(np.power(surf1 - mv_avg_surf, 2),axis=1))
+    res_surf = np.mean(np.abs(surf-mv_avg_surf),axis=1)
+    # print(res_surf.shape)
+    return res_surf
  
+def plot_surface(S, dest, title=''):
+    '''
+    plot the surfaceData used for the normalization
+    mainly for debugging purposes
+    '''
+    
+    plt.ioff()
+    plt.figure()
+    
+    Surf = S-np.amin(S)
+    
+    plt.imshow(Surf, cmap=cm.jet)
+    plt.colorbar()
+    plt.title(title) 
+    plt.savefig(dest)
+        
+    plt.close()
 
-def calc_surf_fft(file):
-    P = load_seg(file)
-    Pproj = np.sum(P, axis=2)
-    
-    
-    #fig, ax = plt.subplots()
-    
-    Pproj_ = gaussian_filter1d(Pproj, sigma=7, axis=1)
-    
-    #ax.plot(Pproj[:,100])
-    #ax.plot(Pproj_[:,100])
-    
-    Maxima = np.argmax(Pproj_, axis=0)
-    
-    surf1 = np.zeros((P.shape[1], P.shape[2]))
-    surf2 = np.zeros_like(surf1)
-    
-    offs=50
-    #print(P.shape)
-    
-    for y in np.arange(P.shape[1]):
-        for x in np.arange(P.shape[2]):
-            nz = np.nonzero(P[Maxima[y]-offs:, y, x])
-            nz = nz[0]
-            #print(nz)
-            # only valid if we captured the whole thing
-            if len(nz) == 0:
-                #print('no epidermis')
-                if np.sum(P[:,y,x]) == 0:
-                    surf1[y,x] = offs
-                    surf2[y,x] = offs
-                    
-                    # surf1[y,:] = 0
-                    # surf2[y,:] = 0
-                    # TODO: what to put in these values!
-                    # maybe the problem will solve itself when we have better
-                    # network
-                    #print(file[-100:], 'really no epidermis')
-            else:
-                if nz[0] == 0:
-                    print('inside the layer!')
-                    pass
-                else:
-                    # TODO check if holes
-                    surf1[y,x] = nz[0]
-                    surf2[y,x] = nz[-1]
-                    
-    
-    surf1 = surf1 - (np.mean(surf1, axis=1, keepdims=True))    
-    
-    pad = 0
+window=5
+print('window',window)
 
-    surf1 = np.concatenate((np.zeros((surf1.shape[0],pad)),
-                            surf1,
-                            np.zeros((surf1.shape[0],pad))),axis=1)
+dirs = ['/home/gerlstefan/data/layerunet/miccai/200201-04-BCE',
+        '/home/gerlstefan/data/layerunet/miccai/200202-02-BCE_S_1',
+        '/home/gerlstefan/data/layerunet/miccai/200202-03-BCE_S_10',
+        '/home/gerlstefan/data/layerunet/miccai/200202-04-BCE_S_100']
+# dirs = ['/home/gerlstefan/data/layerunet/miccai/200201-04-BCE',
+#         '/home/gerlstefan/data/layerunet/miccai/200201-05-BCE_W',
+#         '/home/gerlstefan/data/layerunet/miccai/200201-06-BCE_W_S_1',
+#         '/home/gerlstefan/data/layerunet/miccai/200201-07-BCE_W_S_10',
+#         '/home/gerlstefan/data/layerunet/miccai/200202-00-BCE_W_S_100',
+#         '/home/gerlstefan/data/layerunet/miccai/200202-01-BCE_W_S_1000'
+#         ]
+for loc in dirs:
+    files = os.listdir(loc)
+    files = [el for el in files if "_pred.nii.gz" in el]
+    P = []
+    for f in files:
+        P.append(load_seg(os.path.join(loc,f)))
+    P = np.concatenate(P, axis=1)
+    surf1, surf2, n_holes = extract_surf(P)
+    # save surfaces as images
+    plot_surface(surf1, os.path.join(loc,'surf1.png')) 
+    plot_surface(surf2, os.path.join(loc,'surf2.png')) 
     
-    
-    #surf1 +=np.tile(1*np.sin(np.linspace(-np.pi,np.pi,surf1.shape[1])),(surf1.shape[0],1))
-    
-    #surf1 +=np.tile(1*np.sin(np.linspace(-100*np.pi,100*np.pi,surf1.shape[1])),(surf1.shape[0],1))
-    
-                
-    surf1_fft = np.fft.fft(surf1, axis=1)
-
-    surf1_fft = np.fft.fftshift(surf1_fft, axes=1)
-    
-    surf1_fft_mean = np.mean(surf1_fft, axis=0)
-    
-    return surf1_fft_mean, surf1_fft
-
-dirr1 = '/home/stefan/fbserver_ssh/data/layerunet/miccai/200125-01-s0/prediction'
-
-dirr1p5 = '/home/stefan/fbserver_ssh/data/layerunet/miccai/200125-03-s1/prediction'
-dirr2 = '/home/stefan/fbserver_ssh/data/layerunet/miccai/200125-02-s100/prediction'
-dirr3 = '/home/stefan/fbserver_ssh/data/layerunet/miccai/200126-00-s1000/prediction'
-dirr4 = '/home/stefan/fbserver_ssh/data/layerunet/miccai/200125-04-s10000/prediction'
-
-files = os.listdir(dirr1)
-
-filename= files[7]
-
-print(files)
-print(filename)
-
+    surf1_rms = rms_roughness(surf1,window=window)
+    surf2_rms = rms_roughness(surf2,window=window)
+    rms = np.concatenate((surf1_rms, surf2_rms), axis=0)
+    print(os.path.basename(loc),'holes', n_holes, 'roughness', np.mean(rms))
+end
 file1 = os.path.join(dirr1,filename)
 file1p5 = os.path.join(dirr1p5,filename)
 file2 = os.path.join(dirr2,filename)
