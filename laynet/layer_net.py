@@ -15,7 +15,7 @@ from torchvision import transforms, utils
 import numpy as np
 from scipy import ndimage
 
-from ._model import UNet
+from ._model import UNet, Fcn
 import laynet._metrics as lfs #lfs=lossfunctions
 from ._dataset import RSOMLayerDataset, RSOMLayerDatasetUnlabeled, \
                       RandomZShift, ZeroCenter, CropToEven, DropBlue, \
@@ -61,18 +61,25 @@ class LayerNetBase():
 
 
         self.size_pred = len(self.pred_dataset)
-
-        self.minibatch_size = 1
         self.device = device
         self.dtype = torch.float32
         
-        self.model = UNet(in_channels=2,
-                          n_classes=1,
-                          depth=self.model_depth,
-                          wf=6,
-                          padding=True,
-                          batch_norm=True,
-                          up_mode='upconv').to(self.device)
+        if model_type == 'unet':
+            self.model = UNet(in_channels=2,
+                            n_classes=1,
+                            depth=model_depth,
+                            wf=6,
+                            padding=True,
+                            batch_norm=True,
+                            up_mode='upconv',
+                            dropout=dropout)
+        elif model_type =='fcn':
+            self.model = Fcn()
+        else:
+            raise NotImplementedError
+        model = model.to(self.device)
+        
+        self.minibatch_size = 1 if model_type == 'unet' else 19
         
         if self.dirs['model']:
             self.model.load_state_dict(torch.load(self.dirs['model']))
@@ -357,6 +364,7 @@ class LayerNet(LayerNetBase):
                  device=torch.device('cuda'),
                  sdesc='',
                  model_depth=3,
+                 model_type='unet',
                  dataset_zshift=0,
                  dirs={'train':'','eval':'', 'model':'', 'pred':'', 'out':''},
                  optimizer = 'Adam',
@@ -423,20 +431,26 @@ class LayerNet(LayerNetBase):
                 self.out_pred_dir = os.path.join(self.dirs['out'],'prediction')
                 os.mkdir(self.out_pred_dir)
         # MODEL
-        self.model = UNet(in_channels=2,
-                         n_classes=1,
-                         depth=model_depth,
-                         wf=6,
-                         padding=True,
-                         batch_norm=True,
-                         up_mode='upconv',
-                         dropout=dropout)
+        if model_type == 'unet':
+            self.model = UNet(in_channels=2,
+                            n_classes=1,
+                            depth=model_depth,
+                            wf=6,
+                            padding=True,
+                            batch_norm=True,
+                            up_mode='upconv',
+                            dropout=dropout)
+        elif model_type =='fcn':
+            self.model = Fcn()
+        else:
+            raise NotImplementedError
         self.model_dropout = dropout
         
         self.model = self.model.to(device)
         self.model = self.model.float()
         
-        print(self.model.down_path[0].block.state_dict()['0.weight'].device)
+        if model_type == 'unet':
+            print(self.model.down_path[0].block.state_dict()['0.weight'].device)
 
         self.model_depth = model_depth
         
@@ -469,7 +483,7 @@ class LayerNet(LayerNetBase):
                                            batch_size=self.train_batch_size, 
                                            shuffle=True, 
                                            drop_last=False,
-                                           num_workers=3, 
+                                           num_workers=4, 
                                            pin_memory=True)
 
 
@@ -487,7 +501,7 @@ class LayerNet(LayerNetBase):
                                           batch_size=self.eval_batch_size, 
                                           shuffle=False,
                                           drop_last=False,
-                                          num_workers=0, 
+                                          num_workers=4, 
                                           pin_memory=True)
         if dirs['pred']: 
             self.pred_dataset = RSOMLayerDataset(
@@ -544,7 +558,7 @@ class LayerNet(LayerNetBase):
         self.size_pred = len(self.pred_dataset)
         self.args.size_train = len(self.train_dataset)
         self.args.size_eval = len(self.eval_dataset)
-        self.args.minibatch_size = 5
+        self.args.minibatch_size = 5 if model_type == 'unet' else 19
         self.minibatch_size = self.args.minibatch_size
         self.args.device = device
         self.device = device

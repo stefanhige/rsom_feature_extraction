@@ -5,22 +5,22 @@ from laynet._metrics import custom_loss_1_smooth, bce_and_smooth
 from laynet import LayerNet, LayerNetBase
 
 # torch.backends.cudnn.benchmark = True
-mode = 'predict'
+mode = 'train'
 
 if mode == 'train':
     N = 1
 
-    sdesc = ['BCE_S_2900']
+    sdesc = ['FCN_BCE', 'FCN_BCE_S100', 'FCN_BCE_S1000', 'FCN_BCE_S2000']
     # sdesc = ['BCE_S_1', 'BCE_S_10', 'BCE_S_100', 'BCE_S_1000']
-    s = [2900]
+    s = [0, 100, 1000, 2000]
     root_dir = '/home/gerlstefan/data/layerunet/fullDataset/miccai/crossval/0'
 
     DEBUG = False
-    DEBUG = True
+    # DEBUG = True
 
-    out_dir = '/home/gerlstefan/data/layerunet/miccai'
+    out_dir = '/home/gerlstefan/data/layerunet/miccai/fcn'
     # pred_dir = '/home/gerlstefan/data/pipeline/selection1/t_rt_mp_gn/tmp/layerseg_prep'
-            
+    model_type = 'fcn'        
     os.environ["CUDA_VISIBLE_DEVICES"]='4'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -37,6 +37,7 @@ if mode == 'train':
         net1 = LayerNet(device=device,
                         sdesc=sdesc[idx],
                         model_depth=5,
+                        model_type=model_type,
                         dataset_zshift=(-50, 200),
                         dirs=dirs,
                         optimizer='Adam',
@@ -78,7 +79,8 @@ elif mode == 'predict':
                   'pred': pred_dir,
                   'out': out_dir},
             device=device,
-            model_depth=5)
+            model_depth=5,
+            model_type=model_type)
     net1.predict_calc()
 
 
