@@ -5,7 +5,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-
+import math
 
 class UNet(nn.Module):
     def __init__(
@@ -157,4 +157,95 @@ class UNetUpBlock(nn.Module):
         # debug
         # print(out.shape)
         return out
+
+
+
+class Fcn(nn.Module):
+    def __init__(self, 
+            in_channels=2,
+            channels=[2, 5, 10, 20, 50, 1],
+            kernels=[3, 5, 5, 3, 1],
+            depth=5,
+            padding=True,
+            dropout=False, 
+            batchnorm=True):
+        
+        super(Fcn, self).__init__()
+       
+        # SETTINGS
+        self.in_channels = in_channels
+        self.depth = depth
+        self.dropout = dropout
+        self.padding = padding
+        # generate dropout list for every layer
+        if dropout:
+            self.dropouts = [0, 0, 0.3, 0.3, 0]
+        else:
+            self.dropouts = [0] * depth
+
+        # generate channels list for every layer
+        self.channels = channels
+        # override in_channels
+        self.channels[0] = in_channels
+
+        # generate kernel size list
+        self.kernels = kernels
+        
+        self.batchnorm = batchnorm
+        if batchnorm:
+            self.batchnorms = [0] + [1]*(depth-2) + [0]
+        else:
+            self.batchnorms = [0]*(depth)
+
+        assert len(self.dropouts) == depth
+        assert len(self.channels) == depth + 1
+        assert len(self.kernels) == depth
+        assert len(self.batchnorms) == depth
+
+        layers = []
+        for i in range(depth-1):
+            layers.append(FcnBlock(
+                self.channels[i],
+                self.channels[i+1],
+                self.kernels[i],
+                self.batchnorms[i],
+                self.dropouts[i],
+                self.padding))
+        # last layer
+        layers.append(nn.Conv2d(self.channels[-2], self.channels[-1], self.kernels[-1])) 
+
+        self.layers = nn.Sequential(*layers)
+    def forward(self, x):
+        return self.layers(x)
+
+
+class FcnBlock(nn.Module):
+    def __init__(self, in_size, out_size, kernel_size, batchnorm, dropout, padding):
+        super(FcnBlock, self).__init__()
+
+        block = []
+
+        block.append(nn.Conv2d(in_size, 
+            out_size, 
+            kernel_size, 
+            padding=(math.floor(kernel_size/2) if padding else 0)))
+        block.append(nn.ReLU())
+        if batchnorm:
+            block.append(nn.BatchNorm2d(out_size))
+        if dropout:
+            block.append(nn.Dropout2d(dropout))
+        
+        self.block = nn.Sequential(*block)
+
+    def forward(self, x):
+        return self.block(x)
+
+if __name__ == '__main__':
+
+    A = torch.ones([1,2,100,100])
+
+    net = Fcn(padding=True)
+
+    y = net(A)
+
 
