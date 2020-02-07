@@ -5,23 +5,23 @@ from laynet._metrics import custom_loss_1_smooth, bce_and_smooth
 from laynet import LayerNet, LayerNetBase
 
 # torch.backends.cudnn.benchmark = True
-mode = 'train'
+mode = 'predict'
 
 if mode == 'train':
     N = 1
 
-    sdesc = ['BCE_S_10000']
+    sdesc = ['BCE_S_2900']
     # sdesc = ['BCE_S_1', 'BCE_S_10', 'BCE_S_100', 'BCE_S_1000']
-    s = [10000]
+    s = [2900]
     root_dir = '/home/gerlstefan/data/layerunet/fullDataset/miccai/crossval/0'
 
     DEBUG = False
-    # DEBUG = True
+    DEBUG = True
 
     out_dir = '/home/gerlstefan/data/layerunet/miccai'
     # pred_dir = '/home/gerlstefan/data/pipeline/selection1/t_rt_mp_gn/tmp/layerseg_prep'
             
-    os.environ["CUDA_VISIBLE_DEVICES"]='6'
+    os.environ["CUDA_VISIBLE_DEVICES"]='4'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     for idx in range(N):
@@ -65,13 +65,13 @@ if mode == 'train':
 
 elif mode == 'predict':
 
-    os.environ["CUDA_VISIBLE_DEVICES"]='6'
+    os.environ["CUDA_VISIBLE_DEVICES"]='4'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
    
     pred_dir = '/home/gerlstefan/data/layerunet/fullDataset/miccai/default/.test'
     # model_dir ='/home/gerlstefan/models/layerseg/test/mod_191101_depth5.pt'
-    model_dir ='/home/gerlstefan/data/layerunet/miccai/200202-04-BCE_S_100/mod200202-04.pt'
-    out_dir ='/home/gerlstefan/data/layerunet/miccai/200202-04-BCE_S_100'
+    model_dir ='/home/gerlstefan/data/layerunet/miccai/200206-00-BCE_S_2900/mod200206-00.pt'
+    out_dir ='/home/gerlstefan/data/layerunet/miccai/200206-00-BCE_S_2900'
     
     net1 = LayerNetBase(
             dirs={'model': model_dir,

@@ -110,8 +110,7 @@ def extract_surf(P):
 def rms_roughness(surf, window=5):
     mv_avg_surf = uniform_filter1d(surf, window, axis=1)
     
-
-    # res_surf = np.sqrt(np.mean(np.power(surf1 - mv_avg_surf, 2),axis=1))
+    # res_surf = np.sqrt(np.mean(np.power(surf - mv_avg_surf, 2),axis=1))
     res_surf = np.mean(np.abs(surf-mv_avg_surf),axis=1)
     # print(res_surf.shape)
     return res_surf
@@ -140,7 +139,12 @@ print('window',window)
 dirs = ['/home/gerlstefan/data/layerunet/miccai/200201-04-BCE',
         '/home/gerlstefan/data/layerunet/miccai/200202-02-BCE_S_1',
         '/home/gerlstefan/data/layerunet/miccai/200202-03-BCE_S_10',
-        '/home/gerlstefan/data/layerunet/miccai/200202-04-BCE_S_100']
+        '/home/gerlstefan/data/layerunet/miccai/200202-04-BCE_S_100',
+        '/home/gerlstefan/data/layerunet/miccai/200202-05-BCE_S_1000',
+        '/home/gerlstefan/data/layerunet/miccai/200203-02-BCE_S_2000',
+        '/home/gerlstefan/data/layerunet/miccai/200204-00-BCE_S_2500',
+        '/home/gerlstefan/data/layerunet/miccai/200204-01-BCE_S_2800']
+
 # dirs = ['/home/gerlstefan/data/layerunet/miccai/200201-04-BCE',
 #         '/home/gerlstefan/data/layerunet/miccai/200201-05-BCE_W',
 #         '/home/gerlstefan/data/layerunet/miccai/200201-06-BCE_W_S_1',
@@ -308,36 +312,4 @@ ax2.tick_params(axis='y', labelcolor=color)
 
 fig.tight_layout()  # otherwise the right y-label is slightly clipped
 plt.show()
-
-
-
-        
-    
-
-
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-
 
