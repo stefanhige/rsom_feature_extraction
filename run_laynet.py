@@ -8,11 +8,11 @@ from laynet import LayerNet, LayerNetBase
 mode = 'train'
 
 if mode == 'train':
-    N = 1
+    N = 5
 
-    sdesc = ['FCN_BCE', 'FCN_BCE_S100', 'FCN_BCE_S1000', 'FCN_BCE_S2000']
+    sdesc = ['FCN_BCE', 'FCN_BCE_S1', 'FCN_BCE_S10', 'FCN_BCE_S100', 'FCN_BCE_S1000']
     # sdesc = ['BCE_S_1', 'BCE_S_10', 'BCE_S_100', 'BCE_S_1000']
-    s = [0, 100, 1000, 2000]
+    s = [0, 1, 10, 100, 1000]
     root_dir = '/home/gerlstefan/data/layerunet/fullDataset/miccai/crossval/0'
 
     DEBUG = False
@@ -47,7 +47,7 @@ if mode == 'train':
                         lossfn_smoothness=s[idx],
                         lossfn_window=5,
                         lossfn_spatial_weight_scale=False,
-                        epochs=40,
+                        epochs=80,
                         dropout=True,
                         class_weight=None,
                         DEBUG=DEBUG,

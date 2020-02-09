@@ -136,14 +136,20 @@ def plot_surface(S, dest, title=''):
 window=5
 print('window',window)
 
-dirs = ['/home/gerlstefan/data/layerunet/miccai/200201-04-BCE',
-        '/home/gerlstefan/data/layerunet/miccai/200202-02-BCE_S_1',
-        '/home/gerlstefan/data/layerunet/miccai/200202-03-BCE_S_10',
-        '/home/gerlstefan/data/layerunet/miccai/200202-04-BCE_S_100',
-        '/home/gerlstefan/data/layerunet/miccai/200202-05-BCE_S_1000',
-        '/home/gerlstefan/data/layerunet/miccai/200203-02-BCE_S_2000',
-        '/home/gerlstefan/data/layerunet/miccai/200204-00-BCE_S_2500',
-        '/home/gerlstefan/data/layerunet/miccai/200204-01-BCE_S_2800']
+
+dirs = ['/home/gerlstefan/data/layerunet/miccai/fcn/200208-00-FCN_BCE/prediction',
+        '/home/gerlstefan/data/layerunet/miccai/fcn/200208-01-FCN_BCE_S1/prediction',
+        '/home/gerlstefan/data/layerunet/miccai/fcn/200208-02-FCN_BCE_S10/prediction',
+        '/home/gerlstefan/data/layerunet/miccai/fcn/200208-03-FCN_BCE_S100/prediction']
+
+# dirs = ['/home/gerlstefan/data/layerunet/miccai/200201-04-BCE',
+#         '/home/gerlstefan/data/layerunet/miccai/200202-02-BCE_S_1',
+#         '/home/gerlstefan/data/layerunet/miccai/200202-03-BCE_S_10',
+#         '/home/gerlstefan/data/layerunet/miccai/200202-04-BCE_S_100',
+#         '/home/gerlstefan/data/layerunet/miccai/200202-05-BCE_S_1000',
+#         '/home/gerlstefan/data/layerunet/miccai/200203-02-BCE_S_2000',
+#         '/home/gerlstefan/data/layerunet/miccai/200204-00-BCE_S_2500',
+#         '/home/gerlstefan/data/layerunet/miccai/200204-01-BCE_S_2800']
 
 # dirs = ['/home/gerlstefan/data/layerunet/miccai/200201-04-BCE',
 #         '/home/gerlstefan/data/layerunet/miccai/200201-05-BCE_W',

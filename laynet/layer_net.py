@@ -79,7 +79,7 @@ class LayerNetBase():
             raise NotImplementedError
         model = model.to(self.device)
         
-        self.minibatch_size = 1 if model_type == 'unet' else 19
+        self.minibatch_size = 1 if model_type == 'unet' else 9
         
         if self.dirs['model']:
             self.model.load_state_dict(torch.load(self.dirs['model']))
@@ -558,7 +558,7 @@ class LayerNet(LayerNetBase):
         self.size_pred = len(self.pred_dataset)
         self.args.size_train = len(self.train_dataset)
         self.args.size_eval = len(self.eval_dataset)
-        self.args.minibatch_size = 5 if model_type == 'unet' else 19
+        self.args.minibatch_size = 5 if model_type == 'unet' else 9
         self.minibatch_size = self.args.minibatch_size
         self.args.device = device
         self.device = device

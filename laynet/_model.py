@@ -163,9 +163,9 @@ class UNetUpBlock(nn.Module):
 class Fcn(nn.Module):
     def __init__(self, 
             in_channels=2,
-            channels=[2, 5, 10, 20, 50, 1],
-            kernels=[3, 5, 5, 3, 1],
-            depth=5,
+            channels=[2, 8, 16, 32, 64, 128, 1],
+            kernels=[3, 5, 5, 5, 5, 1],
+            depth=6,
             padding=True,
             dropout=False, 
             batchnorm=True):
