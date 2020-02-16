@@ -44,7 +44,7 @@ class LayerNetBase():
         self.out_pred_dir = dirs['out']
         self.probability = probability
 
-        self.pred_dataset = RSOMLayerDataset(
+        self.pred_dataset = RSOMLayerDatasetUnlabeled(
                 dirs['pred'],
                 transform=transforms.Compose([
                     ZeroCenter(), 
@@ -73,7 +73,7 @@ class LayerNetBase():
                             padding=True,
                             batch_norm=True,
                             up_mode='upconv',
-                            dropout=dropout)
+                            dropout=True)
         elif model_type =='fcn':
             self.model = Fcn()
         else:

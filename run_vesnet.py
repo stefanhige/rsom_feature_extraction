@@ -6,7 +6,7 @@ from vesnet import VesNet, VesNetBase
 from vesnet._model import DeepVesselNet
 from vesnet._metrics import BCEWithLogitsLoss
 
-mode = 'train'
+mode = 'predict'
 
 if mode == 'train':
     DEBUG = None
@@ -78,23 +78,23 @@ if mode == 'train':
 elif mode == 'predict':
     
     DEBUG = None
-    DEBUG = True
+    # DEBUG = True
 
-    pred_dir = '~/data/vesnet/synth+annotDataset/.test'
+    pred_dir = '~/data/vesnet/miccai/vesnettest'
     # pred_dir = '~/data/rand'
     # pred_dir = '~/data/vesnet/myskin'
 
-    desc = ('predict only test')
-    sdesc = 'mm_annot_synth+background_pred'
+    desc = ('predict_test')
+    sdesc = 'predict_test'
 
     # model_dir = ''
-    model_dir = '~/data/vesnet/out/191031-10-rt/mod191031-10.pt'
+    model_dir = '~/data/vesnet/out/miccai/200211-00-VesNetSynth+refl/mod200211-00.pt'
             
-    os.environ["CUDA_VISIBLE_DEVICES"]='3'
+    os.environ["CUDA_VISIBLE_DEVICES"]='5'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-    out_dir = '~/data/vesnet/out'
+    out_dir = '~/data/vesnet/out/miccai'
 
     dirs={'train': '',
           'eval': '', 
@@ -117,10 +117,10 @@ elif mode == 'predict':
                          desc=desc,
                          sdesc=sdesc,
                          dirs=dirs,
-                         divs=(1,1,2),
+                         divs=(2,2,2),
                          model=model,
                          batch_size=1,
-                         ves_probability=0.71031,
+                         ves_probability=0.999,
                          _DEBUG=DEBUG)
 
     net1.save_code_status()
