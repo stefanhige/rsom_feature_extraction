@@ -35,7 +35,8 @@ class LayerNetBase():
                  dirs={'train':'', 'eval':'', 'pred':'', 'model':'', 'out':''},
                  device=torch.device('cuda'),
                  model_depth=4,
-                 probability=0.5
+                 probability=0.5,
+                 model_type='unet'
                  ):
 
         self.model_depth = model_depth
@@ -77,7 +78,7 @@ class LayerNetBase():
             self.model = Fcn()
         else:
             raise NotImplementedError
-        model = model.to(self.device)
+        self.model = self.model.to(self.device)
         
         self.minibatch_size = 1 if model_type == 'unet' else 9
         

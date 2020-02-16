@@ -5,7 +5,7 @@ from laynet._metrics import custom_loss_1_smooth, bce_and_smooth
 from laynet import LayerNet, LayerNetBase
 
 # torch.backends.cudnn.benchmark = True
-mode = 'train'
+mode = 'predict'
 
 if mode == 'train':
     N = 5
@@ -18,7 +18,7 @@ if mode == 'train':
     DEBUG = False
     # DEBUG = True
 
-    out_dir = '/home/gerlstefan/data/layerunet/miccai/fcn'
+    out_dir = '/home/gerlstefan/data/layerunet/miccai/fcn/7layer'
     # pred_dir = '/home/gerlstefan/data/pipeline/selection1/t_rt_mp_gn/tmp/layerseg_prep'
     model_type = 'fcn'        
     os.environ["CUDA_VISIBLE_DEVICES"]='4'
@@ -71,8 +71,9 @@ elif mode == 'predict':
    
     pred_dir = '/home/gerlstefan/data/layerunet/fullDataset/miccai/default/.test'
     # model_dir ='/home/gerlstefan/models/layerseg/test/mod_191101_depth5.pt'
-    model_dir ='/home/gerlstefan/data/layerunet/miccai/200206-00-BCE_S_2900/mod200206-00.pt'
-    out_dir ='/home/gerlstefan/data/layerunet/miccai/200206-00-BCE_S_2900'
+    model_dir ='/home/gerlstefan/data/layerunet/miccai/fcn/7layer/200210-03-FCN_BCE_S1000/mod200210-03.pt'
+    out_dir ='/home/gerlstefan/data/layerunet/miccai/fcn/7layer/200210-03-FCN_BCE_S1000'
+    model_type = 'fcn'        
     
     net1 = LayerNetBase(
             dirs={'model': model_dir,

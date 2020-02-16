@@ -6,26 +6,26 @@ from vesnet import VesNet, VesNetBase
 from vesnet._model import DeepVesselNet
 from vesnet._metrics import BCEWithLogitsLoss
 
-mode = 'predict'
+mode = 'train'
 
 if mode == 'train':
     DEBUG = None
-    DEBUG = True
+    # DEBUG = True
 
-    root_dir = '~/data/vesnet/synthDataset/rsom_style_noisy'
+    root_dir = '~/data/vesnet/synthDataset/rsom_style_noisy+refl'
 
-    desc = ('test res ves net')
-    sdesc = 'mm_annot_synth'
+    desc = ('only synth for miccai')
+    sdesc = 'VesNetSynth'
 
     model_dir = ''
             
-    os.environ["CUDA_VISIBLE_DEVICES"]='3'
+    os.environ["CUDA_VISIBLE_DEVICES"]='5'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     train_dir = os.path.join(root_dir, 'train')
     eval_dir = os.path.join(root_dir, 'eval')
-    out_dir = '/home/gerlstefan/data/vesnet/out/minimal_annot_exp'
-    pred_dir = '/home/gerlstefan/data/vesnet/annotatedDataset/.test'
+    out_dir = '/home/gerlstefan/data/vesnet/out/miccai'
+    pred_dir = '~/data/vesnet/synthDataset/rsom_style_noisy/eval'
 
     dirs={'train': train_dir,
           'eval': eval_dir, 
@@ -35,7 +35,7 @@ if mode == 'train':
 
     dirs = {k: os.path.expanduser(v) for k, v in dirs.items()}
     
-    model = DeepVesselNet(groupnorm=True)
+    model = DeepVesselNet(groupnorm=False)
 
     # model = DeepVesselNet(in_channels=2,
     #                   channels = [2, 10, 20, 40, 80, 1],
@@ -52,12 +52,12 @@ if mode == 'train':
                   model=model,
                   dirs=dirs,
                   divs=(3,3,3),
-                  batch_size=2,
+                  batch_size=3,
                   optimizer='Adam',
                   class_weight=10,
                   initial_lr=1e-4,
                   lossfn=BCEWithLogitsLoss,
-                  epochs=15,
+                  epochs=25,
                   ves_probability=0.95,
                   _DEBUG=DEBUG
                   )
