@@ -763,6 +763,47 @@ class RSOM_vessel(RSOM):
         self.rescale_intensity()
         self.merge_volume_rgb()
     
+    def mask_layer(self, path, mode='pred', fstr='layer_pred.nii.gz'):
+        '''
+        cut off the epidermis with loading corresponding segmentation mask.
+        '''
+        
+        # generate path
+        filename = 'R' + self.file.DATETIME + self.file.ID + '_' + fstr
+        file = os.path.join(path, filename)
+        
+        print('Loading', file)
+        
+        # two modes supported, extract from prediction volume
+        # or manual input through file   
+        if mode == 'pred':
+            
+            img = nib.load(file)
+            self.S = img.get_fdata()
+            self.S = self.S.astype(np.uint8)
+            
+            assert self.Vl.shape == self.S.shape, 'Shapes of raw and segmentation do not match'
+            
+            print(self.Vl.shape)
+            print(self.S.shape)
+            
+            
+        
+        # cut away
+        self.Vl[self.S.astype(np.bool)] = 0
+        self.Vh[self.S.astype(np.bool)] = 0
+        print('after masking')
+        for x in np.arange(self.S.shape[1]):
+            for y in np.arange(self.S.shape[2]):
+                nz = np.nonzero(self.S[:, x, y])
+                # print(nz)
+                nz = nz[0]
+                if len(nz) > 0:
+                    upper = nz[0]
+                    self.Vl[:upper, x, y] = 0
+                    self.Vh[:upper, x, y] = 0
+        self.layer_end = 0
+
     def cut_layer(self, path, mode='pred', fstr='layer_pred.nii.gz'):
         '''
         cut off the epidermis with loading corresponding segmentation mask.
