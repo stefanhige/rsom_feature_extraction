@@ -26,7 +26,8 @@ from ._model import DeepVesselNet, ResVesselNet
 from ._dataset import RSOMVesselDataset, \
         DropBlue, AddDuplicateDim, ToTensor, to_numpy, \
         PrecalcSkeleton, DataAugmentation
-from ._metrics import BCEWithLogitsLoss, calc_metrics, find_cutoff, _dice
+from ._metrics import BCEWithLogitsLoss, calc_metrics, find_cutoff, _dice, \
+        calc_additional_metrics
 from .patch_handling import get_volume
 
 class VesNetBase():
@@ -174,6 +175,9 @@ class VesNetBase():
             out_score_stack = []
             dice_stack = []
             all_dice = []
+            prec = []
+            recall = []
+            iou = []
 
         if adj_cutoff or calc_dice:
             label_stack = []
@@ -211,6 +215,7 @@ class VesNetBase():
                                                          label, 
                                                          batch['meta']['label_skeleton'])
             
+                prec_, recall_, iou_ = calc_additional_metrics(prediction >= self.ves_probability, label)
             # otherwise can't reconstruct.
             if i==0:
                 assert batch['meta']['index'].item() == 0
@@ -227,6 +232,9 @@ class VesNetBase():
                 out_score_stack.append(out_score)
                 dice_stack.append(dice)
                 all_dice.append(dice)
+                prec.append(prec_)
+                recall.append(recall_)
+                iou.append(iou_)
 
 
             # if we got all patches
@@ -304,8 +312,20 @@ class VesNetBase():
                         print('Couldn\'t save prediction.')
         self.printandlog('All dice values of this run:')
         self.printandlog(all_dice)
+        self.printandlog('PRECISION')
+        self.printandlog(prec)
+        self.printandlog('RECALL')
+        self.printandlog(recall)
+        self.printandlog('IoU')
+        self.printandlog(iou)
         self.printandlog(os.path.basename(self.dirs['pred']),
                 'Dice mean: {:.5f} std: {:.5}'.format(np.nanmean(all_dice), np.nanstd(all_dice)))
+        self.printandlog('Precision mean: {:.5f} std: {:.5}'.format(
+            np.nanmean(prec), np.nanstd(prec)))
+        self.printandlog('Recall mean: {:.5f} std: {:.5}'.format(
+            np.nanmean(recall), np.nanstd(recall)))
+        self.printandlog('IoU mean: {:.5f} std: {:.5}'.format(
+            np.nanmean(iou), np.nanstd(iou)))
         if cleanup:
                 try:
                     print('Closing logfile..')

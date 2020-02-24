@@ -78,7 +78,7 @@ if mode == 'train':
 elif mode == 'predict':
     
     DEBUG = None
-    # DEBUG = True
+    DEBUG = True
 
     pred_dir = '~/data/vesnet/miccai/input_for_vesselseg/no_layerseg'
     # pred_dir = '~/data/rand'
@@ -90,7 +90,7 @@ elif mode == 'predict':
     # model_dir = ''
     model_dir = '~/data/vesnet/out/miccai/200211-00-VesNetSynth+refl/mod200211-00.pt'
             
-    os.environ["CUDA_VISIBLE_DEVICES"]='5'
+    os.environ["CUDA_VISIBLE_DEVICES"]='4'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 

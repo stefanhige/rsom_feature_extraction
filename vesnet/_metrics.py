@@ -226,33 +226,42 @@ def calc_metrics(pred, target, skel):
 
     return cl_score, out_score.item(), dice
 
-class _softcl(nn.Module):
-    def __init__(self, k=2):
-        super(_softcl, self).__init__()
-        
-        self.k = k
-        self.cl = None
-        
+def calc_recall(label, pred):
+    label = label.astype(np.bool)
+    pred = pred.astype(np.bool)
+    TP = np.sum(np.logical_and(label, pred))
+    FN = np.sum(np.logical_and(label, np.logical_not(pred)))
     
-    def forward(self, x):
-        x_ = maxminpool(x)
-        self.cl = F.relu(x-x_)
-        
-        for i in range(self.k):
-            print(i)
-            x = minpool(x)
-            x_ = maxminpool(x)
+    R = TP / (TP + FN)
+    return R
 
-            self.cl += F.relu(x-x_)
-        return self.cl
+def calc_precision(label, pred):
+    label = label.astype(np.bool)
+    pred = pred.astype(np.bool)
+    TP = np.sum(np.logical_and(label, pred))
+    FP = np.sum(np.logical_and(pred, np.logical_not(label)))
     
-def minpool(x):
-    return -F.max_pool3d(-x, kernel_size=3, stride=1, padding=1, dilation=1)
+    P = TP / (TP + FP) 
+    return P
+def _iou(x, y):
+    if isinstance(x, torch.Tensor):
+        x = x.cpu().numpy()
+    if isinstance(y, torch.Tensor):
+        y = y.cpu().numpy()
 
-def maxminpool(x):
-    return F.max_pool3d(minpool(x), kernel_size=3, stride=1, padding=1, dilation=1)
-            
+    x = x.astype(np.bool)
+    y = y.astype(np.bool)
 
+    i = np.logical_and(x,y)
+    return i.sum() / np.logical_or(x, y).sum()
+
+def calc_additional_metrics(pred, target):
+    pred = pred.cpu().numpy()
+    target = target.cpu().numpy()
+    recall = calc_recall(target, pred)
+    prec = calc_precision(target, pred)
+    iou = _iou(target, pred)
+    return prec, recall, iou
 if __name__ == '__main__':
 
 #    import os
