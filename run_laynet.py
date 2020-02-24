@@ -66,14 +66,14 @@ if mode == 'train':
 
 elif mode == 'predict':
 
-    os.environ["CUDA_VISIBLE_DEVICES"]='5'
+    os.environ["CUDA_VISIBLE_DEVICES"]='4'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
    
     pred_dir = '/home/gerlstefan/data/vesnet/miccai/input_for_layerseg'
     # model_dir ='/home/gerlstefan/models/layerseg/test/mod_191101_depth5.pt'
-    model_dir ='/home/gerlstefan/data/layerunet/miccai/fcn/7layer/200210-01-FCN_BCE_S10/mod200210-01.pt'
-    out_dir ='/home/gerlstefan/data/vesnet/miccai/layerseg_prediction/fcn/200210-01-FCN_BCE_S10'
-    model_type = 'fcn'
+    model_dir ='/home/gerlstefan/data/layerunet/miccai/200202-05-BCE_S_1000/mod200202-05.pt'
+    out_dir ='/home/gerlstefan/data/vesnet/miccai/layerseg_prediction/unet/200202-05-BCE_S_1000'
+    model_type = 'unet'
     
     net1 = LayerNetBase(
             dirs={'model': model_dir,

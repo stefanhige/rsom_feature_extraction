@@ -173,6 +173,7 @@ class VesNetBase():
             cl_score_stack = []
             out_score_stack = []
             dice_stack = []
+            all_dice = []
 
         if adj_cutoff or calc_dice:
             label_stack = []
@@ -225,6 +226,7 @@ class VesNetBase():
                 cl_score_stack.append(cl_score)
                 out_score_stack.append(out_score)
                 dice_stack.append(dice)
+                all_dice.append(dice)
 
 
             # if we got all patches
@@ -246,6 +248,7 @@ class VesNetBase():
                         np.nanmean(cl_score_stack), 
                         np.nanmean(out_score_stack), 
                         np.nanmean(dice_stack)))
+                    self.printandlog('dice:', dice_stack)  
                     print(cl_score_stack)
                     print(out_score_stack)
                     print(dice_stack)
@@ -299,12 +302,16 @@ class VesNetBase():
                             self.saveNII(V, dest_dir, fstr)
                     else:
                         print('Couldn\'t save prediction.')
+        self.printandlog('All dice values of this run:')
+        self.printandlog(all_dice)
+        self.printandlog(os.path.basename(self.dirs['pred']),
+                'Dice mean: {:.5f} std: {:.5}'.format(np.nanmean(all_dice), np.nanstd(all_dice)))
         if cleanup:
-            try:
-                print('Closing logfile..')
-                self.logfile.close()
-            except:
-                pass
+                try:
+                    print('Closing logfile..')
+                    self.logfile.close()
+                except:
+                    pass
     @staticmethod
     def saveNII(V, path, fstr):
         img = nib.Nifti1Image(V, np.eye(4))
@@ -391,6 +398,8 @@ class VesNet(VesNetBase):
                 self.logfile=None
         
         self.printandlog('DESCRIPTION:', desc)
+
+        self.printandlog('predicting files from:', self.dirs['pred'])
 
         # MODEL
         if model is not None:

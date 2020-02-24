@@ -10,7 +10,7 @@ mode = 'predict'
 
 if mode == 'train':
     DEBUG = None
-    # DEBUG = True
+    DEBUG = True
 
     root_dir = '~/data/vesnet/synthDataset/rsom_style_noisy+refl'
 
@@ -80,12 +80,12 @@ elif mode == 'predict':
     DEBUG = None
     # DEBUG = True
 
-    pred_dir = '~/data/vesnet/miccai/vesnettest'
+    pred_dir = '~/data/vesnet/miccai/input_for_vesselseg/no_layerseg'
     # pred_dir = '~/data/rand'
     # pred_dir = '~/data/vesnet/myskin'
 
-    desc = ('predict_test')
-    sdesc = 'predict_test'
+    sdesc = 'no-layerseg'
+    desc = (sdesc)
 
     # model_dir = ''
     model_dir = '~/data/vesnet/out/miccai/200211-00-VesNetSynth+refl/mod200211-00.pt'
@@ -120,7 +120,7 @@ elif mode == 'predict':
                          divs=(2,2,2),
                          model=model,
                          batch_size=1,
-                         ves_probability=0.999,
+                         ves_probability=0.9999,
                          _DEBUG=DEBUG)
 
     net1.save_code_status()
