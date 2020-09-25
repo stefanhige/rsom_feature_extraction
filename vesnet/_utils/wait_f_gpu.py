@@ -41,7 +41,7 @@ with smtplib.SMTP_SSL('smtp.gmail.com', port, context=context) as server:
     server.sendmail(sender_email, receiver_email, message)
 
 
-# py_script = 'VesNET.py'
+# py_script = 'my_stupid_ML_experiment.py'
 
 # subprocess.run(['tmux send -t \{next\} \"ipython\" ENTER'], shell=True)
 # time.sleep(1)
