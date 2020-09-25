@@ -8,8 +8,9 @@ import smtplib, ssl
 ctr = 0
 print('waiting for gpu becoming free...')
 while 1:
-    
-    cmd = 'nvidia-smi | grep -B 1 -m 1 10MiB | grep "|   [0-9]" -m 1 -o | grep [0-9] -o; exit 0'
+    # old CUDA
+    # cmd = 'nvidia-smi | grep -B 1 -m 1 10MiB | grep "|   [0-9]" -m 1 -o | grep [0-9] -o; exit 0'
+    cmd = 'nvidia-smi | grep -B 1 -m 1 " 0MiB" | grep "|   [0-9]" -m 1 -o | grep [0-9] -o; exit 0'
     res = subprocess.check_output([cmd], shell=True)
     res = res.decode('utf-8').replace('\n','')
     if res is not '':
@@ -21,9 +22,6 @@ while 1:
         print('Waiting', ctr/60, 'mins')
 
 print('GPU Nr:', res)
-print('train .....')
-
-
 
 port = 465  # For SSL
 password = b'\x66\x62\x73\x65\x72\x76\x65\x72\x77\x65\x72\x74'.decode('utf-8')
