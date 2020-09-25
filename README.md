@@ -25,7 +25,9 @@ The class interface for performing a ML experiment (both training and prediction
 
 To run the vessel segmentation, use the script `run_vesnet.py` at the top level of the repository.
 
-`pipeline.py` runs the whole inference process from preproccessing to layer and vessel segmentation and visualization. However, consider looking at https://github.com/stefanhige/pytorch-rsom-seg instead.
+## Application
+
+`pipeline.py` runs the whole process from preproccessing to layer and vessel segmentation and visualization. However, consider looking at https://github.com/stefanhige/pytorch-rsom-seg instead.
 
 
 
