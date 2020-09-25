@@ -9,7 +9,7 @@ This code will most likely not run "as it is".
 ## Preprocessing
 
 Preprocessing steps to generate .nii.gz files from MATLAB measurement files can be found in folder `prep`.
-`prep_{layerseg, layerseg_interp, vessel}.py` are executable files.
+`prep_{layerseg, layerseg_interp, vessel}.py` are executable scripts.
 
 ## Layer Segmentation
 
