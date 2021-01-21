@@ -158,13 +158,13 @@ def _dice(x, y):
 
     return (2. * i.sum()) / (x.sum() + y.sum())
     
-def calc_metrics(pred, target, skel):
+def calc_metrics(pred, target, skel, device):
     """
     calculate metrics e.g. dice, centerline score
     """
 
     S = skel
-    S = S.to('cuda', dtype=torch.bool)
+    S = S.to(device, dtype=torch.bool)
     
     #debug
     # pred = copy.deepcopy(target)
@@ -191,7 +191,7 @@ def calc_metrics(pred, target, skel):
     # to generate hull
     ball_r = 5 
     element = morphology.ball(ball_r) # good value seems in between 3 and 5
-    element = torch.from_numpy(element).to('cuda', dtype=torch.float32)
+    element = torch.from_numpy(element).to(device, dtype=torch.float32)
     element = torch.unsqueeze(torch.unsqueeze(element, 0), 0)
 
     # dilation: use torch conv3d

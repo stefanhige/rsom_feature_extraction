@@ -203,7 +203,8 @@ class VesNetBase():
             # acutally, this does not influence memory usage
             with torch.no_grad(): 
                 prediction = self.model(data)
-            debug(torch.cuda.max_memory_allocated()/1e6, 'MB memory used') 
+            if self.device == torch.device('cuda'):
+                debug(torch.cuda.max_memory_allocated()/1e6, 'MB memory used') 
             prediction = prediction.detach()
             # convert to probabilities
             sigmoid = torch.nn.Sigmoid()
@@ -213,7 +214,8 @@ class VesNetBase():
             if metrics:
                 cl_score, out_score, dice = calc_metrics(prediction >= self.ves_probability, 
                                                          label, 
-                                                         batch['meta']['label_skeleton'])
+                                                         batch['meta']['label_skeleton'],
+                                                         self.device)
             
                 prec_, recall_, iou_ = calc_additional_metrics(prediction >= self.ves_probability, label)
             # otherwise can't reconstruct.
@@ -434,10 +436,11 @@ class VesNet(VesNetBase):
         
         if self.dirs['model']:
             self.printandlog('Loading model from:', self.dirs['model'])
-            try:
-                self.model.load_state_dict(torch.load(self.dirs['model']))
-            except:
-                self.printandlog('Could not load model!') 
+            #try:
+            #    self.model.load_state_dict(torch.load(self.dirs['model']))
+            #except:
+            #    self.printandlog('Could not load model!')
+            self.model.load_state_dict(torch.load(self.dirs['model']))
 
 
         self.model = self.model.to(device)
@@ -599,7 +602,8 @@ class VesNet(VesNetBase):
 
             cl_score, out_score, dice = calc_metrics(bool_prediction, 
                                                      label, 
-                                                     batch['meta']['label_skeleton'])
+                                                     batch['meta']['label_skeleton'],
+                                                     self.device)
             
             cl_score_stack.append(curr_batch_size * cl_score)
             out_score_stack.append(curr_batch_size * out_score) 

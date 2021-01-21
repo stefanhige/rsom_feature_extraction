@@ -78,9 +78,9 @@ if mode == 'train':
 elif mode == 'predict':
     
     DEBUG = None
-    DEBUG = True
+    # DEBUG = True
 
-    pred_dir = '~/data/vesnet/miccai/input_for_vesselseg/no_layerseg'
+    pred_dir = '~/Downloads/rsom_dice/in'
     # pred_dir = '~/data/rand'
     # pred_dir = '~/data/vesnet/myskin'
 
@@ -88,13 +88,13 @@ elif mode == 'predict':
     desc = (sdesc)
 
     # model_dir = ''
-    model_dir = '~/data/vesnet/out/miccai/200211-00-VesNetSynth+refl/mod200211-00.pt'
-            
+    model_dir = '/home/stefan/Downloads/rsom_dice/comparison/nils/201105-00-SYNTH_PRED_RSOM/mod201105-00.pt'
+    # model_dir = '/home/stefan/Downloads/rsom_dice/comparison/stefan/191207-06-mm_annot_synth/mod191207-06.pt'        
     os.environ["CUDA_VISIBLE_DEVICES"]='4'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-    out_dir = '~/data/vesnet/out/miccai'
+    out_dir = '~/Downloads/rsom_dice/out'
 
     dirs={'train': '',
           'eval': '', 
@@ -104,8 +104,8 @@ elif mode == 'predict':
 
     dirs = {k: os.path.expanduser(v) for k, v in dirs.items()}
 
-    model = DeepVesselNet() 
-    # model = DeepVesselNet(groupnorm=True) 
+    # model = DeepVesselNet() 
+    model = DeepVesselNet(groupnorm=True) 
     # model = DeepVesselNet(in_channels=2,
     #                       channels = [2, 10, 20, 40, 80, 1],
     #                       kernels = [3, 5, 5, 3, 1],
@@ -117,7 +117,7 @@ elif mode == 'predict':
                          desc=desc,
                          sdesc=sdesc,
                          dirs=dirs,
-                         divs=(2,2,2),
+                         divs=(1,1,2),
                          model=model,
                          batch_size=1,
                          ves_probability=0.9999,
@@ -125,7 +125,7 @@ elif mode == 'predict':
 
     net1.save_code_status()
 
-    net1.predict(use_best=False, metrics=True, adj_cutoff=False, calc_dice=True)
+    net1.predict(use_best=False, metrics=True, adj_cutoff=True, calc_dice=False)
     # net1.predict_adj()
 
 elif mode == 'train-retrain':
