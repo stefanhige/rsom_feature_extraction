@@ -29,6 +29,7 @@ Open file *_mip3d.nii.gz in ITK_SNAP
 <img src="./screenshots/itksnap.png" width="900" caption="labeling"> 
 
 **2. Interpolate annotations**
+
 In order to retrieve the full label, the volume of 333 x 9 x 500 is going to get interpolated to 333 x 171 x 500.
 Label directory and output directory may be the same.
 `python interpolate_label.py --label-dir path/where/to/put/nii/files` --output-dir path/where/to/put/nii/files
