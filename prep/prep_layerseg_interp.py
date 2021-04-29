@@ -1,14 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri May 10 09:54:28 2019
-
-@author: sgerl
-"""
-
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
 Created on Wed May  1 16:37:36 2019
 
 interpolate the ground truth labels back to the original volume size
