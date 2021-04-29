@@ -17,12 +17,12 @@ import argparse
 from classes import RSOM_mip_interp
  
 
-def main(args)
-    origin = args['label-dir']
-    destination = args['output-dir']
+def main(args):
+    origin = args.label_dir
+    destination = args.output_dir
     
     # extract the _mip_3d_l files
-    rstr = args['annotated-endswith']
+    rstr = args.annotated_endswith
     all_files = os.listdir(origin)
     
     filename_list = [el for el in all_files if el[-len(rstr):] == rstr]
@@ -33,14 +33,15 @@ def main(args)
         # merge paths
         fullpath = os.path.join(origin, filename)
         
-        obj = RSOM_mip_interp(fullpath)
+        obj = RSOM_mip_interp(Path(fullpath))
         
         obj.readNII()
         obj.interpolate()
         obj.saveNII(destination)
         
 if __name__ == '__main__':
-   parser = argparse.ArgumentParser()
+   parser = argparse.ArgumentParser(
+           description="interpolate the ground truth labels back to the original volume size")
    parser.add_argument('--label-dir',
            help='directory of annotated data',
            required=True, type=str)
@@ -52,6 +53,8 @@ if __name__ == '__main__':
    parser.add_argument('--annotated-endswith',
            help='string pattern to identify annotated data',
            required=False, type=str, default='mip3d_l.nii.gz')
+
+   main(parser.parse_args())
 
 
 

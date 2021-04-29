@@ -26,12 +26,13 @@ Open file *_mip3d.nii.gz in ITK_SNAP
 4. For each of the 9 MIPs, create polygon with **Label 1** and click "accept"
 5. Be sure to not forget to label any of the 9 slices. After finishing, save the segmentation with the same name, except ending is *_mip3d_l.nii.gz. Can be saved in same directory.
 
+<img src="./screenshots/itksnap.png" width="600" caption="labeling"> 
+
 **Interpolate annotations**
 In order to retrieve the full label, the volume of 333 x 9 x 500 is going to get interpolated to 333 x 171 x 500.
 Label directory and output directory may be the same.
 `python interpolate_label.py --label-dir path/where/to/put/nii/files` --output-dir path/where/to/put/nii/files
 
 Verify the interpolation worked by loading the respective *_rgb.nii.gz and *_l.nii.gz files in ITK-SNAP.
-
 
 
