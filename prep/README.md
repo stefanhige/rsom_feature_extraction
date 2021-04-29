@@ -8,8 +8,6 @@ Requirements
 - numpy
 - nibabel
 - scikit-image
-- skimage
-
 **Create MIP3D for easy labeling**
 
 Starting from the MATLAB files, we create nii.gz files. RSOM data is of dimension 333 x 171 x depth.
