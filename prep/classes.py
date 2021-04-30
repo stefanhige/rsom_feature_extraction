@@ -56,7 +56,7 @@ class RSOM():
         if idxID == -1:
             idxID = filepathLF.name.find('VOL')
 
-        if idxID is not -1:
+        if idxID != -1:
             ID = filepathLF.name[idxID:idxID+11]
         else:
             # ID is different, extract string between Second "_" and third "_"
@@ -1096,25 +1096,6 @@ class RSOM_mip_interp():
         x2_q = np.arange(x_rep)
         
         
-        #x1_q, x2_q, x3_q = (
-                #x1[:, None, None], x2_q[None, :, None], x3[None, None, :])
-        
-        # TODO: 
-        #Interpolation somehow still does not work
-        # another approach, along axis=0, search for change in value,
-        # and create a 2d function, based on the indices
-        
-        # it works, just need to stack a for loop on top, in order to 
-        # process an aribitrary number of layers in z-direction
-        
-        # in case, label order is random, sort
-        
-        # determine label order of input
-        
-        # create synthetic extra label
-        # TODO: REMOVE THIS
-        #self.L_sliced[0:20,:,:] = 2
-        
         L_sliced_ = self.L_sliced.copy().astype(np.int64)
         
         # cut in direction dim 0 throught middle of the volume
@@ -1127,7 +1108,7 @@ class RSOM_mip_interp():
         n_labels = labels.size
         
         # TODO:
-        print('Warning. Processing data with poor implementation for label handling')
+        # print('Warning. Processing data with poor implementation for label handling')
         
         for xx in np.arange(x_mip):
             for yy in np.arange(shp[2]):
@@ -1144,25 +1125,10 @@ class RSOM_mip_interp():
                
         # TODO: 
         #DANGEROUS HACK
-        print('warning, remove that dangerous hack')
+        # print('warning, remove that dangerous hack')
         n_labels = n_labels + 1
         
-        
-        
         # check if labels are in shape: 0 1 2 3 4 already
-        # TODO: check boolean expression
-#        if not ((labels[0] == 0) and (np.any(np.diff(labels) - 1))):
-#            
-#            print('reshaping')
-#            # if not: reshape
-#            # add some 'large' number to the labels
-#            L_sliced_ += 20
-#            
-#            layer_ctr = 0
-#            
-#            for nl in np.arange(n_labels):
-#                L_sliced_[L_sliced_ == labels[nl] + 20] = layer_ctr
-#                layer_ctr += 1
                 
         # INPUT: in dim 0: ascending index: label order: 0 1 2 3 4
         self.L = np.zeros((shp[0], x_rep, shp[2]))
@@ -1181,8 +1147,6 @@ class RSOM_mip_interp():
             fn = interpolate.interp2d(x3, x2, surf, kind = 'cubic')
             surf_ip = fn(x3, x2_q)
             
-            
-            
             for xx in np.arange(x_rep):
                 for yy in np.arange(shp[2]):
                     self.L[0:np.round(surf_ip[xx, yy]).astype(np.int), xx, yy] += 1
@@ -1192,13 +1156,12 @@ class RSOM_mip_interp():
             L_sliced_[L_sliced_ < 0] = 0
             
         # TODO   
-        print('Warning. Processing data with poor implementation for label handling')
+        # print('Warning. Processing data with poor implementation for label handling')
         self.L[self.L == 2] = 0
         
             
         return self.L
     
-        # RESULT: in dim 0: ascending index: label order: 4 3 2 1 0
         
 
 class RsomVisualization(RSOM):

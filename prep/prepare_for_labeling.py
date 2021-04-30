@@ -35,6 +35,8 @@ def main(args):
     filenameLF_LIST = [el for el in all_files if el[-6:] == 'LF.mat']
 
     for idx, filenameLF in enumerate(filenameLF_LIST):
+        print('Processing file', idx+1, 'of', len(filenameLF_LIST))
+        
         # the other ones will be automatically defined
         filenameHF = filenameLF.replace('LF.mat','HF.mat')
         
@@ -72,7 +74,6 @@ def main(args):
         Obj.merge_volume_rgb()
         Obj.save_volume(destination, fstr = 'rgb')
         
-        print('Processing file', idx+1, 'of', len(filenameLF_LIST))
 
 if __name__ == '__main__':
    parser = argparse.ArgumentParser(

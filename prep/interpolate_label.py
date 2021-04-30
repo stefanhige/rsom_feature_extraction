@@ -8,11 +8,7 @@ interpolate the ground truth labels back to the original volume size
 @author: sgerl
 """
 from pathlib import Path
-import nibabel as nib
 import os
-import numpy as np
-import scipy.interpolate as interpolate
-from skimage import exposure
 import argparse
 from classes import RSOM_mip_interp
  
