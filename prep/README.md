@@ -11,9 +11,10 @@ Requirements
 
 **1. Create MIP3D for easy labeling**
 
-Starting from the MATLAB files, we create nii.gz files. RSOM data is of dimension 333 x 171 x depth.
-In the direction of RSOM data that has 171 pixels, we perform MIPS of each 19 voxels. The resulting volume is 333 x 9 x depth.
-Each of these 9 layers can be easily annotated using ITK-SNAP
+Starting from the MATLAB (LF, HF and surface) files, we create .nii.gz files. RSOM data is of dimension 333 x 171 x depth.
+In the direction of RSOM data that has 171 voxels, we perform MIPs of each 19 voxels. The resulting volume is 333 x 9 x depth.
+Each slice in this volume is a 2D-MIP of 19 voxels. There is no sliding window.
+Each of these 9 layers can be easily annotated using ITK-SNAP.
 In the process of calling this script, depth will be fixed to 500 (either extended or cropped).
 
 `python prepare_for_labeling.py --mat-dir /path/to/matlab/data --output-dir /path/where/to/put/nii/files`
@@ -21,9 +22,9 @@ In the process of calling this script, depth will be fixed to 500 (either extend
 Open file *_mip3d.nii.gz in ITK_SNAP
 
 1. On the left side, right click on the layer, got to multi-component-display and choose RGB.
-2. Tools -> Reorient Image -> New Orientation -> ASR
-3. Choose **Label 1** as Active Label for the segmentation
-4. For each of the 9 MIPs, create polygon with **Label 1** and click "accept"
+2. Tools -> Reorient Image -> New Orientation -> ASR.
+3. Choose **Label 1** as Active Label for the segmentation. Only use **Label 1**, other labels will break implementation!
+4. For each of the 9 MIPs, create polygon with **Label 1** and click "accept".
 5. Be sure to not forget to label any of the 9 slices. After finishing, save the segmentation with the same name, except ending is *_mip3d_l.nii.gz. Can be saved in same directory.
 
 <img src="./screenshots/itksnap.png" width="900" caption="labeling"> 
