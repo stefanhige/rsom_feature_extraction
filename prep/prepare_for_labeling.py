@@ -6,7 +6,6 @@ Created on Thu Apr 11 19:08:29 2019
 @author: sgerl
 """
 
-
 from pathlib import Path
 import argparse
 import os
@@ -14,10 +13,10 @@ import sys
 
 from classes import RSOM
 
-if __name__ == '__main__':
-    sys.path.append('../')
+#if __name__ == '__main__':
+#    sys.path.append('../')
 
-from utils.get_unique_filepath import get_unique_filepath
+#from utils.get_unique_filepath import get_unique_filepath
 
 def main(args):
     
@@ -33,6 +32,9 @@ def main(args):
 
     # extract the LF.mat files,
     filenameLF_LIST = [el for el in all_files if el[-6:] == 'LF.mat']
+    
+    if not filenameLF_LIST:
+        print("Didn't find any files in ", origin)
 
     for idx, filenameLF in enumerate(filenameLF_LIST):
         print('Processing file', idx+1, 'of', len(filenameLF_LIST))
@@ -76,17 +78,31 @@ def main(args):
         
 
 if __name__ == '__main__':
+    
+   # directory of MATLAB data
+   matlab_dir = "/some/path"
+   
+   # directory where to put nii.gz files
+   output_dir = "/some/other/path"
+   
+   
    parser = argparse.ArgumentParser(
            description="Shrink the volume for easier labeling by creating mip3d")
    parser.add_argument('--mat-dir',
            help='directory of MATLAB data',
-           required=True, type=str)
-
+           required=False, type=str)
    parser.add_argument('--output-dir',
            help='directory to put volumes.',
-           required=True, type=str)
+           required=False, type=str)
+   args = parser.parse_args()
 
-   main(parser.parse_args())
+   # command line options overwrite dirs
+   if not args.mat_dir:
+       args.mat_dir = matlab_dir
+   if not args.output_dir:
+       args.output_dir = output_dir
+
+   main(args)
 
 
 
